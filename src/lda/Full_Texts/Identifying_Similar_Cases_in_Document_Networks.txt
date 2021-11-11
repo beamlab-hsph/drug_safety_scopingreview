@@ -1,0 +1,1517 @@
+1906
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 6, NOVEMBER 2015
+
+Identifying Similar Cases in Document Networks
+Using Cross-Reference Structures
+Taxiarchis Botsis, John Scott, Emily Jane Woo, and Robert Ball
+
+Abstract—Our objective was to explore the creation of document networks based on different thresholds of shared information
+and different clustering algorithms on those networks to identify
+document clusters describing similar clinical cases. We created
+networks from vaccine adverse event report sets using seven approaches for linking reports. We then applied three clustering algorithms [visualization of similarities (VOS), Louvain, k-means] to
+these networks and evaluated their ability to identify known clusters. The report sets included one simulated set and three sets from
+the Vaccine Adverse Event Reporting System; each was split into
+training and testing subsets. Training subsets were used to estimate
+parameter values for the clustering algorithms and testing subsets
+to evaluate clusters. We created the networks by linking reports
+based on shared information in the form either of individual Medical Dictionary for Regulatory Activities Preferred Terms (PTs) or
+of dyads, triplets, quadruplets, quintuplets, and sextuplets of PTs;
+we created another network by weighting the single PT network
+connections by Lin’s information theoretic approach to similarity.
+We then repeated this entire process using networks based on text
+mining output rather than structured data. We evaluated report
+clustering using recall, precision, and f-measure. The VOS algorithm outperformed Louvain and k-means in general. The best
+weighting scheme appeared to be related to the complexity of the
+known cluster. For example, singleton weighting performed best
+for an intussusception cluster driven by a single PT. We observed
+marginal differences between the code- and textual-based clustering. In conclusion, our approach supported identification of similar
+nodes in a document network.
+Index Terms—Classification, clustering, document networks,
+postmarketing product surveillance, similarity.
+
+I. INTRODUCTION
+DENTIFYING cases that share clinical characteristics from
+databases of clinical documents is a common problem in
+clinical informatics. Examples include: finding patients for enrollment in clinical trials or inclusion in observational studies;
+
+I
+
+Manuscript received April 26, 2014; revised July 11, 2014; accepted July 31,
+2014. Date of publication August 7, 2014; date of current version November 3,
+2015.
+T. Botsis is with the Office of Biostatistics and Epidemiology, Center for Biologics Evaluation and Research, Food and Drug Administration, Silver Spring,
+MD 20993 USA and also with the Department of Computer Science, University
+of Tromsø, Tromsø 9019 Norway (e-mail: Taxiarchis.Botsis@fda.hhs.gov).
+J. Scott and E. J. Woo are with the Office of Biostatistics and Epidemiology, Center for Biologics Evaluation and Research, Food and Drug Administration, Silver Spring, MD 20993 USA (e-mail: John.Scott@fda.hhs.gov;
+Jane.Woo@fda.hhs.gov).
+R. Ball was with the Office of Biostatistics and Epidemiology, Center for Biologics Evaluation and Research. He is now with the Office of Surveillance and
+Epidemiology, Center for Drug Evaluation and Research, Food and Drug Administration, Silver Spring, MD 20993 USA (e-mail: Robert.Ball@fda.hhs.gov).
+This paper has supplementary downloadable material available at
+http://ieeexplore.ieee.org.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2345873
+
+“phenotyping” cases for studies evaluating the predictive ability
+of genomic markers; and selecting cases of suspect drug adverse events from an adverse event reporting system. A variety
+of methods in the fields of statistical classification and information retrieval have been applied to clinical documents in an
+attempt to solve this problem, but an optimal solution has not
+been found. We previously applied network analysis techniques
+to find patterns in reported medical products and adverse events
+to identify similar reports [1], [2]. We also developed and applied case definitions to classify reports using similarity metrics
+adapted from the field of information retrieval [3], [4]. In this paper, we seek to combine these two lines of work by first building
+document networks by cross-referencing their internal information structures and then evaluating both network analysis and
+statistical algorithms for their ability to cluster documents into
+clinically similar groups. We hypothesized that this approach
+might improve our ability to find documents describing similar
+clinical cases.
+General approaches to document retrieval that have been applied elsewhere (e.g., patents and legal discovery) are based on
+the construction of semantic networks from the words in the documents [5], [6]. The content in a collection of documents often
+supports the creation of semantic networks where the document
+elements (i.e., words and concepts) and their cooccurrence are
+represented as the nodes and the edges of the semantic network
+structure, respectively [7]. The topic-based networks are an example of document networks that usually treat the documents
+as “bags of words” to support the identification of documents
+related to a topic [8]. Key terms or other document attributes
+can be also used to link documents in a network topology, e.g.,
+in a citation network [9]. However, the document content is not
+fully utilized with these approaches since they mainly focus
+on the identification of patterns in the corpus rather than the
+initial evaluation of the information structure within each document. Therefore, the exploration of new algorithmic approaches
+is necessary to capture the multiple interactions between the
+information elements (IEs) and efficiently represent them in
+the network topology. This is especially important when trying to identify documents describing clinical cases with similar characteristics because of the unique nature of clinical
+language and the importance that subtle differences in clinical descriptions might have on the classification of a particular
+document.
+The concept of linking documents based on their similar content has been described previously [10] and relies on the frequency of key terms and their cooccurrence in the documents
+as part of a cosine or other similarity function [11]–[13]. In
+the latent Dirichlet allocation (LDA) approach, the documents
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+BOTSIS et al.: IDENTIFYING SIMILAR CASES IN DOCUMENT NETWORKS USING CROSS-REFERENCE STRUCTURES
+
+are represented as mixtures of topics characterized by the distributions of words defining them [14]. LDA is a successor of
+probabilistic latent Semantic Indexing [15] and has inspired
+work on topic modeling. Research in this area has focused on
+the analysis of document-based or document networks and the
+identification of entities [16], [17] or documents that are relevant to a topic [18], [19], respectively. A recent study described
+a more advanced approach and proposed the combination of
+grammatical analysis with natural language processing (NLP)
+to build patent networks, find the similarity between the patents,
+and potentially reveal new trends on the cutting edge of research
+[6]. Even though this is a different and very promising direction, clinical (and other) texts do not follow strict syntactic or
+grammar rules and are known to be plagued with ambiguities,
+insufficient concept representations, incompleteness, inaccuracies, and inconsistencies [20], [21]. The use of both the uniand the multi-gram informations at the document level to create
+connections between clinical texts may reduce the noise from
+the above characteristics and better support the identification of
+patterns in a set of documents.
+We propose a two-step, unsupervised approach for finding
+similar documents in a corpus. First, we build a weighted network of documents linked on the basis of their cross-referenced
+information, defined as the same term(s) reported in them. A
+group of document-level terms can be considered as a structure
+itself (potentially related to a concept) and, therefore, the link at
+the document network level incorporates the content similarity
+of two documents. Second, we apply certain network analysis
+and statistical clustering algorithms that take advantage of the
+weighting scheme constructed in the first step to identify the
+communities of documents in the network topology. To demonstrate this approach, we use reports from the U.S. Food and Drug
+Administration (FDA) Vaccine Adverse Event Reporting System (VAERS). VAERS reports are particularly useful because
+they contain a diverse mix of clinical language and all its associated problems, as well as other challenges from reports by lay
+people. The textual information describing the same event(s) is
+coded using a standardized nomenclature. This allows the evaluation of our approach using both text and standardized codes
+and sheds light on the potential application of our strategy to
+other corpora with either type of information. Since the textbased approach is fully automated, it could provide important
+efficiency gains over the code-based method.
+
+II. METHODS
+A. Description of the Approach
+The Medical Dictionary for Regulatory Activities (MedDRA)
+Preferred Terms (PTs) represent the adverse event information
+in VAERS reports [22]. MedDRA PTs are applied to the text
+of the reports by well-trained personnel according to coding
+conventions [23]. This human involvement corrects many of the
+limitations related to the special nature of clinical texts, which is
+why we selected the coded information for the main evaluation
+of our strategy.
+
+1907
+
+We create networks by connecting reports based on the crossreferenced information elements (single PTs or groups of PTs);
+“cross-reference” is defined as the appearance of an element in
+two reports. For example, three PTs cross-referenced in two reports establish a relationship and create a link (or edge) between
+them. The links are weighted based on the multiple combinations of the cross-referenced elements. In the previous example,
+the edge weight can range from one to three, depending on
+whether we are interested in the cross-referenced PT triplets or
+single PTs, respectively. For larger documents and more complex information representations, it may be more meaningful to
+weigh the links on the basis of any n-tuplets. In all variations,
+the connection weights depend on the number of elements linking the two reports and illustrate their similarity: the stronger
+the link is (i.e., the larger weight) the more similar the reports
+are.
+To better illustrate the above, we will use the example of three
+car brochures that include certain key characteristics as shown in
+Fig. 1. In the singleton-weighted car network (panel A), it is obvious that all three cars have similarities, and the weights show
+that cars A and B and cars B and C are more similar than cars A
+and C. But how is this similarity affected when consumers look
+into two characteristics only or are pickier and evaluate combinations of three or four? The connection between B and C still
+exists in triplet-weighted network, although it is weaker. With
+quadruplet weighting, only A and B are connected, suggesting
+that, if quadruplet matching is taken as the operating definition
+of similarity, the true choice is between A or B on the one hand
+and C on the other. Other cases with thousands of documents
+and many elements will obviously result in bigger structures
+and the exploration of similarities will be more complicated.
+The edges in the report network can also be weighted based
+on the entire information in the corpus using similarity metrics
+that incorporate the normalized term frequencies into the calculations, such as the Lin and cosine similarity [11], [12]. The
+use of normalized versus absolute values for edge weighting
+purposes might be significant in certain cases. For example, in a
+set of 100 reports the connection between two report nodes having the same 10 PTs will define a strong pairwise relationship
+(in the network structure this will appear as a highly weighted
+edge). However, if these 10 PTs are not conceptually related
+and sparsely appear in 60 other reports in the set, this weighting
+approach may not be informative. In such cases, the normalization supported by the similarity metrics will likely reduce
+the noise and potentially assign more value to the meaningful
+relationships.
+The number of the cross-referenced structures significantly
+contributes to the creation of communities. Four IEs that appear in 20 out of 100 otherwise poor-in-context reports will
+be the main driving force for the synthesis of a tight cluster
+of 20 nodes. If the four elements are conceptually related as
+well (i.e., related to a medical condition), the reports in the
+cluster will be similar not only in terms of the information
+they share but also in terms of the actual clinical concept they
+represent. The communities can be identified through the application of the appropriate clustering algorithms to the weighted
+network.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+1908
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 6, NOVEMBER 2015
+
+Fig. 1. Network of three cars based on their individual characteristics. The pairwise connections are weighted based on the number of the cooccurring singletons,
+dyads, and triplets in all car brochures and the single cooccurring quadruplet in two of the three car brochures.
+
+B. Data and Community Detection
+1) Focus on the Coded Information: The selection of various
+sets with different characteristics and varying prevalence for the
+condition of interest facilitated the evaluation of the approach
+in various potential real scenarios. Guillain–Barré Syndrome
+(GBS) has been reported after the use of various vaccines and
+medical experts are often interested in exploring the potential
+associations between the reports; anaphylaxis was the condition
+of interest in the review of the 2009 H1N1 influenza vaccine;
+in a third scenario two or more conditions are related to the
+(co-)administration of medical products. We used three sets of
+VAERS reports: 1) a set of 1000 reports of which 425 were classified as possible GBS reports (“GBS set”)—used in one of our
+previous studies [4]; 2) a set of 6025 reports of which 236 were
+classified as possible anaphylaxis (“Anaphylaxis set”) [24]; 3)
+a set of 2246 reports of which 326 and 925 were classified
+as pneumococcal infection (PI) and intussusception (IS) cases,
+respectively (“mixed set”). The latter was a convenience set created by one of the coauthors (EJW) who ran a simple query
+over the summaries of the serious adverse event reports in the
+full VAERS searching for conditions that had been previously
+labeled by the medical experts as PI and IS. All three sets were
+created by manual review of the full VAERS reports (i.e., review
+of the narrative of the report and patient demographics) that is
+performed by the medical experts at the FDA. We also created
+a simulated set of 12 000 reports of which 77 were related to
+an artificial safety signal of medium strength. This simulation
+approach generates an arbitrary number of VAERS reports with
+particular number of vaccines and adverse events (drawn from
+a multinomial distribution) and associates certain reports with
+an artificial signal. A signal is defined as the cooccurrence of a
+vaccine with multiple PTs beyond the expected, which is based
+
+on the precalculated probability of each PT’s cooccurrence with
+the vaccine [25]. Subsequently, the three prelabeled and simulated sets were randomly split into training and testing subsets
+(75%/25% split) to support the exploration of our unsupervised
+approach.
+Since our objective was to find documents describing similar clinical adverse events, we used the PTs to create the report networks. We created the report networks for each of the
+training and testing subsets by linking reports that included
+the same piece of information, i.e., the same single PTs, PT
+dyads, PT triplets, PT quadruplets, PT quintuplets or PT sextuplets; the corresponding counts of the cross-referenced structures were assigned as weights to the network edges. For example, if two reports were linked on the basis of containing the
+same x PT triplets, the weight of their connection was x. By
+definition, the reports that included fewer than n PTs (where
+n = 2, 3, 4, 5 or 6) appeared as isolates in the corresponding
+networks (that were built based on the PT dyads, PT triplets,
+PT quadruplets, PT quintuplets or PT sextuplets, respectively).
+Reports that included the appropriate number of PTs (e.g., a
+report with four PTs in the triplet-weighted network) but could
+not establish any connection with any of the other reports would
+also appear as isolates in the network. Note that there is a simple analytic relationship among edge weights based on different
+tuple-based connections, which greatly simplifies computation.
+Specifically, if w is the edge weight between two given nodes
+in the singleton-connected network, the edge weight between
+these nodes in the corresponding
+  n-tuple-connected network is
+w
+the binomial coefficient,
+, with the understanding that
+n
+ 
+w
+= 0 for n > w.
+n
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+BOTSIS et al.: IDENTIFYING SIMILAR CASES IN DOCUMENT NETWORKS USING CROSS-REFERENCE STRUCTURES
+
+1909
+
+Fig. 2. Five reports from the mixed testing subset include different number of PTs and are prelabeled by the medical expert as intussusception (IS), pneumococcal
+infection (PI), and neither class (NC). The PTs that appear in at least two reports (shown in boldface) support the calculations per weighting scheme. Only the two
+IS reports include the same six PTs and, thus, all the weighting schemes are applied to the connection of their nodes (shown as a thick line). Fewer schemes (up
+to the dyad-based) are applied to the remaining edges (triple and double lines). The VOS clustering places the report nodes into distinct clusters (each report node
+is marked by the number of the cluster). Isolate nodes (gray-squared report nodes at the bottom center and right) do not participate in the clustering process. The
+cluster numbers are coming from the actual VOS clustering over the Mixed testing set with the focus on the intussusception class.
+
+In the case of the single PT-based report networks, an
+additional weighting approach was pursued: the edges were
+weighted based on the similarity of two reports as this has been
+previously defined by Lin for the similarity of two documents
+[11]. Based on Lin’s theorem, “the similarity between A and B
+is measured by the ratio of the information needed to state the
+commonality of A and B and the information needed to fully
+describe what A and B are”
+sim(A, B) =
+
+log P (common(A, B))
+.
+logP (description(A, B))
+
+(1)
+
+In summary, seven report networks (for the seven weighting
+schemes) were created for the training and testing prelabeled
+and simulated report subsets.
+We evaluated the Louvain and the Visualization of Similarities (VOS) network analysis (NA) clustering algorithms [26],
+[27]. We selected these particular NA algorithms because they
+take into account the edge weights into the clustering process
+(Appendix 1). k-means was also chosen as the most commonly
+used unsupervised statistical clustering algorithm [28]. The
+
+training networks facilitated the definition of the clustering parameters that were subsequently applied to the testing networks.
+A relatively broad resolution range of [0.05, 3] was selected to
+support the limited or extensive clustering of the training networks with either of the two NA algorithms. Fig. 2 illustrates the
+clustering process using the example of five prelabeled report
+nodes included in the Mixed testing network.
+F-measure was calculated for each resolution value based on
+the assumption that the cluster including the largest number of
+reports for the condition of interest, e.g., GBS, was the predictor.
+Any condition-related reports found in that cluster were considered to be the True Positives and the remaining reports in the
+same cluster the False Positives—any condition-related cases
+in any of the other clusters were the False Negatives and the
+remaining were the True Negative reports. The best performing
+resolution value (in terms of f-measure) in the training network
+was subsequently validated in the testing network. In the case
+of the k-means method, the training set was used to choose the
+number of clusters, by visual evaluation of the elbow of a plot of
+average within-cluster sum of squares by number of clusters; the
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+1910
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 6, NOVEMBER 2015
+
+Fig. 3. Visualizations of cluster formation in each step of the process. The left-hand testing networks (a, b, c, and d) include nodes representing all reports from
+the corresponding testing subsets (GBS, anaphylaxis, mixed, and simulated, respectively). Edges are created when two reports have at least one common PT and
+report nodes that do not establish any connections appear as isolates in the network topology. The recalculation of edge weights may result in the elimination of
+connections and the network reduction as shown in the second set of network visualizations—isolates have been removed from the topology. The application of
+the VOS algorithm to the weighted testing networks forms the clusters as shown in the right-hand images. Each cluster is colored differently in both the pre- and
+postclustering steps to illustrate the contribution of the clustering algorithm to the separation of communities.
+
+selected number of clusters was then applied to the testing network. The standard metrics of recall, precision, and f-measure
+were calculated for all testing networks and weighting schemes.
+2) Comparison With Features Extracted From Textual
+Information: We further applied the best performing clustering
+algorithm (as identified by the above analysis) to the testing networks that were built on the features extracted from textual information in the corresponding prelabeled subsets. This process
+involved two steps. First, the Vaccine adverse event Text Mining
+(VaeTM) system was used to process the VAERS reports that
+synthesized the testing subsets of the prelabeled sets; VaeTM
+extracts certain diagnostic and other features as previously described [29]. Second, the diagnostic medical terms included in
+certain VaeTM features (main diagnosis and cause of death,
+second-level diagnosis and the symptom features) were translated into MedDRA PTs using the National Library of Medicine
+(NLM) MetaMap tool [30], [31]. The online Batch MetaMap
+version allows the processing of large lists of terms as well as
+the use of the desired vocabulary source [32]. We used the latest
+2012 (12/13 Transition—2012AB) knowledge source, the NLM
+
+data version, and the strict data model to process the VaeTMbased medical terms and identified all their mappings to the
+MedDRA PTs (MedDRA 15.0 was available in this MetaMap
+version). All duplicates in each report were consolidated.
+We then created the report networks for the three testing subsets using the seven weighting schemes and applied the best performing algorithm to all cases using the same clustering parameters. The performance of this algorithm was reevaluated using
+the same metrics. The use of the same clustering strategy formed
+the necessary common basis for comparing the MedDRA- with
+the VaeTM-based identification of the condition-related clusters
+in the testing networks.
+The permutations of the report elements for the formation of
+the dyads and n-tuplets as well as the calculation of the edge
+weights in all networks were performed using a structured query
+language (SQL) script. The report networks were created based
+on the edge lists and were further processed in Pajek 3.15. The R
+statistical software platform was also used for the application of
+the k-means algorithm to the adjacency matrices of the network
+representations.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+BOTSIS et al.: IDENTIFYING SIMILAR CASES IN DOCUMENT NETWORKS USING CROSS-REFERENCE STRUCTURES
+
+1911
+
+Fig. 4. Box plots for the training and testing prelabeled and simulated sets based on the MedDRA PTs from VAERS, along with the seven weighting variations
+of the corresponding networks. The right-hand plots show that the creation of certain n-tuplet-weighted networks in each subset (mainly with n>2) resulted in
+many isolates that did not participate in the clustering process. The GBS sets that included reports with many PTs were less affected by the use of n-tuplets and
+appeared with less isolates for the larger values of n. ANA: Anaphylaxis. (a) Training. (b) Testing.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+1912
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 6, NOVEMBER 2015
+
+TABLE I
+DESCRIPTIVE STATISTICS FOR THE ORIGINAL MEDDRA-BASED VERSUS THE
+TRANSLATED VaeTM-BASED INFORMATION ELEMENTS IN THE THREE
+PRELABELED TESTING SUBSETS; THE TRANSLATED VaeTM-BASED
+INFORMATION ELEMENTS REPRESENT THE MEDDRA PTS PRODUCED BY THE
+NLM METAMAP TOOL OVER THE VaeTM DIAGNOSTIC INFORMATION
+
+IEs Average)
+IEs (Median)
+IEs (StDev)
+IEs (Min/Max)
+Rpts with IEs
+Rpts #IEs = 1
+Rpts #IEs = 2
+Rpts #IEs = 3
+Rpts #IEs = 4
+Rpts #IEs > = 5
+Rpts of Interest
+
+GBS Testing Subset
+
+ANA Testing Subset
+
+Mixed Testing Subset
+
+MedDRA
+
+VaeTM
+
+MedDRA
+
+VaeTM
+
+MedDRA
+
+VaeTM
+
+17.5
+7.5
+20.4
+1/105
+250
+10.8%
+8.4%
+11.6%
+8.4%
+60.8%
+1031
+
+9.7
+6
+9.1
+1/44
+237
+12.2%
+11.0%
+6.8%
+8.0%
+62.0%
+1011
+
+4.3
+3
+4.4
+1/57
+1506
+19.3%
+19.9%
+17.9%
+12.8%
+30.2%
+572
+
+4.2
+3
+4.0
+1/44
+1403
+18.5%
+21.5%
+16.5%
+12.0%
+31.4%
+572
+
+5.6
+4
+4.6
+1/32
+561
+12.7%
+16.2%
+14.4%
+9.6%
+47.1%
+218/733
+
+5.1
+4
+4.1
+1/37
+538
+14.3%
+17.1%
+14.1%
+11.0%
+43.5%
+217/703
+
+1
+
+Possible GBS reports.
+Possible anaphylaxis reports.
+3
+Intussusception/Pneumococcal infection reports.
+IEs: Information Elements; StDev: Standard Deviation; ANA: Anaphylaxis; Rpts: Reports;
+Rpts #IEs: Reports with number of Information Elements.
+2
+
+III. RESULTS
+Using standard network visualization techniques, Fig. 3 illustrates the improvement in clustering obtained with each step in
+the process. Fig. 4 shows the box plots for the three prelabeled
+and the simulated report training and testing subsets based on
+the MedDRA PTs. The reports in the GBS set included more
+PTs than the ones in the other two prelabeled or the simulated report set. The detailed descriptive statistics for all sets
+are presented in Supplementary Table I. The n-tuplet-weighted
+networks (with n>2) had many isolates in most of the cases (see
+Fig. 4; right-hand plots). For example, the “Sextuplet-weighted”
+Mixed testing network included 98 connected reports only (instead of the 561 of the subset) and none of them was labeled as
+PI.
+In terms of the clustering algorithm, it is clear that the VOS
+and Louvain algorithms performed best, with the exception of
+the GBS testing networks, for which the k-means clustering algorithm applied to the “similarity-weighted” network performed
+best (k-means versus VOS and Louvain f-measure: 0.898 versus
+0.858 and 0.815, respectively). The detailed results are presented
+in Supplementary Tables II–V. Overall, VOS exhibited better results than the Louvain algorithm in most of the cases (see Fig. 5)
+and was further validated with the translated VaeTM-based information.
+The determination of the best clustering parameter values in
+the training subset (resolution and the k groups) was related
+to both the total number of reports and the distribution of the
+condition of interest in the subset. As a general rule: 1) bigger clustering parameter values should be defined for big- or
+medium-size datasets with low prevalence of a condition, such
+as in the anaphylaxis, simulated, and mixed (with the PI reports) sets; and 2) smaller for medium- or low size sets with
+
+many condition-related reports, such as the GBS set and the
+Mixed set (with the IS reports).
+Table I includes a comparison of the descriptive statistics
+of the MedDRA- versus the VaeTM-based IEs for the three
+prelabeled report testing sets. The average VaeTM-based information was less than the MedDRA-based information (9.7
+versus 17.5 IEs) in the GBS testing subset. On the other hand,
+the Anaphylaxis and Mixed testing subsets included almost the
+same amount of information. Moreover, VaeTM extracted the
+diagnostic information for fewer reports compared to the total
+number of reports in the MedDRA-based GBS, Anaphylaxis and
+Mixed testing subsets (13, 103, and 23, respectively; Table I).
+However, the actual differences in the number of reports that
+participated in the network creation were smaller, e.g., in the
+Singleton-weighted networks (7, 59, and 14, respectively; Table II), indicating that most of the missing reports were poor
+in terms of the information they included and did not practically participate in the report networks. The VOS clustering of
+the slightly bigger MedDRA-based versus the clustering of the
+smaller VaeTM-based testing networks supported better separation of the condition-related reports in 74% of the cases (see
+Table II). The differences were marginal in all the other cases
+and we therefore consider that the type of information did not
+practically affect the clustering process; the detailed results are
+presented in Table II.
+Many of the multiple communities that were created by the
+clustering algorithms included very few report nodes that were
+not related to any condition. For example, Supplementary Fig. 1
+shows the VOS clusters for the “Quintuplet-weighted” network
+representing the GBS testing subset. The application of VOS
+algorithm (resolution = 0.5) facilitated the identification of 2
+and 4 clusters in the topology of the MedDRA- and VaeTMbased testing networks, respectively. In both topologies, cluster
+#1 (total report nodes in the cluster: 113 and 86, respectively)
+included all and almost all, respectively, of the GBS report nodes
+(94 and 76, respectively) of the “Quintuplet-weighted” testing
+network. The remaining small clusters had no apparent medical
+meaning.
+
+IV. DISCUSSION
+In this study, we proposed a new approach to identify documents describing similar clinical conditions using weighted
+document networks. We demonstrated its applicability using
+both the coded and textual information included in the reports
+of a safety surveillance system. We followed a two-step process,
+first creating a weighted document network based on common
+information elements describing the clinical characteristics of
+the adverse events. The various weighting schemes resulted in
+the filtering of reports with small amounts of information or reports that did not share any information with their peers. Second,
+we applied three clustering algorithms to detect communities of
+condition-related reports in the networks and found that the
+VOS NA clustering algorithm performed best in most of the
+cases and was therefore selected for community detection over
+the VaeTM-based networks.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+BOTSIS et al.: IDENTIFYING SIMILAR CASES IN DOCUMENT NETWORKS USING CROSS-REFERENCE STRUCTURES
+
+1913
+
+Fig. 5. Heat map that illustrates the performance of the three algorithms over the prelabeled and the simulated (SIM) testing networks in terms of f-measure.
+The best combination (algorithm and weighting scheme) per testing subset appear in underlined boldface. ANA: Anaphylaxis.
+
+TABLE II (A)
+DETAILS OF THE REPORT NETWORKS BASED ON THE THREE TESTING SUBSETS; THE MIXED TESTING SUBSET IS SEPARATELY VIEWED AS INTUSSUSCEPTION AND
+PNEUMOCOCCAL INFECTION SUBSETS
+GBS Testing
+Subset (GBS)
+
+Weighting
+Scheme
+
+Totala
+NT1
+NT2
+Similarityweighted
+Singletonweighted
+Dyadweighted
+Tripletweighted
+Quadrupletweighted
+Quintupletweighted
+Sextupletweighted
+
+ANA Testing
+Subset (Anaphylaxis)
+
+Classb
+NT1
+NT2
+
+Totala
+NT1
+NT2
+
+Mixed Testing
+Subset (Intussusception)
+
+Classb
+NT1
+NT2
+
+Totala
+NT1
+NT2
+
+Mixed Testing
+Subset (Pneumococcal)
+
+Classb
+NT1
+NT2
+
+Totala
+NT1
+NT2
+
+Classb
+NT1
+NT2
+
+244
+
+237
+
+103
+
+101
+
+1499
+
+1390
+
+57
+
+56
+
+541
+
+527
+
+218
+
+216
+
+541
+
+527
+
+73
+
+69
+
+244
+
+237
+
+103
+
+101
+
+1499
+
+1390
+
+57
+
+56
+
+541
+
+527
+
+218
+
+217
+
+541
+
+527
+
+73
+
+70
+
+193
+
+189
+
+101
+
+100
+
+1112
+
+1036
+
+56
+
+53
+
+432
+
+407
+
+197
+
+190
+
+432
+
+407
+
+64
+
+57
+
+150
+
+145
+
+97
+
+92
+
+667
+
+626
+
+53
+
+47
+
+293
+
+274
+
+184
+
+166
+
+293
+
+274
+
+36
+
+36
+
+126
+
+122
+
+95
+
+88
+
+326
+
+328
+
+35
+
+37
+
+200
+
+164
+
+167
+
+127
+
+200
+
+167
+
+17
+
+21
+
+115
+
+95
+
+94
+
+80
+
+160
+
+147
+
+23
+
+21
+
+144
+
+96
+
+137
+
+85
+
+144
+
+96
+
+4
+
+11
+
+107
+
+70
+
+90
+
+61
+
+78
+
+69
+
+9
+
+11
+
+98
+
+55
+
+96
+
+33
+
+98
+
+55
+
+0
+
+2
+
+a
+
+Total: all reports in the testing network excluding isolates; b Class: reports in the testing network for the condition of interest.
+N T 1 : Network type 1 (based on MedDRA PTs); N T 2 : Network Type 2 (VaeTM diagnostic output translated into MedDRA PTs by NLM MetaMap); ANA: Anaphylaxis.
+Details for the two network types, i.e., MedDRA- and VaeTM-based are presented for side-by-side comparisons.
+
+Our goal was to develop a fully automated process but we
+were concerned that we might lose information in the automated extraction of concepts from text. In a secondary analysis, we found that even though the translation of the diagnostic VaeTM-based information into MedDRA PTs better supported the detection of condition-related clusters in 24% of the
+
+weighted networks only, there were only marginal differences
+between the VaeTM-based and MedDRA-based clustering.
+The human intervention that produces the MedDRA PTs removes the irrelevant information from the submitted reports
+and provides medical experts with the key medical concepts.
+We therefore considered it as the ideal resource to begin with.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+1914
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 6, NOVEMBER 2015
+
+TABLE II (B)
+RESOLUTION VALUES THAT WERE USED FOR THE VOS CLUSTERING OF THE REPORT NETWORKS THAT REPRESENTED THE THREE TESTING SUBSETS; THE SAME
+RESOLUTION VALUES WERE USED FOR BOTH NETWORK TYPES, I.E., MEDDRA- AND VaeTM-BASED NETWORKS
+Weighting Scheme
+Weighting Scheme
+
+GBS Testing
+Subset (GBS)
+Resolution
+N T 1 /N T 2
+
+Similarity-weighted
+Singleton-weighted
+Dyad-weighted
+Triplet-weighted
+Quadruplet-weighted
+Quintuplet-weighted
+Sextuplet-weighted
+
+0.5
+0.5
+0.5
+0.5
+0.1
+0.1
+0.1
+
+ANA Testing
+Subset (Anaphylaxis)
+
+Clusters
+NT1
+NT2
+5
+3
+7
+7
+1
+2
+2
+
+7
+3
+7
+5
+4
+2
+4
+
+Resolution
+N T 1 /N T 2
+
+Mixed Testing
+Subset (Intussusception)
+
+Clusters
+NT1
+NT2
+
+1.5
+2
+1.5
+0.5
+1
+2
+0.5
+
+23
+37
+28
+23
+29
+31
+11
+
+21
+29
+28
+17
+32
+33
+10
+
+Resolution
+N T 1 /N T 2
+0.5
+0.5
+0.5
+0.5
+0.1
+0.1
+0.05
+
+Clusters
+NT1
+NT2
+5
+4
+9
+14
+7
+6
+3
+
+Mixed Testing
+Subset (Pneumococcal)
+Resolution
+N T 1 /N T 2
+
+4
+14
+6
+11
+5
+3
+4
+
+1.5
+1.5
+2
+2
+1
+1.5
+
+Clusters
+NT1
+NT2
+18
+39
+47
+35
+15
+20
+
+12
+39
+33
+27
+16
+16
+
+N T 1 : Network type 1 (based on MedDRA PTs); N T 2 : Network Type 2 (VaeTM diagnostic output translated into MedDRA PTs by NLM MetaMap); ANA: Anaphylaxis.
+Number of the resulting clusters per network type is also presented for side-by-side comparisons. As in Table II(a), the clustering details for the mixed testing subset are separately
+viewed as intussusception and pneumococcal infection subsets.
+
+TABLE II (C)
+THIS TABLE SHOWS THE PERFORMANCE OF THE VOS CLUSTERING OVER THE REPORT NETWORKS THAT REPRESENTED THE THREE TESTING SUBSETS. F-MEASURE,
+RECALL AND PRECISION WERE CALCULATED FOR BOTH NETWORK TYPES, I.E., MEDDRA- AND VaeTM-BASED NETWORKS, AND ARE PRESENTED FOR SIDE-BY-SIDE
+COMPARISONS
+
+GBS Testing
+Subset (GBS)
+
+Weighting
+Scheme
+
+ANA Testing
+Subset (Anaphylaxis)
+
+Mixed Testing
+Subset (Intussusception)
+
+Mixed Testing
+Subset (Pneumococcal)
+
+F-measure
+Recall
+Precision
+F-measure
+Recall
+Precision
+F-measure
+Recall
+Precision
+F-measure
+Recall
+Precision
+NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2 NT1 NT2
+Similarityweighted
+Singletonweighted
+
+0.858
+
+0.632 100.0% 93.2% 75.2% 47.8% 0.361
+
+0.236 61.4% 29.8% 25.5% 19.5%
+
+0.991
+
+0.952 99.5% 95.0% 98.6%
+
+95.4%
+
+0.916
+
+0.848 97.3% 91.8% 86.6% 78.8%
+
+0.862
+
+0.811
+
+91.3% 83.5% 81.7% 78.9% 0.210
+
+0.119 38.6% 21.1% 14.4%
+
+8.3%
+
+0.989
+
+0.961 99.5% 96.3% 98.2%
+
+95.9%
+
+0.815
+
+0.815 90.4% 90.4% 74.2% 74.2%
+
+Dyadweighted
+
+0.858
+
+0.872
+
+88.3% 92.2% 83.5% 82.6% 0.234
+
+0.208 28.1% 26.3% 20.0% 17.2%
+
+0.938
+
+0.896 89.9% 82.9% 98.0%
+
+97.8%
+
+0.787
+
+0.786 83.6% 75.3% 74.4% 82.1%
+
+Tripletweighted
+Quadrupletweighted
+Quintupletweighted
+Sextupletweighted
+
+0.820
+
+0.705
+
+86.4% 60.2% 78.1% 84.9% 0.387
+
+0.365 63.2% 40.4% 27.9% 33.3%
+
+0.899
+
+0.822 81.7% 69.7% 100.0% 100.0% 0.362
+
+0.549 26.0% 42.5% 59.4% 77.5%
+
+0.830
+
+0.802
+
+92.2% 84.5% 75.4% 76.3% 0.432
+
+0.458 33.3% 33.3% 61.3% 73.1%
+
+0.859
+
+0.730 76.6% 58.3% 97.7%
+
+97.7%
+
+0.247
+
+0.259 15.1% 15.1% 68.8% 91.7%
+
+0.870
+
+0.804
+
+91.3% 73.8% 83.2% 88.4% 0.453
+
+0.246 29.8% 14.0% 94.4% 100.0% 0.734
+
+0.552 58.3% 39.0% 99.2%
+
+94.4%
+
+0.053
+
+0.122
+
+0.861
+
+0.686
+
+87.4% 56.3% 84.9% 87.9% 0.188
+
+0.299 10.5% 17.5% 85.7% 100.0% 0.594
+
+0.367 42.2% 22.5% 100.0% 100.0%
+
+2.7%
+
+6.8% 100.0% 55.6%
+
+NT1 : Network type 1 (based on MedDRA PTs); NT2 : Network Type 2 (VaeTM diagnostic output translated into MedDRA PTs by NLM MetaMap); ANA: Anaphylaxis.
+As given in Tables 2a and 2b, the analysis for the mixed testing subset is separately viewed as intussusception and pneumococcal infection subsets.
+
+MetaMap not only further normalized the VaeTM output but
+also facilitated a fair comparison of the VaeTM- with the
+MedDRA-based testing networks.
+The selective use of three clustering algorithms may be considered a potential limitation of the study. We selected algorithms that are widely available and can be applied to any
+weighted network. We acknowledge the existence of other community detection algorithms; however, a pilot exploration of
+the available solutions at the time of the study did not exhibit
+promising results (data not shown) [33]–[36]. The exhaustive
+evaluation of all the potential clustering solutions is beyond the
+scope of this study. Our first-hand results indicate that the clustering parameters were mainly related to the size of the corpus,
+the average number of IEs, and the amount of information reported for a particular concept. Further work in this area may
+provide better insight into these related issues.
+Our study is inline with previous research that has examined the cross-document coreferences of one concept in many
+
+text sources [37]. It also relates to the exploration of pairwise
+document similarity [11] and the use of document networks to
+identify evolving trends in a corpus [6]. The current work is
+distinctive insofar as it looks at the IEs and their multiple interactions at the document level first and then assembles the
+document networks by weighting the connections on the basis of the cross-referenced information structures. We have also
+prioritized the identification of a concept (or information representation) at the document level, as represented by one or
+more terms, and linked the documents of a corpus (i.e., VAERS
+reports) on this basis. Often, the number of terms that are related to a concept, such as a medical condition, is not limited
+to one or two terms and we therefore believe that the use of the
+n-tuplet weighting schemes might offer a better solution. For
+example, we know that a report is labeled as anaphylaxis when
+a set of symptoms belonging to different organ systems coexist
+[38]. This likely explains why “Quintuplet-” and “Quadrupletweighted” networks performed best among all.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+BOTSIS et al.: IDENTIFYING SIMILAR CASES IN DOCUMENT NETWORKS USING CROSS-REFERENCE STRUCTURES
+
+1915
+
+Fig. 6. Documents in a corpus can be initially linked based on their metadata, e.g., the vaccine products A, B, C, D, and E in VAERS (Phase I). The metadata
+elements can support the subsequent selection of a subset (step 0), e.g., the VAERS reports for the coadministered vaccines A and B; this can be accomplished
+using a simple query and results in Phase II. Step 1 includes the techniques for the construction of the n-weighted networks (Phase III). The application of the
+clustering algorithms (step 2) formulates the clusters in Phase IV. It is then possible to focus on a particular cluster and repeat the cycle using some other type of
+metadata elements, e.g., explore the adverse event patterns for certain age groups.
+
+Often, users apply simple queries to define document sets
+for further review or analysis; the document characteristics or
+metadata are the main criteria used. As shown in Fig. 6, our
+approach supports the next critical steps that utilize the actual
+context and can be repeated if the used desires to focus more on
+certain clusters and further analyze other subsets.
+In this paper, we focused on the clinical signs and symptoms
+as the key information elements for defining similar reports. But
+the concepts and approaches described here can be generalized
+to include other features that might be of interest. These other
+features might include past medical history, exposure to certain
+drugs or vaccines, or a defined temporal relationship between
+an exposure and a clinical outcome. In this way, our approach
+offers a flexible method for identifying clinically similar cases
+with a wide range of relevant features from clinical documents.
+
+terms represents a concept and the pairwise similarity must be
+evaluated through this lens; in other cases, incorporating the distribution of terms or concepts in the corpus into the calculations
+improves the identification of similar reports. The documents of
+a corpus can be represented as the nodes of a network and the
+various expressions of similarity as weights of the network connections. The subsequent application of community detection
+algorithms to the network topology reveals clusters of similar
+documents. We have demonstrated this approach by using various report sets from the FDA Vaccine Adverse Event Reporting
+System. We propose that the same strategy can be applied to
+other collections of documents originating from the same or
+different sources.
+
+APPENDIX
+V. CONCLUSION
+While the similarity of two documents in a corpus can be
+evaluated by simply counting the number of terms that coappear in the pair, this approach is less than optimal. Often, a set of
+
+This Appendix includes a brief description of the Louvain
+algorithm by Blondel et al. [26] and the visualization of similarities (VOS) method by van Eck and Waltman [27] adjusted
+to the document networks discussed in the current work.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+1916
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 6, NOVEMBER 2015
+
+A. Louvain Algorithm
+The Louvain algorithm is divided into two phases that are repeated iteratively. We assume that we have a weighted network
+of N document nodes. First, a different community is assigned
+to each node. So, in this initial partitioning, there are as many
+communities as nodes. Then, the gain of modularity ΔQ in
+removing node i from its community and placing it in the community of another node j is calculated. The node i is then placed
+in the community for which the gain is maximum (in the case
+of a tie a breaking rule is used). If no positive gain is possible,
+node i remains in the original community. This process is applied repeatedly and sequentially for all nodes until no further
+improvement can be achieved; this is the end of the first phase.
+Part of the algorithm’s efficiency results from the fact that the
+gain in modularity ΔQ obtained by moving an isolated node i
+into a community C can easily be computed by
+
+
+2 
+in + 2ki,in
+tot + ki
+−
+ΔQ =
+2m
+2m
+
+  2 
+2 
+k
+i
+in
+tot
+−
+−
+−
+(2)
+2m
+2m
+2m
+
+
+where is the sum of the weights of the links in C,
+is
+in
+
+tot
+
+the sum of the weights of the links incident to nodes in C, ki is
+the sum of the weights of the links incident to node i, ki,in is the
+sum of the weights of the links from i to nodes in C, and m is
+the sum of the weights of all the links in the network. A similar
+expression is used in order to evaluate the change of modularity
+when node i is removed from its community.
+The second phase of the algorithm includes the construction
+of a new network whose nodes are the communities defined in
+the first phase. The edge weights between the new nodes are
+given by the sum of the weights between all document nodes in
+the two communities. Once this second phase is completed, it is
+possible to repeat the first phase over the new weighted network.
+The number of metacommunities decreases at each pass (i.e.,
+the iteration of the two phases), so most of the computing time
+is used in the first pass. The passes are iterated until there are
+no more changes and the maximum modularity is attained.
+B. Visualization of Similarities algorithm
+Let there be n documents, denoted by 1, . . . , n, and a n ×
+n similarity matrix S = (sij ) satisfying sij ≥ 0, sii = 0, and
+sij = sj i for all i, j ∈ {1, . . . , n}. Element sij of S is equal to
+the weight of the connection between the documents i and j; this
+weight is an expression of the documents’ similarity. VOS aims
+to provide a low-dimensional space in which the documents
+1, . . . ,n are located in such a way that the distance between any
+pair of documents i and j reflects the strength of their connection
+sij as accurately as possible.
+Documents with high similarity are located close to each
+other in the network topology. The n × m matrix X, where m
+denotes the number of dimensions of the space that is used,
+contains the coordinates of the documents 1, . . . , n. The vector
+xi = (xi 1 , . . . , xim ) denotes the ith row of X and contains the
+
+coordinates of document i. VOS minimizes the weighted sum of
+the squared Euclidean distances between all pairs of documents.
+The higher the connection weight (or similarity) between two
+documents is, the higher the weight of their squared distance in
+the summation will be. The objective function that is minimized
+in VOS is given by
+
+sij xi − xj 2
+(3)
+E(X; S) =
+i< j
+
+where . denotes the Euclidean norm. The minimization of the
+objective function is subject to the following constraint:
+
+xi − xj  = 1.
+(4)
+i< j
+
+To further clarify the objective function (2), we note that
+when visualizing the document similarities, each document i
+is expected to be located close to its ideal coordinates that are
+given by
+
+j sij xj
+.
+(5)
+ci (X; S) = 
+j sij
+Each document i will be located close to a weighted average
+of the coordinates of all other documents, where the coordinates
+of documents that are more similar to document i are assigned
+higher weights in the calculation of the weighted average. Locating each document i exactly at its ideal coordinates ci(X; S)
+is only possible by locating all documents at the same coordinates, which does not result in a useful solution and does not
+satisfy (3). Rather than locating each object exactly at its ideal
+coordinates, the objective function in (2) locates objects close
+to their ideal coordinates.
+ACKNOWLEDGMENT
+The authors would like to thank A. Aronson, J. Mork, and
+F. Lang from the National Library of Medicine for their insightful recommendations in using the most appropriate MetaMap
+parameters for the translation of VaeTM medical terms into
+MedDRA PTs. They would also like to thank the anonymous
+medical experts at the FDA who previously reviewed the reports
+for the H1N1 vaccine and created the corresponding labeled report set we have used in this work.
+COMPETING INTEREST
+None declared.
+CONTRIBUTORSHIP STATEMENT
+TB conceived and formulated the idea of applying a
+document-based network to identify clusters of clinically similar reports, analyzed the data, drafted, and revised the paper;
+JS created the simulated report set, analyzed the data, and revised the paper; EJW created the GBS report set and the Mixed
+report set in a previous and the current study, respectively, and
+revised the paper; RB coconceived the document-based network
+approach, contributed to the formation of the GBS report set,
+revised the paper, and supervised the study.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+BOTSIS et al.: IDENTIFYING SIMILAR CASES IN DOCUMENT NETWORKS USING CROSS-REFERENCE STRUCTURES
+
+REFERENCES
+[1] R. Ball and T. Botsis, “Can network analysis improve pattern recognition
+among adverse events following immunization reported to VAERS?,” Clin.
+Pharmacol. Therapeutics, vol. 90, no. 2, pp. 271–278, 2011.
+[2] T. Botsis and R. Ball, “Network analysis of possible anaphylaxis cases
+reported to the US vaccine adverse event reporting system after H1N1
+influenza vaccine,” Studies Health Technol. Informat., vol. 169, pp. 564–
+568, 2010.
+[3] T. Botsis, E. J. Woo, and R. Ball, “The contribution of the vaccine adverse
+event text mining system to the classification of possible Guillain–Barre
+syndrome reports,” Appl. Clin. Informat., vol. 4, no. 1, pp. 88–99, 2013.
+[4] T. Botsis, E. J. Woo, and R. Ball, “Application of information retrieval
+approaches to case classification in the vaccine adverse event reporting
+system,” Drug Safety, vol. 36, pp. 1–10, 2013.
+[5] L. Dini, W. Peters, D. Liebwald, E. Schweighofer, L. Mommers, and
+W. Voermans, “Cross-lingual legal information retrieval using a wordnet
+architecture,” Proc. 10th Int. Conf. Artif. Intell. Law, 2005, pp. 163–167.
+[6] H. Park, K. Kim, S. Choi, and J. Yoon, “A patent intelligence system
+for strategic technology planning,” Expert Syst. Appl., vol. 40, no. 7,
+pp. 2373–2390, 2012.
+[7] C. Havasi, R. Speer, and J. Alonso, “ConceptNet 3: A flexible, multilingual
+semantic network for common sense knowledge,” in Proc. Recent Adv.
+Natural Language Process., 2007, pp. 27–29.
+[8] X. Wang, A. McCallum, and X. Wei, “Topical n-grams: Phrase and topic
+discovery, with an application to information retrieval,” Proc. 7th IEEE
+Int. Conf. Data Mining, 2007, pp. 697–702.
+[9] S. Nerur, R. Sikora, G. Mangalaraj, and V. Balijepally, “Assessing the
+relative influence of journals in a citation network,” Commun. ACM,
+vol. 48, no. 11, pp. 71–74, 2005.
+[10] H. W. Shen, X. Q. Cheng, and J. F. Guo, “Quantifying and identifying the
+overlapping community structure in networks,” J. Statist. Mech.: Theory
+Exp., vol. 2009, no. 7, 07042, 2009.
+[11] D. Lin, “An information-theoretic definition of similarity,” Proc. 15th Int.
+Conf. Mach.ine Learning, pp. 296–304, 1998.
+[12] C. D. Manning, P. Raghavan, and H. Schütze, Introduction to Information
+Retrieval, 1st ed. Cambridge, U.K.: Cambridge Univ. Press, 2008.
+[13] H. Cao, G. B. Melton, M. Markatou, and G. Hripcsak, “Use abstracted
+patient-specific features to assist an information-theoretic measurement
+to assess similarity between medical cases,” J. Biomed. Inform., vol. 41,
+no. 6, pp. 882–888, 2008.
+[14] D. M. Blei, A. Y. Ng, and M. I. Jordan, “Latent Dirichlet allocation,” J.
+Mach. Learning Res., vol. 3, pp. 993–1022, 2003.
+[15] T. Hofmann, “Probabilistic latent semantic indexing,” in Proc. 22nd Annu.
+Int. ACM SIGIR Conf. Res. Develop. Informat. Retrieval, 1999, pp. 50–57.
+[16] R. Balasubramanyan and W. W. Cohen, “Block-LDA: Jointly modeling
+entity-annotated text and entity-entity links,” Proc. Workshop Topic Models: Structure, Appl., Evaluation, Extensions, 2011,pp. 450–461.
+[17] X. Wang, N. Mohanty, and A. McCallum, “Group and topic discovery from
+relations and their attributes,” in Proc. 3rd Int. Workshop Link Discovery,
+2006, pp. 28–35.
+[18] J. Chang and D. M. Blei, “Relational topic models for document networks,”
+J. Mach. Learning Res., vol 5, pp. 81–88, 2009.
+[19] L. Dietz, S. Bickel, and T. Scheffer, “Unsupervised prediction of citation
+influences,” Proc. 24th Int. Conf. Machine Learning, pp. 233–240, 2007.
+[20] T. Botsis, G. Hartvigsen, F. Chen, and C. Weng, “Secondary use of EHR:
+Data quality issues and informatics opportunities,” AMIA Summits Translational Sci. Proc., vol. 2010, pp. 1–5, 2010.
+[21] A. L. Rector, “Clinical terminology: Why is it so hard?,” Methods Inform.
+Med., vol. 38, no. 4/5, pp. 239–252, 1999.
+
+1917
+
+[22] E. G. Brown, L. Wood, and S. Wood, “The medical dictionary for regulatory activities (MedDRA),” Drug Safety, vol. 20, no. 2, pp. 109–117,
+1999.
+[23] E. G. Brown, “Using MedDRA,” Drug Safety, vol. 27, no. 8, pp. 591–602,
+2004.
+[24] T. Botsis, M. D. Nguyen, E. J. Woo, M. Markatou, and R. Ball, “Text
+mining for the vaccine adverse event reporting system: Medical text classification using informative feature selection,” J. Amer. Med. Informat.
+Assoc., vol. 18, no. 5, pp. 631–638, 2011.
+[25] J. Scott, T. Botsis, and R. Ball, “Simulating adverse event spontaneous
+reporting systems as preferential attachment networks: Application to
+the vaccine adverse event reporting system,” Appl. Clin. Inform., vol. 5,
+pp. 206–218, 2014.
+[26] V. D. Blondel, J. L. Guillaume, R. Lambiotte, and E. Lefebvre, “Fast
+unfolding of communities in large networks,” J. Statist. Mech.: Theory
+Exp., vol. 2008, no. 10, 10008, 2008.
+[27] N. J. Van Eck and L. Waltman, VOS: A New Method for Visualizing
+Similarities Between Objects. New York, NY, USA: Springer, 2007.
+[28] J. MacQueen, “Some methods for classification and analysis of multivariate observations,”Proc. 5th Berkeley Symp. Math. Statist. Prob., 1967,
+pp. 281–297.
+[29] T. Botsis, T. Buttolph, M. D. Nguyen, S. Winiecki, E. J. Woo, and R. Ball,
+“Vaccine adverse event text mining system for extracting features from
+vaccine safety reports,” J. Amer. Med. Informat. Assoc., vol. 19, no. 6,
+pp. 1011–1018, 2012.
+[30] A. R. Aronson, “Effective mapping of biomedical text to the UMLS
+metathesaurus: The metamap program,” in Proc. Amer. Med. Informat.
+Assoc. Symp., 2001, pp. 17–21.
+[31] A. R. Aronson and F. M. Lang, “An overview of metamap: Historical
+perspective and recent advances,” J. Amer. Med. Informat. Assoc., vol. 17,
+no. 3, pp. 229–236, 2010.
+[32] (2014). NLM, “Batch MetaMap,” National Library of Medicine
+2014 January 30 [cited 2014 Mar 4]; [Online]: Available:
+http://skr.nlm.nih.gov/batch-mode/metamap.shtml
+[33] A. Clauset, M. E. Newman, and C. Moore, “Finding community structure
+in very large networks,” Phys. Rev. E, vol. 70, no. 6, 066111, 2004.
+[34] M. E. Newman and M. Girvan, “Finding and evaluating community structure in networks,” Phys. Rev. E, vol. 69, no. 2, 026113, 2004.
+[35] M. E. Newman, “Finding community structure in networks using the
+eigenvectors of matrices,” Phys. Rev. E, vol. 74, no. 3, 036104, 2006.
+[36] P. Pons and M. Latapy, “Computing communities in large networks using
+random walks,” in Proc. 20th Int. Conf. Computer Inform. Sci, 2005,
+pp. 284–293.
+[37] A. Bagga and B. Baldwin, “Entity-based cross-document coreferencing
+using the vector space model,” Proc. 17th Int. Conf. Comput. Linguistics,
+1998, pp. 79–85.
+[38] J. U. Ruggeberg, M. S. Gold, J. M. Bayas, M. D. Blum, J. Bonhoeffer,
+S. Friedlander, G. de Souza Brito, U. Heininger, B. Imoukhuede, and A.
+Khamesipour, “Anaphylaxis: Case definition and guidelines for data collection, analysis, and presentation of immunization safety data,” Vaccine,
+vol. 25, no. 31, pp. 5675–5684, 2007.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on September 30,2021 at 16:31:38 UTC from IEEE Xplore. Restrictions apply.
+
+

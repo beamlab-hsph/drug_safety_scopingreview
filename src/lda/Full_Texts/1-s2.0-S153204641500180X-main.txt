@@ -1,0 +1,3287 @@
+Journal of Biomedical Informatics 57 (2015) 333–349
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+Identifying adverse drug event information in clinical notes
+with distributional semantic representations of context
+Aron Henriksson a,⇑, Maria Kvist a,b, Hercules Dalianis a, Martin Duneld a
+a
+b
+
+Department of Computer and Systems Sciences (DSV), Stockholm University, Sweden
+Department of Learning, Informatics, Management and Ethics (LIME), Karolinska Institutet, Sweden
+
+a r t i c l e
+
+i n f o
+
+Article history:
+Received 5 May 2015
+Revised 19 July 2015
+Accepted 10 August 2015
+Available online 17 August 2015
+Keywords:
+Adverse drug events
+Electronic health records
+Corpus annotation
+Machine learning
+Distributional semantics
+Relation extraction
+
+a b s t r a c t
+For the purpose of post-marketing drug safety surveillance, which has traditionally relied on the voluntary reporting of individual cases of adverse drug events (ADEs), other sources of information are now
+being explored, including electronic health records (EHRs), which give us access to enormous amounts
+of longitudinal observations of the treatment of patients and their drug use. Adverse drug events, which
+can be encoded in EHRs with certain diagnosis codes, are, however, heavily underreported. It is therefore
+important to develop capabilities to process, by means of computational methods, the more unstructured
+EHR data in the form of clinical notes, where clinicians may describe and reason around suspected ADEs.
+In this study, we report on the creation of an annotated corpus of Swedish health records for the purpose
+of learning to identify information pertaining to ADEs present in clinical notes. To this end, three key
+tasks are tackled: recognizing relevant named entities (disorders, symptoms, drugs), labeling attributes
+of the recognized entities (negation, speculation, temporality), and relationships between them
+(indication, adverse drug event). For each of the three tasks, leveraging models of distributional
+semantics – i.e., unsupervised methods that exploit co-occurrence information to model, typically in
+vector space, the meaning of words – and, in particular, combinations of such models, is shown to
+improve the predictive performance. The ability to make use of such unsupervised methods is critical
+when faced with large amounts of sparse and high-dimensional data, especially in domains where
+annotated resources are scarce.
+Ó 2015 The Authors. Published by Elsevier Inc. This is an open access article under the CC BY-NC-ND license
+(http://creativecommons.org/licenses/by-nc-nd/4.0/).
+
+1. Introduction
+The digitization of healthcare data, as a result of the increasingly widespread adoption of electronic health records (EHRs),
+has rendered its analysis possible on a large and unprecedented
+scale. However, despite the widely acknowledged transformative
+potential of exploiting EHR data for secondary use in the endeavor
+of improving healthcare and supporting public health activities, it
+remains a largely underutilized resource [1], partly as a result both
+of technical challenges and possible application areas being underexplored. To ensure, then, that this valuable resource is more
+widely tapped and its potential fully realized, computational methods need to be developed for this particular domain.
+A nascent line of research concerns the application of machine
+learning algorithms to EHR data for the construction of predictive
+models that can be employed in a wide range of tasks. There are,
+⇑ Corresponding author.
+E-mail addresses: aronhen@dsv.su.se (A. Henriksson), maria.kvist@karolinska.se
+(M. Kvist), hercules@dsv.su.se (H. Dalianis), xmartin@dsv.su.se (M. Duneld).
+
+however, many challenges involved in learning high-performing
+predictive models from EHR data, such as the high dimensionality
+caused by the large number of variables that can be used to
+describe a given set of observations, as well as the typically accompanying sparsity. There is also an inherent heterogeneity in EHR
+data, entailing that the various data types cannot be handled in
+an identical fashion. The majority of EHR data is, for instance,
+expressed in natural language, albeit in a form that is greatly specialized and domain-dependent: clinical text typically does not
+conform to standard grammar rules and is often littered with
+shorthand and misspellings [2,3], further exacerbating the aforementioned dimensionality and sparsity issues. There is perhaps,
+then, a particular need to adapt natural language processing
+(NLP) techniques to the genre of clinical text, lest the potentially
+valuable information contained therein should be ignored. It is
+moreover critical that research is conducted on languages other
+than English.
+One public health activity that may be supported through secondary use of EHR data is pharmacovigilance, i.e. post-marketing
+drug safety surveillance, as alternatives to spontaneous reporting
+
+http://dx.doi.org/10.1016/j.jbi.2015.08.013
+1532-0464/Ó 2015 The Authors. Published by Elsevier Inc.
+This is an open access article under the CC BY-NC-ND license (http://creativecommons.org/licenses/by-nc-nd/4.0/).
+
+334
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+systems for information on adverse drug events (ADEs) are currently being explored, not least in order to address the gross underreporting of ADEs that create obstacles in obtaining reliable
+incidence estimates. In comparison to spontaneous case reports,
+EHRs have several advantages, such as providing longitudinal
+observations of patient treatment, including drug prescriptions
+and administration. Unfortunately, ADEs are also heavily underreported in EHRs, where they can be encoded by a, albeit rather limited, set of diagnosis codes. It is therefore important to develop
+capabilities to process clinical notes, where clinicians may describe
+and reason around suspected ADEs.
+Extracting information pertaining to ADEs in clinical notes
+requires a number of key components: (1) named entity recognition, i.e. being able to detect mentions of, for instance, drugs,
+symptoms and disorders; (2) concept attribute labeling, e.g. being
+able to determine if named entity mentions are expressed with
+negation, speculation or a non-current temporality (past/future
+events); and (3) relation extraction, i.e. being able to detect and
+classify relations that may hold between pairs of named entity
+mentions. Machine learning can be leveraged to construct predictive models to perform such tasks automatically. Doing so, however, requires access to substantial amounts of labeled data,
+which is typically not readily available and, to create for every
+problem, domain and language, is prohibitively expensive, particularly when medical experts are required to provide the
+annotations.
+In this paper, we describe the creation of such an annotated
+resource – comprising clinical notes written by physicians in
+Swedish – that is then used to construct predictive models, which,
+in turn, are used to identify information pertaining to ADEs in clinical notes. To address the aforementioned challenges – high
+dimensionality and sparsity, on the one hand, and limited availability of annotated resources in the clinical domain, on the other
+– we investigate how models of distributional semantics can be
+leveraged to obtain enhanced predictive performance on the three
+identified tasks. Distributional semantics essentially allow word
+representations, typically in vector space, to be obtained in a
+wholly unsupervised manner. These can be used to generate
+(semantic) features that can subsequently be exploited by a learning algorithm when constructing predictive models. In a series of
+experiments, such representations of the data are shown to be
+more conducive to learning high-performing predictive models in
+comparison to the commonly employed bag-of-words (BOW)
+approach. The ability to exploit large amounts of unlabeled data
+is critical when faced with volumes of EHR data that are approaching ‘‘big data”.
+
+2. Background
+Pharmacovigilance is carried out throughout the life-cycle of a
+drug in order to inform decisions on its initial and sustained use
+in the treatment of patients. The need to monitor the safety of
+drugs post marketing is caused by the inherent limitations of clinical trails in terms of sample size and study duration, making it
+particularly difficult to identify rare and long-latency ADEs. There
+are, in fact, several cases in which drugs have been discovered to
+cause severe, even fatal, ADEs, resulting in their withdrawal from
+the market [4,5]. Moreover, ADEs have been estimated to be
+responsible for approximately 3–5% of hospital admissions worldwide [6,7], causing suffering and inflated healthcare costs, often
+unnecessarily so, as ADEs are in many cases preventable: according
+to one meta-analysis, around 50% of adverse drug reactions are
+preventable [8]. Post-marketing surveillance of drug safety has primarily relied on case reports that are reported voluntarily by clinicians and drug users in so-called spontaneous reporting systems,
+
+such as the US Food and Drug Administration’s Adverse Event
+Reporting System, the Yellow Card Scheme in the UK and the
+World Health Organization’s Global Individual Case Safety Reporting Database: Vigibase. Relying solely on spontaneous reports has,
+however, proven to be insufficient. In addition to several limitations inherent in collecting information in this way, such as selective reporting, incomplete patient information and indeterminate
+population information [9], spontaneous reporting systems suffer
+heavily from underreporting: according to one estimate, more than
+94% of ADEs are not reported in such systems [10].
+As a result, alternative – and complementary – sources of information for pharmacovigilance are being explored, including the
+biomedical literature [11], user-generated data in social media
+[12] and, as previously mentioned, EHRs. The latter has the distinct
+advantage of containing data collected from the clinical setting,
+thereby providing access to longitudinal observations of patients,
+their medical condition and drug use. Health records contain various types of data, which can crudely be categorized into structured
+and unstructured: the structured data includes, e.g., diagnosis and
+drug codes, clinical measurements and lab tests, while clinical
+notes written in free-text make up the more unstructured parts.
+Although ADEs signals can, to some extent, be detected from the
+structured EHR data – and this constitutes an ongoing line of
+research [13–17] – a substantial amount of information pertaining
+to ADEs is expressed only in clinical notes, where clinicians may
+describe and reason around potential ADEs. Methods that can identify information pertaining to ADEs in clinical notes would therefore be very valuable.
+2.1. Detecting adverse drug events in clinical notes
+In recent years, there have been a few studies investigating the
+possibility of detecting and extracting various types of ADE information from clinical notes. Some of the methods that have been
+developed are based on hand-crafted rules, which tend to rely
+heavily on the existence of extensive dictionaries in the target language and domain. One such rule- and dictionary-based approach
+was developed for Danish clinical notes and evaluated on around
+six thousand health records of psychiatric patients [18]. The system identified a large number of potential ADEs of various kinds
+with, according to an evaluation through manual inspection, high
+precision (0.89) and moderate recall (0.75). This approach has later
+been employed in conjunction with temporal data mining techniques to allow for the identification of dose-specific ADEs [19].
+Rule-based approaches often tend to perform fairly well; however,
+they are also known not to generalize well to other domains and
+over time, while being cumbersome and expensive to create.
+Another type of approach to the exploitation of clinical notes for
+pharmacovigilance is primarily based on statistical methods. An
+early attempt in this vein used an NLP system, MedLEE, to extract
+relevant clinical events from discharge summaries, for which cooccurrence statistics were calculated in order to detect drug-ADE
+associations [20]. A small set of drugs with known ADEs were
+selected to evaluate the system, yielding a precision of 0.31 and
+a recall of 0.75. It was also shown that this method could be used
+to detect novel ADEs. A similar approach is to extract events or
+concepts from a large number of clinical notes – as many as fifty
+million in one study – and then to apply disproportionality methods to detect drug-ADE signals, as well as ADEs caused by drugdrug interactions [21–23]. The authors demonstrate the ability of
+their methods to flag for ADEs, in some cases before an official alert
+is made.
+A third approach is to employ (supervised) machine learning to
+build predictive models that can identify potential relations,
+including ones that indicate an ADE, between drugs and medical
+problems. In one study, 435 Japanese discharge summaries were
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+annotated for drugs and symptoms, as well as potential ADE relations. A binary support vector machine classifier was trained on the
+data, yielding an average F1-score of around 0.6 on the relation
+extraction task [24]. In another study, 194 Spanish discharge summaries were similarly annotated for various named entities, as well
+as relations between drugs and diseases [25]. Using the random
+forest learning algorithm for the binary relation extraction task,
+the authors report obtaining a macro-averaged F1-score of 0.88;
+however, it is not clear what the F1-score on the positive – and presumably minority – class was. A possible source of error was nevertheless long-distance relations. Commonly used features for this
+task are information about the participating entities, the context
+around/between the two entities and the distance between them.
+2.2. Named entity recognition
+An essential component of almost any NLP system, including
+ones that aim to detect ADE information in clinical notes, is named
+entity recognition (NER), i.e., the ability to recognize references to
+entities of certain predefined semantic categories. The number of
+shared tasks and challenges that have been organized in recent
+years on recognizing various medical entities in clinical text is testament to the importance of domain-adapted NER systems
+[26–29]. Most of the NER modules that are currently in use in
+various clinical NLP systems, such as MedLEE [30], MetaMap [31]
+and cTAKES [32], are rule-based and rely heavily on comprehensive
+medical dictionaries. Despite this, the trend has increasingly
+moved in the direction of machine learning; the state-of-the-art
+clinical NER systems are primarily built on predictive models
+[33–35].
+Although most have focused on English clinical text, there is a
+recent study in which supervised machine learning was used for
+learning to recognize disorders, findings, drugs and body parts in
+Swedish health records [36]. Approximately one thousand assessment fields were manually annotated for the said categories; conditional random fields was then used to learn to recognize these
+automatically, yielding classwise F1-scores ranging from 0.69 to
+0.88.
+2.3. Concept attribute labeling
+When extracting information from clinical notes, it is not sufficient merely to identify relevant named entities, or concepts; it is
+also important to take into account the context in which they are
+mentioned in order to identify potential linguistic attributes, or
+modifiers, of the concepts. Important attributes to consider, particularly so in the clinical domain, include negation, speculation, temporality and event subject identification, i.e., whom the event
+concerns, for instance someone other than the patient [2].
+Negation detection in clinical text has been an active research
+area for over a decade and most existing clinical NLP systems
+include some form of negation analysis. A straightforward and
+popular negation detection algorithm is NegEx [37], which uses a
+list of negation triggers along with a set of regular expressions to
+determine if a concept is referred to in a negated context. Despite
+its simplicity, it has been shown often to perform well. NegEx has
+since then been extended and adapted to several other languages
+[38], including Swedish [39]. Although many negation detection
+systems are based on hand-crafted rules, there have also been
+attempts to cast negation detection as a machine learning classification task [40], subsequently giving rise to hybrid solutions that
+combine machine learning and hand-crafted rules [41]. Despite
+the many good results that have been reported, a recent study
+showed that current negation detection approaches are readily
+
+335
+
+optimizable yet fail to generalize well across datasets, indicating
+that negation detection is not, after all, a solved problem [42].
+In addition to negation detection, it is also import, for the
+purpose of information extraction from clinical text, to identify
+certainty levels with which concepts, such as diagnoses, are
+referred to. The distinction between speculation and assertions
+made with certainty, for instance, obviously has great implications. This task is also known as assertion classification and typically involves distinguishing between assertions made with
+respect to given medical concepts as being present, absent or
+uncertain in the patient, as well as whether they are associated
+with someone other than the patient. Both rule-based and
+machine learning approaches have been proposed for this task
+[27]. In the 2010 i2b2/VA challenge on concepts, assertions, and
+relations in clinical text [43], the task was cast in a similar way.
+Work on being able to distinguish between different levels of
+factuality has also been conducted on Swedish clinical text with
+the use of machine learning [44].
+Lately, attempts to identify the temporal status of an assertion
+have been made [45–48], as this is crucial for creating models of,
+for instance, disease progression. Temporal information is of
+course available in a structured form as document timestamps;
+however, temporality is also expressed in the free-text sections,
+for instance when describing a patient’s medical history. For
+Swedish clinical text, work on temporal information extraction is
+ongoing [49].
+
+2.4. Relation extraction
+Once named entity mentions have been identified in a document, it is often desirable to be able to detect various types of
+semantic relations that may hold between them. In the broader
+biomedical domain, relation extraction has received considerable
+attention, such as for the purpose of extracting protein–protein
+interactions from the biomedical literature [50,51]. In the aforementioned i2b2 challenge, the relation extraction task consisted
+of classifying relations between pairs of concepts – medical problems, treatments and tests – within sentences [27]. This latter constraint seems to be widespread, despite the fact that relations may,
+and often do, hold across sentences, with two rare exceptions to
+this described above [24,25]. In the latter case, the task becomes
+substantially more challenging, particularly as the problem posed
+by class imbalance – between the positive relation class(es) and
+the No Relation class – is further exacerbated. The bestperforming system in the challenge was a support vector machine
+classifier [52].
+Current supervised solutions to relation extraction are either
+feature-based or kernel-based [53]. The feature-based approach
+extracts a variety of lexical, syntactic and semantic features that
+are provided to an appropriate learning algorithm. Kernel-based
+approaches, on the other hand, instead design kernel functions
+over a structured representation of a sentence, such as a parse tree
+to capture similarities between the various relation examples.
+There are, moreover, two general paradigms for relation extraction: (1) a flat strategy, wherein relation detection and classification is performed simultaneously, i.e. a multi-class classifier is
+trained to discriminate between all relation classes, including the
+No Relation class; and (2) a hierarchical strategy, wherein relation
+detection is separated from relation classification, entailing that
+two classifiers are trained: one binary classifier that distinguishes
+between the Relation and No Relation class, followed by a multiclass classifier that is trained to discriminate between the positive
+classes.
+
+336
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+2.5. Semi-supervised learning with distributional semantics
+Supervised approaches to the above described tasks have many
+advantages, albeit with the caveat that they require substantial
+amounts of labeled data. Such resources are often not readily available, particularly not for highly specialized domains like that of
+clinical text. Creating large annotated resources is, however, prohibitively expensive. To mitigate this problem, the notion of supplementing labeled data with features derived from large
+amounts of unlabeled data has been explored. The motivation
+behind this idea is that sparsity in the labeled training data can
+be reduced by using unlabeled data, effectively improving the generalization accuracy of semi-supervised approaches. For NLP problems, the unsupervised features typically come in the form of word
+representations. A popular method for constructing these
+word representations is to use clustering – see, for instance, [54].
+Word representations can, however, be induced in many other
+ways: several of these are compared in [55], where it is shown that,
+by adding semantic word representations, near state-of-the-art
+supervised baselines for both NER and chunking can be
+outperformed.
+Word representations can also be obtained with models of distributional semantics. Distributional semantics is a computational
+approach to modeling the meaning of natural language that is
+based on the observation – and captured in the distributional
+hypothesis [56] – that words with similar meanings tend to appear
+in similar contexts. Models of distributional semantics have primarily been used to create (semantic) vector representations of
+words, which have proved useful in a wide array of natural language processing tasks [57]. In recent years, distributional semantics has been leveraged also in the biomedical [58] and clinical [59]
+domains.
+It has been shown that the predictive performance can be
+improved further by combining multiple distributional semantic
+models (DSMs), either by deriving the semantic vectors from different types of corpora or by changing the parameters of the
+models [60,61]. Although different DSMs have slightly different
+hyperparameters, the definition of context is common to all.
+The context definition affects the semantic properties of the
+semantic space [62]. An important distinction exists, for instance,
+between syntagmatic and paradigmatic relations, and which one is
+modeled depends on the context definition that is employed. The
+former holds between words that co-occur (e.g., {car, engine,
+road}), while the latter holds between words that do not themselves co-occur but share neighbors (e.g., synonyms like {car,
+automobile}). Context is usually defined as a (sliding) window
+that is symmetric around the focus word. The size of the context
+window has also been shown to play an important role in contrasting different semantic relations [63], and the optimal window size tends to be task-dependent [64]. For the task of
+extracting medical synonyms from large corpora, it has been
+shown that combining DSMs with different hyperparameters,
+including window size, can lead to improved performance [60].
+For NER, using multiple DSMs with different hyperparameters
+was shown to lead to improved performance compared to using
+only a single DSM [61,65].
+3. Methods and materials
+We report on the creation of a Swedish clinical corpus manually
+annotated for various types of information potentially pertaining
+to ADEs:
+1. named entities (Drug, Disorder, Finding, Body Structure, ADE Cue),
+2. attributes of named entities (Negation, Speculation, Past, Future,
+Other) and
+
+3. relations between entities (Indication, Adverse Drug Event, ADE
+Cause, ADE Outcome).
+The annotated corpus is then used to learn predictive models in
+order to study to what extent these three tasks can be automated.
+The learning tasks correspond to the human annotation effort: (1)
+named entity recognition, (2) concept attribute labeling and (3)
+relation extraction. The common theme across the three tasks is
+the leveraging of distributional semantic models in order to provide additional features from a much larger, unlabeled corpus in
+the same domain. We primarily investigate the use of these distributed word representations in the representation of context
+and compare it to using the commonly employed bag-of-words
+representation. We furthermore explore the impact on predictive
+performance of utilizing multiple distributional semantic models,
+built with different context window sizes, which would thereby
+provide multiple views of the data (Fig. 1).
+3.1. Corpus annotation
+The adverse drug event corpus was created by extracting all
+notes1 from the Stockholm EPR Corpus [66] over a two-year period
+(2009–2010) that have been assigned one or more ADE-related
+ICD-102 diagnosis codes. Here, we selected the most frequently used
+codes in our EHR database that have been identified as being used
+for encoding ADEs3 [67]. Among these, there are a few broad codes
+for allergic reactions, such as T78.2, that are not always related to
+drug intake but to dietary allergies. We retained these and postulated that it would be valuable to have (negative) examples closely
+resembling some types of ADEs. Each note consists of one or more
+free-text entries; however, only physician notes that belong to certain categories (Admission Note, Patient History, Hypersensitivity and
+Drug Info, Assessment, Discharge Note), were included. These categories were deemed relevant for the task at hand and likely to
+include information about ADEs. Each note describes an encounter
+with a physician lasting no more than a single day.
+The data extraction and filtering process resulted in 3690 notes
+with a total of 12,510 entries. Out of these, 400 notes were then
+randomly extracted for annotation. This dataset is henceforth
+referred to as the Stockholm ADE Corpus and is described in
+Table 1. The data was then split into two subsets, where each subset was annotated by two people to allow for calculation of interannotator agreement (IAA). The main annotator (A3) is a physician
+with previous experience of annotating clinical notes. Both subsets
+were annotated by A3 and only these annotations were used in all
+subsequent machine learning experiments. The two subsets were
+also annotated by two NLP researchers (A1 and A2) and, in this
+domain, laymen. All annotators are native speakers of Swedish.
+Two pairs of IAA scores were thus calculated: between A1 and
+A3, and between A2 and A3.
+Annotation guidelines4 were developed by the main annotator
+based on discussions with the first author. For annotation of named
+entities, previous guidelines developed for Swedish clinical text [36]
+were used with certain modifications. For annotation of relations,
+the guidelines developed for the previously described i2b2 challenge
+[27] were used as inspiration. An important difference, however, was
+1
+This research has been approved by the Regional Ethical Review Board in
+Stockholm (Etikprövningsnämnden i Stockholm), permission number 2012/834-31/5.
+2
+Diagnoses in the Stockholm EPR Corpus is encoded by the International Statistical
+Classification of Diseases and Related Health Problems, 10th Edition (ICD-10).
+3
+These codes were classified as belonging to one of two categories: (1) a drugrelated causation was noted in the ICD-10, e.g., G44.4 ‘‘Drug-induced headache, not
+elsewhere classified”, and (2) a drug- or other substance-related causation was noted
+in the ICD-10, e.g., I42.7 ‘‘Cardiomyopathy due to drugs and other external agents.”
+[67].
+4
+The annotation guidelines are available at http://dsv.su.se/health/guidelines/.
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+337
+
+Fig. 1. An overview of the study, which comprises the following stages: (1) data extraction, (2) corpus annotation, (3) feature engineering, and (4) machine learning. For each
+of the three targeted tasks – named entity recognition, concept attribute labeling and relation extraction – features are generated from labeled and unlabeled data, in the
+latter case by employing models of distributional semantics. The features are then provided to a machine learning algorithm – conditional random fields (CRF) or random
+forest – to create predictive models that can be used for identifying adverse drug event information in clinical notes, in the endeavor of supporting pharmacovigilance
+activities.
+
+to allow relations to span across sentences; this choice was made to
+reflect the nature of ADE relations in clinical text, which tend to
+cross sentence boundaries. Trial annotations were made using data
+from previous years in order to train the annotators and fine-tune
+the guidelines. The annotation classes consisted of five named entities, five attributes and four relations. In addition to the named entities annotated for in [36], a fifth class, ADE Cue, was introduced. This
+entity signifies the occurrence of an ADE without specifying its form,
+making them distinct from the Disorder and Finding classes; examples include side effect, secondary effect, hypersensitivity and iatrogenic. The named entities could also have certain attributes
+attached to them, depending on the context in which they were
+mentioned. The attributes are binary – i.e., present or absent – and
+indicate whether a given named entity is expressed with negation,
+speculation (uncertainty), temporality (past or future), or if it concerns someone other than the patient; multiple attributes were
+allowed to co-exist in the same named entity mention (e.g., negation + past). Finally, the third task involved determining if certain
+semantic relations existed between the identified named entities.
+In addition to the key task of distinguishing between an Indication
+and an ADE – relations that may hold between Drug-Disorder/Finding
+pairs – two classes were deemed necessary as a result of the inclusion of the ADE Cue entity: (1) ADE Cause, possibly existing between
+Drug and ADE Cue, i.e., identifying the drug causing the ADE without
+specifying its nature, and (2) ADE Outcome, possibly existing
+
+between Disorder/Finding and ADE Cue, i.e., identifying the manifestation of the ADE without mentioning the underlying reason. It
+should be noted, however, that these two relations can, and often
+do, co-occur, effectively describing a cause-and-effect sequence of
+events. The annotation classes, along with permissible relations,
+are depicted in Fig. 2.
+All annotations were made in the Brat rapid annotation tool
+[68]. To speed up and facilitate the human annotation effort, the
+documents were preannotated for four of five named entities
+(Drug, Disorder, Finding, Body Structure) using a conditional random
+fields model trained on previously manually annotated health
+records from an internal medicine emergency unit in Stockholm
+– see [36] for details. In addition to calculating IAA, in terms of
+F1-score, between the human annotators, we also calculate IAA
+between the machine’s (pre-)annotations and the human annotators. This evaluation of the preannotation serves, in effect, also as
+an evaluation of the ability of a machine learning-based NER system to generalize to a somewhat different (sub-)domain, given that
+the notes under consideration here are drawn from a variety of
+clinics and encompass several types of notes.
+3.2. Recognizing clinical entities
+Using the annotations of the main annotator, the first step was
+to learn to recognize mentions of the predefined clinical entities in
+
+338
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+Table 1
+Description of the Stockholm ADE Corpus.
+Code
+
+Description
+
+Notes
+
+Tokens/note
+
+E27.3
+G24.0
+G25.1
+G44.4
+G62.0
+I42.7
+I95.2
+L27.0
+L27.1
+N14.1
+T78.2
+T78.3
+T80.8
+T88.7
+T88.6
+
+Drug-induced adrenocortical insufficiency
+Drug induced dystonia
+Drug-induced tremor
+Drug-induced headache, not elsewhere classified
+Drug-induced polyneuropathy
+Cardiomyopathy due to drug and external agent
+Hypotension due to drugs
+Generalized skin eruption due to drugs and medicaments taken internally
+Localized skin eruption due to drugs and medicaments taken internally
+Nephropathy induced by other drugs, medicaments and biological substances
+Anaphylactic shock, unspecified
+Angioneurotic edema
+Other complications following infusion, transfusion and therapeutic injection
+Unspecified adverse effect of drug or medicament
+Anaphylactic reaction due to adverse effect of correct drug or medicament properly administered
+
+9
+13
+4
+8
+9
+10
+4
+38
+8
+9
+13
+99
+70
+104
+11
+
+184.2 ± 148.4
+114.5 ± 85.1
+194.1 ± 134.3
+214.1 ± 143.5
+161.2 ± 128.6
+108.4 ± 82.9
+144.1 ± 100.6
+132.1 ± 74.7
+139.8 ± 77.6
+178.6 ± 107.1
+221.8 ± 160.4
+190.6 ± 113.2
+60.1 ± 47.3
+185.1 ± 113.4
+132.5 ± 102.8
+
+Fig. 2. Annotation scheme.
+
+the notes. Following the standard approach to training a NER
+model, we cast the problem as a sequence labeling task, aiming
+to find the best sequence of labels for a given input, i.e., the
+sequence of tokens in the note, which are described by various
+features. IOB-encoding of the annotated entities was used, which
+indicates whether a token is at the beginning (B), inside (I) or
+outside (O) a given named entity mention. The training data was
+then provided to the conditional random fields (CRF) algorithm
+[69], as implemented in CRF++ [70], which is among the best and
+one of the most popular choices for sequence labeling tasks such
+as NER. The strength of CRF stems from its ability to model
+multiple variables that are dependent on each other – as they are
+in sequence labeling tasks – and simultaneously to exploit large
+sets of input features. It achieves this by using an undirected
+probabilistic graphical model that is discriminative, unlike
+generative Hidden Markov Models. Here, we use a linear-chain
+CRF that, in addition to being dependent on the input features, is
+also dependent on the previous and subsequent output variable.
+The main experiment involved investigating the impact on the
+predictive performance of a CRF model with three different feature
+sets:
+1. a set of commonly used lexical, orthographic, syntactic and dictionary features (B),
+2. the baseline features supplemented with distributional semantic features (+DSM),
+3. the baseline features supplemented with distributional semantic features derived from multiple DSMs, each constructed with
+a different context window size (+mDSM).
+
+The baseline features were the same as those used in a previous
+study on NER in Swedish clinical text [36] and consist of the following types5:
+
+
+
+
+
+Token: Token as a string.
+Lemma: Lemma form of token.
+POS: Part-of-speech of token.
+Casing: Capitalization of initial letter/all letters/no letters in
+token?
+ Compound splitting: Token split into its constituent parts if
+compound.
+ Terminology matching: Token present in terminology
+(SNOMED CT, MeSH, etc.)?
+To create distributional semantic features, a similar approach to
+that proposed in [61] was taken. The idea is to learn prototypical
+representations of each named entity class in distributional
+semantic space, which is achieved by taking the centroid, defined
+as the column-wise median values, of the semantic vectors that
+correspond to the annotated tokens of a given class (Algorithm
+1). In the previously proposed method, binary features are generated by, for each named entity class, first finding the cosine similarity threshold that optimizes F1-score on the training set and
+subsequently determining whether the cosine similarity of a given
+word – or rather its representation in semantic space – and the
+prototype vector is below or above that threshold. In contrast,
+
+5
+
+For more precise details on these feature, see the paper by Skeppstedt et al. [36].
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+the features are here simply the cosine similarity, rounded up to
+one decimal point, between a given token and the prototype vector
+for each of the named entity classes (+DSM). The third feature set
+(+mDSM), then, repeats this process of creating distributional
+semantic features with twenty different DSMs, each built with a
+different context window size.
+Algorithm 1. Learning Prototype Vector(s) for a Named Entity
+Class
+
+3.3. Detecting attributes of entities
+The second learning task consisted of detecting attributes of the
+annotated named entity mentions. Here, we treated each attribute
+independently of each other and created binary classifiers using
+the random forest learning algorithm [71] to determine the presence or absence of a given attribute. Again, three feature sets were
+compared, with some basic features shared by all: the class of the
+named entity mention, along with one-hot encoding of unigrams
+and bigrams in the mention.
+The difference was in the representation of context in which the
+named entity was mentioned. Here, context is defined as a symmetric window encompassing w tokens to the left and right of
+the focus word, where w ¼ 0; 1; . . . ; 10. The purpose of this experiment was to study the potential usefulness of context features for
+each of the concept attribute labeling tasks; in doing so, three different representations of context were compared:
+1. as a bag of words (words, or BOW),
+2. as the sum of the words’ semantic vectors from a single DSM
+(semantic vectors, or SV),
+3. as the sum of the word’s concatenated semantic vectors, where
+each type of semantic vector inhabits a different distributional
+semantic space (multiple semantic vectors, or MSV).
+3.4. Extracting relations between entities
+The third learning task concerned the detection and classification of semantic relations between named entity mentions. More
+formally, the task can be defined as follows: given a relation
+instance x ¼ ðd; mi ; mj Þ, where mi and mj constitute a pair of mentions and d is the document containing the pair, the goal is to learn
+a function that maps the instance x to a type c, where c is one of the
+four predefined relation types or the type No Relation. Although the
+
+339
+
+ultimate goal is both to detect and label relations, there are several
+paths one can take to get there. Here, we conduct a number of
+experiments to explore the best way of achieving this goal. The following experiments are conducted:
+1. A comparison of two strategies for relation extraction: flat vs.
+hierarchical.
+2. An investigation into whether it is advantageous to merge the
+positive relation classes for relation detection.
+3. A comparison of shallow and deep (distributional semantic)
+representations of context.
+4. A study of the impact on predictive performance as more context features are used.
+Labeled examples of the four (positive) relations are provided
+by the annotations; in addition to these, examples of the negative
+No Relation class are needed. These are derived by extracting all
+permissible relations (see Fig. 2) in a document that have not
+already been annotated. As this leads to a huge number of negative
+examples, the negative class is downsampled in the training set –
+but not in the test set – to the sum of the positive instances. This is
+done primarily for computational reasons, as it is unclear whether
+downsampling – and upsampling of the minority class(es) for that
+matter – as a strategy to deal with skewed class distributions leads
+to enhanced predictive performance: while more (equal) weight is
+thereby given to the minority class(es), potentially useful information is discarded [72]. To handle the much smaller skewness that
+remains after downsampling, weights are assigned to each class
+that are inversely proportional to the class frequencies in the input
+data [73].
+The hierarchical or cascading classifier, as described in the
+Background section of this paper, separates the task into two parts:
+first, detecting relations; then, determining the precise label of the
+detected relations. For the task of detecting relations, it is thus
+common to merge the multiple positive classes into a single positive, Relation, class. This is, however, not invariably a good choice,
+especially when the positive classes are not similar enough. This
+would then only make it more difficult for the learning algorithm
+to separate the classes. For this reason, we investigate two
+approaches to relation detection: (1) merging the positive classes
+and (2) keeping the original class labels. To enable a fair and
+straightforward comparison, the predicted classes are in the latter
+case merged post classification.
+Again, three different feature sets are compared, which differ in
+how they represent context features. The following types of features are, however, common to all:
+1. Entity classes: One-hot encoding of the class of each respective
+named entity mention, as well as their concatenation (Class of
+Entity 1 + Class of Entity 2, e.g., Drug-Finding).
+2. Entity unigrams: One-hot encoding of the unigrams in the
+respective named entity mentions (lowercase lemmas).
+3. Entity bigrams: One-hot encoding of the bigrams in the respective named entity mentions (lowercase lemmas).
+4. Distance: The number of tokens between the two entities.
+The difference between the feature sets was, again, in the representation of context, in this case around and between the two
+entity mentions. Here, we investigate the impact on predictive performance of the size of the outer context window, i.e., an asymmetric window of w tokens to the left of the first entity and to the right
+of the second entity, where w ¼ 0; 0; 1; . . . ; 10 and 0 means that
+no inner context features are used; with all other values of w, inner
+context features are used. Similar to the concept attribute labeling
+experiments, the purpose of this is to study the potential usefulness of context features for the relation detection and classification
+
+340
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+words
+semantic vectors
+multiple semantic vectors
+
+2
+
+3
+
+5000
+
+Context Window Size
+1
+
+Context Window Size
+4
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+Number of Features
+
+10000
+
+15000
+
+Number of Features
+
+4000
+
+8000
+
+12000
+
+Number of Features
+
+Relation Extraction
+words
+semantic vectors
+multiple semantic vectors
+
+20000
+
+words
+semantic vectors
+multiple semantic vectors
+
+16000
+
+Concept Attribute Labeling
+
+400000
+
+800000
+
+1200000
+
+1600000
+
+Feature Size
+Named Entity Recognition
+
+8
+
+9
+
+10
+
+Context Window Size
+0* 0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9 10
+
+Fig. 3. The number of features when using the different representations on the three targeted tasks as the size of the context window is varied. For relation extraction, 0⁄
+means that no context features are used, while 0 means that only inner context (between two entities) features is used.
+
+task(s); again, in doing so, the same three representations of context were compared: (1) words, or BOW, (2) semantic vectors,
+or SV, and (3) multiple semantic vectors, or MSV (see Section 3.3).
+Follow-up analyses are then conducted, both in the form of a feature analysis, using variable importance obtained from random
+forest, and an analysis of how predictive performance for each of
+the relation classes is affected by the distance between entities
+in a relation.
+
+3.5. Experimental setup
+In all experiments, the notes were first randomly divided into a
+training set (80%) and a test set (20%). Most of the experimentation
+was done using 10-fold cross validation on the training set, while
+the best-performing models were subsequently compared, with
+accompanying significance tests, using the unseen test set.
+As described above, CRF [69], as implemented in CRF++ [70],
+was used as the underlying learning algorithm to generate NER
+models. A grid search was conducted to find the best hyperparameters on the training set. For the window size that determines to
+what extent dependencies should be modeled between input features and output variables, we employed a symmetric window size
+and explored values between 1 and 4. Integer values for the regularization hyperparameter, which governs the balancing between
+under- and over-fitting, between 1 and 10 were explored; for this,
+L2-regularization was employed. The hyperparameters were, of
+course, optimized separately for each feature set.
+For the latter two tasks – concept attribute labeling and relation
+extraction – the random forest learning algorithm [71], as implemented in scikit-learn [74], was used to generate predictive models. This particular choice was made for its reputation of achieving
+high predictive performance, its ability to handle high-dimensional
+data, as well as the possibility of obtaining estimates of variable
+importance. The algorithm constructs an ensemble of decision
+trees, which together vote for which class label to predict. Each
+tree in the forest is built from a bootstrap replicate of the original
+instances, and a subset of all features is sampled at each node
+when building the tree – in both cases to increase diversity among
+the trees. In this study, we used random forest with 500 trees, sampﬃﬃﬃ
+pling n features at each node.
+For deriving the distributed word representations, or semantic
+vectors, from a large, unlabeled corpus, word2vec was used. This
+implements a recently developed DSM that stems from research
+in deep learning and neural network-based language models
+[75]. It was chosen for its demonstrated ability to produce
+
+high-quality vector representations of words, outperforming traditional context-counting based methods on a range of NLP tasks
+[76] and now considered state-of-the-art in distributional semantics. We employ the skip-gram architecture, which, although
+slower than the CBOW6 alternative, is better at capturing infrequent
+words. The algorithm constructs a vocabulary from the training data
+and learns vector representations of the words. It achieves this by
+training a neural network with a single hidden layer; given a set D
+of words w and their contexts c, the objective function is to set the
+parameters H that maximize pðcjw; HÞ [77]. Context is defined as
+an adjacent word within a (symmetric) window of a pre-specified
+size around the input word. The parameters that are learned in the
+hidden layer give us the semantic vectors. For the +DSM and SV representations, a semantic space was built with a symmetric context
+window size of 12, while the following window sizes were employed
+in the +mDSM and MSV representations: 2, 4, 6, 8, 10, 12, 14, 16, 18,
+20. A dimensionality of 200 was used when building all semantic
+spaces.
+The unlabeled corpus from which the DSMs were derived comprise all notes in the Stockholm EPR Corpus written during a twoyear period (2009–2010). This corpus contains approximately 3 M
+unique words/types (700 M instances/tokens). The notes were preprocessed by using Stagger [78] for tokenization and lemmatization of Swedish text and by removing all digits and punctuation.
+Stagger was also used for tokenization and lemmatization of the
+Stockholm ADE Corpus. The size of the three types of feature setsfor the three tasks is depicted in Fig. 3.
+The considered performance metrics are precision(or positive
+predictive value), recall (or sensitivity) and F1-score. In the case
+of relation extraction, we also report accuracy; however, F1-score
+is used for model selection. McNemar’s test was used for significance testing when comparing models pairwise, as it has been
+strongly recommended for comparing two models on a single
+dataset [79,80]. The reported p-values were adjusted for multiple
+comparisons using the Hommel method [81].
+4. Results
+Some basic descriptive statistics regarding the annotations of
+A3 – the main annotator – are shown in Table 2. The most common
+named entities are Disorder and Finding, while instances of the
+class ADE Cue are rare. Some of the frequently re-occurring
+instances of ADE Cue are, however, reaction (Swedish: reaktion),
+6
+
+Continuous Bag of Words.
+
+341
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+Table 2
+Annotation types and tokens in the Stockholm ADE Corpus.
+Types
+
+Tokens
+
+Ratio (types/tokens)
+
+Named entities
+Drug
+Disorder
+Finding
+ADE Cue
+Body Structure
+Overall
+
+853
+976
+1533
+130
+297
+3789
+
+1866
+3763
+3184
+341
+1132
+10286
+
+0.46
+0.26
+0.48
+0.38
+0.26
+0.37
+
+Attributes
+Negation
+Speculation
+Past
+Future
+Other
+Overall
+
+501
+333
+414
+250
+144
+1642
+
+828
+467
+699
+354
+290
+2638
+
+0.61
+0.61
+0.59
+0.71
+0.50
+0.62
+
+Relations
+Indication
+Adverse drug event
+ADE Outcome
+ADE Cause
+
+1156
+776
+129
+205
+
+1392
+855
+144
+228
+
+0.83
+0.90
+0.90
+0.90
+
+hypersensitivity (Swedish: överkänslighet), adverse reaction
+(Swedish: biverkan) and drug-induced (Swedish: läkemedelsutlöst).
+Inspecting the type/token ratios reveals that Finding exhibits a
+much larger lexical variation than Disorder. In the context of pharmacovigilance, it is also interesting to note the lexical diversity in
+referring to drugs: a total of 853 unique drug names, with 1,866
+instances, have been annotated in the corpus. Furthermore, the
+importance of concept attribute labeling is demonstrated by the
+fact that around 8% of the named entity mentions are negated
+and around 10% have a non-current temporality. In comparison
+to the named entities, attributes are generally more distributed, i.
+e. have higher type-token ratios, indicating that most named entity
+mentions can potentially be modified. The highest type-token
+ratios are obtained for the relations. This highlights the difficulty
+of this task and possibly the need for large amounts of training
+data. Indication is by far the most common relation, which shows
+how important it is to develop capabilities to distinguish between
+this class and Adverse Drug Event. The 776 unique Adverse Drug
+Event relations rarely occur more than once in the corpus, with a
+type-token ratio of 0.9.
+
+macro-averaged score of 0.825 is, in fact, higher than the 0.808
+obtained in the original study [36], indicating that the model generalizes well to a somewhat different (sub-)domain. Precision is
+moreover higher than recall, which means that the named entity
+mentions were more often added than removed or changed by
+the human annotators. The scores also reveal substantial differences between the human annotators.
+Pairwise differences between the two layman annotators (A1
+and A2) and the main annotator – a physician – are expressed in
+terms of F1-score in Table 4. The average F1-scores are above 0.8
+and can be considered fairly high. The highest agreement scores
+are, understandably so, observed for Body Structure and Drug.
+Higher agreement is observed for Disorder than for Finding; however, these entities are sometimes confused, which is demonstrated by the higher score obtained when post-merging the two
+classes. Low agreement scores are obtained for the introduced
+ADE Cue class, possibly as a result of not having defined it clearly
+enough; it can also be mixed up with the Disorder and Finding
+classes.
+The annotations were then used as labels and, together with
+one of three feature sets, provided to the CRF learning algorithm.
+Tuning the hyperparameters on the training set resulted in the
+identification of the following optimized values: a window size
+of 1 + 1 and a regularization parameter of 9 for B; a window size
+of 2 + 2 and a regularization parameter of 9 for +DSM; a window
+size of 1 + 1 and a regularization parameter of 1 for +mDSM. NER
+models were then trained on the entire training set with these
+hyperparameter configurations. The results on the test set are
+summarized in Table 5. The best results are obtained with +mDSM,
+with which a macro-averaged F1-score of 0.795 is obtained – very
+close to the macro-averaged IAA (0.804). For most classes, the performance of the automatic NER systems are fairly close to the IAA
+scores. In the case of ADE Cue, the machine-learned result is higher
+than the human IAA. In general, B yields slightly higher precision,
+while the two feature sets with distributional semantic features
+(+DSM and +mDSM) result in higher recall. With +mDSM, a higher
+F1-score was obtained for the merged Finding/Disorder class when
+
+Table 4
+Human annotation evaluation for named entity recognition: inter-annotator agreement (IAA) scores, measured as F1-score, between the main annotator and A1 and A2.
+Finding/Disorder⁄ was post-merged.
+
+4.1. Named entity recognition
+In order to evaluate, in some sense, the usefulness of the preannotation, we compared the modified human annotations with
+those of the original preannotations. Since we effectively have
+three reference standards, one produced by each annotator, we
+are able to report precision and recall in addition to F1-score
+(Table 3), which is a common metric to measure inter-annotator
+agreement proper. The average F1-scores are promising, as the
+
+Named entity
+
+A1
+
+A2
+
+Average IAA
+
+Finding
+Disorder
+Drug
+Body Structure
+ADE Cue
+
+0.780
+0.838
+0.914
+0.936
+0.599
+
+0.807
+0.872
+0.905
+0.923
+0.465
+
+0.793
+0.855
+0.909
+0.930
+0.532
+
+Micro-average
+Macro-average
+
+0.841
+0.813
+
+0.850
+0.794
+
+0.846
+0.804
+
+Finding/Disorder⁄
+
+0.854
+
+0.872
+
+0.863
+
+Table 3
+Preannotation evaluation: precision, recall and F1-score of the machine-learned pre-annotator against the three human annotators (A1, A2, A3). F/D⁄ is a merged class comprising
+Finding and Disorder.
+Named
+
+Precision
+
+entity
+
+A1
+
+A2
+
+A3
+
+A1
+
+Recall
+A2
+
+A3
+
+A1
+
+F1
+A2
+
+A3
+
+A1–A3
+
+Ave. F1
+
+Finding
+Disorder
+Drug
+Body structure
+
+0.774
+0.722
+0.959
+0.959
+
+0.904
+0.901
+0.959
+0.979
+
+0.852
+0.825
+0.962
+0.959
+
+0.591
+0.754
+0.747
+0.791
+
+0.836
+0.820
+0.818
+0.846
+
+0.691
+0.784
+0.724
+0.801
+
+0.671
+0.738
+0.840
+0.867
+
+0.869
+0.858
+0.883
+0.901
+
+0.763
+0.804
+0.826
+0.873
+
+0.768
+0.800
+0.850
+0.883
+
+Micro-average
+Macro-average
+
+0.841
+0.854
+
+0.927
+0.936
+
+0.889
+0.899
+
+0.695
+0.721
+
+0.827
+0.823
+
+0.734
+0.750
+
+0.761
+0.779
+
+0.874
+0.879
+
+0.804
+0.817
+
+0.813
+0.825
+
+F/D⁄
+
+0.796
+
+0.907
+
+0.855
+
+0.680
+
+0.833
+
+0.738
+
+0.734
+
+0.869
+
+0.792
+
+0.798
+
+342
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+Table 5
+Results of NER on held-out data. For Finding/Disorder (1), the classes were merged prior to learning; for Finding/Disorder (2), the classes were kept separate during learning and
+then post-merged. The best results are in bold.
+Holdout
+
+Precision
+
+Named entity
+
+Instances
+
+B
+
++DSM
+
++mDSM
+
+B
+
++DSM
+
++mDSM
+
+B
+
++DSM
+
++mDSM
+
+Finding
+Disorder
+Drug
+Body structure
+ADE Cue
+
+615
+362
+501
+202
+76
+
+0.778
+0.837
+0.909
+0.903
+0.741
+
+0.796
+0.804
+0.890
+0.920
+0.706
+
+0.756
+0.830
+0.897
+0.918
+0.796
+
+0.660
+0.779
+0.838
+0.876
+0.566
+
+0.676
+0.760
+0.858
+0.906
+0.473
+
+0.670
+0.793
+0.874
+0.891
+0.566
+
+0.714
+0.807
+0.872
+0.889
+0.642
+
+0.732
+0.781
+0.874
+0.912
+0.567
+
+0.710
+0.811
+0.886
+0.905
+0.661
+
+0.843
+0.834
+
+0.839
+0.823
+
+0.835
+0.839
+
+0.756
+0.744
+
+0.763
+0.735
+
+0.775
+0.759
+
+0.797
+0.785
+
+0.799
+0.773
+
+0.804
+0.795
+
+0.838
+0.850
+
+0.856
+0.863
+
+0.833
+0.865
+
+0.760
+0.747
+
+0.777
+0.764
+
+0.772
+0.779
+
+0.797
+0.795
+
+0.814
+0.810
+
+0.801
+0.820
+
+Micro-average
+Macro-average
+Finding/Disorder (1)
+Finding/Disorder (2)
+
+977
+977
+
+Recall
+
+F1
+
+Table 6
+Human annotation evaluation for concept attribute labeling: inter-annotator agreement (IAA) scores, measured as F1-score, between the main annotator and A1 and A2.
+Finding
+
+Disorder
+
+Drug
+
+ADE Cue
+
+All entities
+
+Attribute
+
+A1
+
+A2
+
+A1
+
+A2
+
+A1
+
+A2
+
+A1
+
+A2
+
+A1
+
+A2
+
+Average IAA
+
+Negation
+Speculation
+Past
+Future
+Other
+
+0.973
+0.730
+0.675
+0.801
+0.500
+
+0.912
+0.138
+0.388
+0.667
+0.143
+
+0.950
+0.852
+0.725
+0.800
+0.769
+
+0.855
+0.579
+0.559
+0.615
+0.585
+
+0.726
+0.610
+0.659
+0.652
+0.777
+
+0.671
+0.143
+0.425
+0.584
+0.667
+
+0.889
+0.812
+0.793
+–
+0.889
+
+0.667
+0.500
+0.421
+–
+0.000
+
+0.897
+0.747
+0.683
+0.674
+0.775
+
+0.840
+0.375
+0.459
+0.592
+0.598
+
+0.868
+0.561
+0.571
+0.633
+0.686
+
+Macro-average
+
+0.737
+
+0.450
+
+0.819
+
+0.639
+
+0.685
+
+0.498
+
+0.846
+
+0.397
+
+0.755
+
+0.572
+
+0.664
+
+keep the classes separate during learning, while the opposite was
+true for B and +DSM. The differences between the three
+representations are not statistically significant in terms of overall
+accuracy.
+
+4.2. Concept attribute labeling
+For the concept attribute labeling task, pairwise differences
+between the two annotators, in terms of F1-score, are shown in
+Table 6. The average agreement scores are generally lower in
+comparison to the NER task. While the agreement is fairly high
+for negation, it is generally quite low for the other attributes.
+The agreement scores are much higher between A1 and A3 than
+between A2 and A3. There are also interesting differences across
+entity types. Negation, for instance, is high for Finding and Disorder, but much lower for Drug. In general, the agreement scores are
+lower across the board for Drug in comparison to the other
+entities.
+The annotated attributes were then used for learning predictive
+models. Here, the attributes were treated separately: a binary classifier was trained for each one, determining the presence or
+absence of the attribute in a given named entity mention. The
+impact on the predictive performance, in terms of F 1 -score on
+the positive (minority) class, as increasingly more context information – represented in three different ways – was provided to the
+learning algorithm is depicted in Fig. 4.
+For all but negation, the MSV representation yields the best
+F1-score. It should be noted, however, that, for the temporality
+attributes, including context information has a negative impact
+on the predictive performance. None of the attributes seem to benefit from incorporating a large extent of context, with performance
+generally peaking after including only one or two of the adjacent
+tokens. Interestingly, the MSV representation almost invariably
+outperforms the SV representation. For negation, the BOW representation appears to be the most advantageous.
+For each of the three representations, predictive models were
+then trained on the entire training set with the positive context
+
+window size that yielded the best performance, respectively, and
+applied to the unseen test set. The results, in terms of precision,
+recall and F1-score are shown in Table 7. The overall best
+F1-scores are obtained with the MSV representation. It is clear,
+however, that the BOW representation yields higher precision,
+while the distributional semantic representations, in particular
+MSV, results in higher recall.
+In Fig. 5, results are displayed separately for each named entity
+class using the MSV representation. This provides some additional
+insight into what is going on. One thing to note is that the performance is considerably worse for many of the attributes when
+attached to Drug, reflecting the low IAA scores that were observed
+for this particular named entity class. At the same time does the
+performance on Other for this class stand out. The predictive models seem better able to detect speculation for Disorder than for
+Finding, perhaps indicating that it is to a larger extent clear when
+a physician is considering possible diagnoses. This difference
+between the two classes was also observed in the agreement
+scores.
+
+4.3. Relation extraction
+The third and final task concerned the detection and classification of semantic relations that may hold between pairs of named
+entity mentions. The agreement scores for this task, shown in
+Table 8, are also lower compared to the NER task. The highest
+agreement – save for the negative No Relation class – was observed
+for ADE Cause. Otherwise the IAA scores are fairly consistent across
+classes, indicating that they are equally difficult to agree on.
+The machine learning experiments were separated into three
+parts: (1) detecting relations, (2) discriminating between positive
+relations, and (3) relation detection and classification. For the relation detection task – distinguishing between the existence and
+absence of a relation between named entity pairs – two strategies
+were evaluated and compared: one wherein the positive classes
+were merged prior to learning, and one wherein the classes were
+kept separate during learning and merged post prediction. This
+
+343
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+Concept Attribute Labeling
+
+4
+
+7
+
+8
+
+9
+
+0
+
+2
+
+3
+
+4
+
+5
+
+1
+
+2
+
+3
+
+6
+
+7
+
+8
+
+9
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+8
+
+9
+
+10
+
+Future
+
+0.30
+0.10
+
+Context Window Size
+1
+
+Context Window Size
+
+10
+
+0.20
+
+0.30
+0.20
+
+6
+
+F1−score
+
+0.00
+
+0.10
+
+5
+
+Context Window Size
+
+10
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+0.4
+
+Other
+
+F1−score
+
+0.3
+
+0.4
+0.3
+0.2
+
+3
+
+F1−score
+
+0.1
+2
+
+F1−score
+
+1
+
+Past
+
+0
+
+0.2
+
+0.0
+
+Context Window Size
+0
+
+words
+semantic vectors
+multiple semantic vectors
+
+0.0
+
+0.1
+
+Speculation
+
+0.00
+
+0.4
+0.0
+
+0.2
+
+F1−score
+
+0.6
+
+0.8
+
+Negation
+
+Context Window Size
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+Fig. 4. F 1 -score of the minority positive class with three different representations of context, as the context window size is to the left and right of the named entity mention is
+varied.
+
+Table 7
+Results of concept attribute labeling on held-out data. The best results are in bold.
+Precision
+
+Instances
+
+BOW
+
+SV
+
+MSV
+
+BOW
+
+SV
+
+MSV
+
+BOW
+
+SV
+
+MSV
+
+Negation
+Speculation
+Past
+Future
+Other
+
+141
+110
+244
+87
+54
+
+0.941
+0.833
+0.467
+0.370
+0.864
+
+0.793
+0.519
+0.314
+0.220
+0.565
+
+0.638
+0.360
+0.329
+0.211
+0.600
+
+0.567
+0.182
+0.115
+0.115
+0.352
+
+0.624
+0.255
+0.131
+0.126
+0.241
+
+0.624
+0.291
+0.193
+0.230
+0.444
+
+0.708
+0.299
+0.184
+0.175
+0.500
+
+0.698
+0.341
+0.185
+0.161
+0.338
+
+0.631
+0.322
+0.243
+0.220
+0.511
+
+1.0
+
+Holdout
+Attribute
+
+Disorder
+
+Drug
+
+0.6
+
+F1−score
+
+0.4
+0.2
+0.0
+
+Negation
+
+Speculation
+
+Past
+
+Future
+
+F1
+
+Table 8
+Human annotation evaluation for relation extraction: inter-annotator agreement
+(IAA) scores, measured as F1-score, between the main annotator and A1 and A2.
+
+ADE Cue
+
+0.8
+
+Finding
+
+Recall
+
+Other
+
+Attributes
+Fig. 5. F1-score of models with multiple distributional semantic vectors for each
+attribute on each entity.
+
+enabled a straightforward comparison between the two. The two
+strategies’ impact on predictive performance, in terms both of
+accuracy and F1-score on the positive class, as different amounts
+
+Relation
+
+A1
+
+A2
+
+Average IAA
+
+Indication
+Adverse Drug Event
+ADE Outcome
+ADE Cause
+No Relation
+
+0.673
+0.718
+0.681
+0.731
+0.980
+
+0.553
+0.619
+0.667
+0.772
+0.979
+
+0.613
+0.689
+0.674
+0.751
+0.980
+
+Micro-average
+Macro-average
+
+0.963
+0.757
+
+0.961
+0.718
+
+0.962
+0.737
+
+of context information, and representations thereof, were provided
+to the random forest learning algorithm is shown in Fig. 6. The
+experimental results show quite clearly that merging the positive
+classes into one is, in this particular case, not a good idea. Both
+strategies and representations benefit to some extent from the
+inclusion of context information, particularly when the positive
+classes are kept separate. The distributional semantic representations consistently outperform their BOW counterpart. The
+
+344
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+Relation Detection
+
+0.3
+
+words (merged pos. class)
+semantic vectors (merged pos. class)
+multiple semantic vectors (merged pos. class)
+words (original classes)
+semantic vectors (original classes)
+multiple semantic vectors (original classes)
+
+0.25
+
+F1−score
+
+0.2
+
+Accuracy
+
+65
+
+0.15
+
+70
+
+75
+
+80
+
+85
+
+90
+
+95
+
+words (merged pos. class)
+semantic vectors (merged pos. class)
+multiple semantic vectors (merged pos. class)
+words (original classes)
+semantic vectors (original classes)
+multiple semantic vectors (original classes)
+
+Outer Context Window Size
+0*
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+Outer Context Window Size
+9 10
+
+0*
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9 10
+
+Fig. 6. Accuracy and F 1 -score on the positive class with three different representations of context, as the outer context window size is varied. 0 means that no context
+features were used, including inner context.
+
+difference in performance between SV and MSV is for the most
+part, however, negligent. Interesting to note is also that accuracy
+generally keeps increasing as more context information is
+included, whereas there appears to be a small drop in F1-score at
+a certain point.
+The results of the best-performing models, in terms of F1-score,
+with the two strategies are shown in Table 9. With both strategies,
+the highest F1-score is obtained with SV. Again, the scores are
+higher when keeping the positive classes separate during learning.
+The MSV representation appears to do better on the No Relation
+class relative to the other representations.
+
+A classifier that discriminates among the positive relation
+classes would later be utilized in the hierarchical strategy.
+However, we first studied the impact of context on this classifier
+in isolation, as shown in Fig. 7. Surprisingly, the inclusion of
+context information, irrespective of representation, degrades the
+predictive performance, particularly swiftly with the distributional
+semantic representations.
+This analysis informed the construction of the hierarchical
+classifier for the relation detection and classification task: context
+information was exclusively utilized for the relation detection
+stage, and not when labeling the positive relation instances. The
+
+Table 9
+Results, in terms of precision, recall, F1-score, of relation detection on held-out data. Two strategies are compared: M = Merged, S = Separate. The best results are in bold.
+Class
+
+Holdout
+
+Precision
+
+Recall
+
+F1
+
+Instances
+
+BOW
+
+SV
+
+MSV
+
+BOW
+
+SV
+
+MSV
+
+BOW
+
+SV
+
+MSV
+
+M
+
+Relation
+No relation
+Macro-average
+
+563
+10184
+
+0.110
+0.975
+0.543
+
+0.122
+0.971
+0.547
+
+0.115
+0.966
+0.541
+
+0.673
+0.699
+0.686
+
+0.581
+0.769
+0.675
+
+0.497
+0.788
+0.643
+
+0.189
+0.813
+0.501
+
+0.202
+0.858
+0.530
+
+0.186
+0.868
+0.527
+
+S
+
+Relation
+No Relation
+Macro-average
+
+563
+10184
+
+0.157
+0.968
+0.563
+
+0.220
+0.963
+0.592
+
+0.219
+0.956
+0.588
+
+0.483
+0.857
+0.670
+
+0.357
+0.930
+0.644
+
+0.201
+0.961
+0.581
+
+0.237
+0.909
+0.573
+
+0.272
+0.946
+0.609
+
+0.210
+0.958
+0.584
+
+1.0
+
+85
+
+Positive Relations Discrimination
+
+0.8
+0.7
+
+65
+
+0.5
+
+0.6
+
+F1−score
+
+80
+
+Accuracy
+
+70
+
+75
+
+words
+semantic vectors
+multiple semantic vectors
+
+0.9
+
+words
+semantic vectors
+multiple semantic vectors
+
+Outer Context Window Size
+0*
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+Outer Context Window Size
+9 10
+
+0*
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9 10
+
+Fig. 7. Accuracy and macro-averaged F 1 -score with three different representations of context, as the outer context window size is varied. 0 means that no context features
+were used, including inner context.
+
+345
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+Relation Detection and Classification
+0.40
+0.30
+0.25
+
+F1−score
+
+90
+Accuracy
+
+60
+
+0.20
+
+70
+
+80
+
+words (flat)
+semantic vectors (flat)
+multiple semantic vectors (flat)
+words (hierarchical)
+semantic vectors (hierarchical)
+multiple semantic vectors (hierarchical)
+
+0.35
+
+100
+
+words (flat)
+semantic vectors (flat)
+multiple semantic vectors (flat)
+words (hierarchical)
+semantic vectors (hierarchical)
+multiple semantic vectors (hierarchical)
+
+Outer Context Window Size
+0*
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+Outer Context Window Size
+0*
+
+0
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+Fig. 8. Accuracy and macro-averaged F 1 -score with three different representations of context, as the outer context window size is varied. 0 means that no context features
+were used, including inner context.
+
+Table 10
+Results of relation detection and classification on held-out data. The best results are in bold.
+Relation
+
+Holdout
+
+Precision
+
+Instances
+
+BOW
+
+SV
+
+MSV
+
+BOW
+
+Recall
+SV
+
+MSV
+
+F1
+BOW
+
+SV
+
+MSV
+
+Flat
+
+Indication
+Adverse Drug Event
+ADE Outcome
+ADE Cause
+No relation
+Macro-average
+
+302
+196
+26
+39
+10184
+
+0.146
+0.218
+0.088
+0.079
+0.968
+0.300
+
+0.184
+0.173
+0.333
+0.286
+0.964
+0.388
+
+0.073
+0.048
+0.083
+0.126
+0.955
+0.257
+
+0.566
+0.189
+0.192
+0.821
+0.850
+0.524
+
+0.477
+0.087
+0.038
+0.359
+0.929
+0.378
+
+0.241
+0.153
+0.154
+0.410
+0.839
+0.359
+
+0.233
+0.202
+0.120
+0.143
+0.905
+0.321
+
+0.265
+0.116
+0.069
+0.318
+0.946
+0.343
+
+0.112
+0.073
+0.108
+0.193
+0.894
+0.276
+
+Hierarchical
+
+Indication
+Adverse Drug Event
+ADE Outcome
+ADE Cause
+No Relation
+Macro-average
+
+302
+196
+26
+39
+10184
+
+0.085
+0.081
+0.034
+0.069
+0.974
+0.249
+
+0.089
+0.071
+0.056
+0.065
+0.973
+0.251
+
+0.120
+0.091
+0.040
+0.078
+0.972
+0.260
+
+0.611
+0.411
+0.565
+0.872
+0.640
+0.492
+
+0.586
+0.429
+0.769
+0.897
+0.640
+0.664
+
+0.546
+0.367
+0.538
+0.744
+0.750
+0.589
+
+0.149
+0.135
+0.063
+0.128
+0.772
+0.249
+
+0.155
+0.123
+0.104
+0.122
+0.772
+0.255
+
+0.197
+0.146
+0.074
+0.140
+0.847
+0.281
+
+other strategy, a flat classifier, simply learned the relation classification task in one step and was thus provided with the original
+class labels. The results (Fig. 8) strongly suggest that the flat strategy is superior to the hierarchical for the detection and classification of ADE-pertinent relations.
+The results on unseen data are shown in Table 10. With the flat
+strategy, the SV representations yields the highest macro-averaged
+F1-score, while, with the hierarchical strategy, MSV yields the highest macro-averaged F1-score.
+We then studied the impact of distance between the entities in
+a given type of relation on the predictive performance (Fig. 9). All
+positive relations reach their peak performance early on, and as
+longer and longer relations are included, performance drops. The
+negative class, on the other hand, steadily increases its performance as increasingly longer relations are included, indicating that
+a big portion of permissible long relations are, in fact, not actual
+relations. This is confirmed by the plot in the bottom right corner,
+showing the cumulative frequency of the positive vs. negative relations as the distance threshold is increased. The BOW representation yields the best F1-score for Adverse Drug Event; for ADE
+Outcome, ADE Cause and No Relation, the SV representation does
+best; finally, for Indication, MSV does best on short-distance relations, while BOW does better when all distances are considered.
+Finally, a feature analysis in the form of variable importance
+was conducted. Variables in each of the three feature sets were
+ranked according to their Gini importance scores, where high Gini
+importance means that a given variable plays a greater role in
+splitting the data into the predefined classes. Due to the fact that
+there are different numbers of variables in each model, the ranks
+
+were normalized into ascending scores between 0 and 1 by calculating
+
+maxðrankÞrank
+.
+maxðrankÞminðrankÞ
+
+The results in Table 11 show that entity
+
+classes and distance are important types of features. The entity
+classes includes the entity class of each participating entity, as well
+as their concatenation. Entity bigrams are more important than
+entity unigrams in SV and MSV, but not in BOW. Context information is, however, more important than entity ngrams.
+Table 12 show p-values for pairwise comparisons between the
+three types of representations; the p-values have been adjusted
+for multiple comparisons. The p-values for the NER task are not
+shown, as none of the pairwise differences were shown to be statistically significant.
+
+5. Discussion
+We have here reported on a series of experiments involving
+three distinct tasks that are critical for identifying information pertaining to adverse drug events in clinical notes: named entity
+recognition, concept attribute labeling and relation extraction. As
+these tasks were tackled within the paradigm of supervised
+machine learning, we created a human-annotated resource of
+Swedish clinical notes. The documents were preannotated for
+entity mentions, which was appreciated by the annotators and
+allowed them to focus on the more difficult task of assigning relations. In a previous study, the impact of dictionary-based preannotation was found to reduce the annotation effort, in terms of saved
+time, while not harming agreement scores [82]; here, we showed
+that it is also feasible to use a machine learning model for
+
+346
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+0.15
+300
+
+0
+
+200
+
+300
+
+400
+
+ADE Cause
+words
+
+semantic vectors
+
+multiple semantic vectors
+
+0.1
+
+0.3
+
+100
+
+Distance Threshold
+100
+
+200
+
+Distance Threshold
+300
+
+400
+
+0
+
+1.00
+
+No Relation
+semantic vectors
+
+multiple semantic vectors
+
+100
+
+0.80
+
+7500
+
+F1−score
+
+words
+
+Distance Threshold
+0
+
+100
+
+200
+
+300
+
+400
+
+100
+
+200
+
+300
+
+400
+
+300
+
+400
+
+Class Frequency
+
+Cumulative Frequency
+
+0
+
+0.90
+
+multiple semantic vectors
+
+F1−score
+
+semantic vectors
+
+0.05
+
+0.20
+
+0.35
+
+ADE Outcome
+words
+
+Distance Threshold
+
+400
+
+0.5
+
+200
+
+multiple semantic vectors
+
+F1−score
+
+100
+
+semantic vectors
+
+0.00
+
+Distance Threshold
+0
+
+words
+
+F1−score
+
+F1−score
+
+multiple semantic vectors
+
+0.30
+
+Adverse Drug Event
+
+semantic vectors
+
+0.06
+
+0.12
+
+0.18
+
+Indication
+words
+
+positive classes (average)
+negative class
+
+Distance Threshold
+0
+
+100
+
+200
+
+Fig. 9. Distance analysis: F1-score of each relation as increasingly longer relations are included.
+
+Table 11
+Variable importance analysis.
+Feature type
+
+BOW
+
+SV
+
+MSV
+
+Entity classes
+Entity unigrams
+Entity bigrams
+Left context
+Right context
+Inner context
+Distance
+
+0.999
+0.409
+0.364
+0.506
+0.672
+0.596
+0.999
+
+0.999
+0.463
+0.482
+0.439
+0.554
+0.550
+0.978
+
+0.999
+0.321
+0.337
+0.917
+0.666
+0.646
+1.000
+
+Table 12
+Significance tests.
+BOW vs. SV
+
+BOW vs. MSV
+
+SV vs. MSV
+
+Concept attribute labeling
+Negation
+Speculation
+Past
+Future
+Other
+
+0.165
+0.008
+<0.0001
+0.061
+1.000
+
+<0.0001
+<0.0001
+<0.0001
+<0.0001
+0.019
+
+0.003
+<0.0001
+0.003
+0.0002
+0.049
+
+Relation extraction
+Detection (merged)
+Detection (separate)
+Classification (flat)
+Classification (hierarchical)
+
+<0.0001
+<0.0001
+<0.0001
+0.451
+
+<0.0001
+<0.0001
+<0.0001
+<0.0001
+
+0.011
+<0.0001
+<0.0001
+<0.0001
+
+preannotation. Agreement between the human annotators was
+generally high for named entities and lower for most attributes
+and relations. This, to some extent, indicates that the latter are
+more challenging tasks, particularly the relation classification.
+The relation classification task in this case also required, or at least
+benefited from, some degree of medical expertise. This constitutes
+a potential limitation of this study – what types of conclusions can
+be drawn from inter-annotator agreement scores between a medical expert and laymen? In another study it was, however, shown
+that there were no significant differences in inter-annotator
+
+agreement between pairs of physicians and between pairs of
+physicians and laymen [83]. The key is to have clear annotation
+guidelines and to train the annotators before starting the actual
+task. Although also true for the named entities, recognizing references to concepts is arguably more straightforward. The low agreement scores obtained for the various attributes is, in part, probably
+due to the annotators putting less emphasis on this task. In future
+annotation studies, it may be a good idea to keep these tasks
+separate. Moreover, the high type-token ratios (0.90 for all but
+Indication) shows how sparse the data is, necessitating larger
+amounts of labeled data, as well as methods that mitigate sparsity;
+distributional semantic representations can, to some extent,
+achieve that effect by creating dense representations of words
+based on large-scale observations of their use.
+For the three tasks, the highest level of performance was generally obtained on named entity recognition, to a large extent
+because of the many knowledge-based features, e.g. the use of
+medical terminologies. No such features were here used for concept attribute labeling and relation extraction, which, at least to
+some extent, may explain the lower predictive performance on
+these tasks. The results on the named entity recognition task are
+in line with those presented in [36], with improvements observed
+primarily for Finding, Body Structure and the merged FindingDisorder class when utilizing multiple models of distributional
+semantics. In this study a new named entity class was introduced:
+ADE Cue, which was intended to capture the occurrence of an ADE
+yet distinguish it from ADEs that have a described manifestation in
+the form of a Disorder or Finding. The results for this were, however,
+disappointing, which can partly be attributed to its not being
+clearly defined before the start of the annotation process; this is
+also reflected by the poor inter-annotator agreement on this class.
+When generating semantic features with multiple distributional
+semantic spaces, it was not beneficial to merge the classes prior
+to learning, indicating that there are real differences between the
+two classes that the learning algorithm is able to exploit with this
+representation. If the distinction is not important for a particular
+task, it is advisable to merge the classes only post prediction.
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+The predictive performance was low for many of the concept
+attributes, with the possible exception of negation. Given the
+exclusion of many potentially useful features such as lists of negation triggers, the results are quite promising and not much lower
+than a rule-based negation system [39]. Determining the temporal
+status of named entities is of great importance for the purpose of
+pharmacovigilance; the results obtained in this study are poor
+and this task requires further research. It is somewhat surprising,
+however, that the inclusion of context features did not improve
+the predictive performance on this task. Perhaps dictionaries of
+temporal markers would allow context features to be leveraged
+in a better way.
+The relation extraction task is key to enabling pharmacovigilance activities based on data from electronic health records to
+be supported in a more sophisticated manner, i.e., one that is not
+simply based on global co-occurrence statistics. It is well-known
+that this is a challenging task, which is probably why most studies
+have chosen to limit the task by only focusing on intra-sentential
+relations. For relation extraction to be useful in practice, however,
+capabilities to detect and classify inter-sentential relations are
+needed. Previous studies have indicated that long-distance relations are a major source of error [25]; this was confirmed here,
+where the impact of distance on the predictive performance was
+studied for each type of relation: it only went up steadily for No
+Relation as increasingly longer distances were allowed. Closer
+inspection moreover showed that there are also positive relations
+between entity mentions that are far away from each; the random
+forest models, however, rarely predicted any of the positive classes
+when the distance grew larger than ten tokens. In future work, this
+problem needs to be addressed.
+The focus of this study was primarily on the relative predictive
+performance as (1) increasingly more context information was
+provided to the learning algorithm and (2) on the representation
+of context. Three representations were systematically evaluated
+on the three tasks. For all but some of the concept attribute labeling tasks, the incorporation of context features led to improved
+predictive performance. In general, the representations that leveraged distributional semantic models outperformed the bag-ofwords representation, albeit with a few notable exceptions. In
+future work, it would be interesting to combine shallow and deep
+representations of context in an attempt to obtain further gains in
+predictive performance.
+A limitation of this study is that the results are confined to clinical notes that have been assigned an ADE-related diagnosis code,
+as well as to certain types of entries. The decision to include only
+these types of notes was made in order to maximize the probability
+of encountering reasoning around potential ADEs in the documents
+that were annotated. The ultimate goal is, however, to be able to
+identify information pertaining to ADEs in clinical notes irrespective of their associated diagnosis code, especially given the gross
+underreporting of ADEs in EHRs by the use of diagnosis codes. Even
+if it may not be the case that there are fundamental linguistic differences between the manner in which potential ADEs are reasoned around depending on if an ADE-related diagnosis code has
+been assigned or not, this needs to be verified in a future study.
+If it is shown that the predictive performance of the models
+degrades when applied to clinical notes that have not been
+assigned an ADE-related diagnosis code, such notes need to be
+included in the training data. In future work, it would also be interesting to study if there are significant differences in the predictive
+performance on clinical notes to which different diagnosis codes
+have been attached.
+In summary, three important clinical NLP tasks were addressed
+that need to be performed well in order to allow pharmacovigilance activities to be supported through secondary use of data from
+electronic health records, great volumes of which are being
+
+347
+
+generated on a daily basis. Machine learning is an important key
+to unlocking the valuable information contained therein, especially
+as developing hand-crafted rules seems increasingly infeasible.
+However, applying machine learning to EHR data is non-trivial
+and comes with a great deal of challenges. This is perhaps particularly true when dealing with text data of the kind produced in the
+clinical setting: such data is often extremely noisy, highdimensional and sparse. This entails that substantial amounts of
+labeled data are typically required to learn high-performing predictive models. Since this is not readily available and costly to create, it is of great importance to be able to leverage unsupervised
+methods that can exploit the enormous amounts of data that,
+indeed, often are available. Distributed word representations
+enable us to do just that: create inexpensive and dense features
+that in many cases can lead to increased predictive performance.
+Distributional semantic models moreover have the distinct advantage of being language-agnostic and can readily be applied to any
+language and domain in which large unlabeled corpora are available. Despite this, the use of distributional semantics in the clinical
+domain remains underexplored, with a few recent exceptions
+[84–88]. Here, we systematically evaluated the use of distributional
+semantic spaces on three distinct tasks, which to a large extent
+yielded improvements over the commonly employed bag-ofwords representation. For some tasks, further performance gains
+were obtained by combining multiple semantic spaces. This can
+be achieved in several ways, for instance by deriving models from
+different corpora, better capturing variations in language use [60],
+or, as was done here, by tinkering with the hyperparameters, such
+as the size of the context window, which has been shown to affect
+the semantic properties of the resulting space [62,63].
+6. Conclusions
+We have reported on the creation of an annotated resource of
+Swedish clinical notes that can be used for learning key tasks that
+may ultimately help to enable secondary use of electronic health
+records for the purpose of supporting pharmacovigilance activities.
+To that end, relevant entity mentions, such as drugs and disorders,
+first need to be recognized in the oftentimes noisy clinical text.
+That is not enough, however, as the context in which the entities
+are mentioned is key: an entity’s negation, uncertainty and temporal status needs to be determined. Once that has been achieved, it
+is potentially very valuable to detect and classify relations that
+may hold between pairs of entities, primarily between drugs and
+symptoms. In this respect it is paramount to be able to distinguish
+between indications and adverse drug events. We tackled all three
+tasks within the supervised machine learning paradigm. To
+address some of the challenges of applying machine learning to
+electronic health records data, such as high dimensionality and
+sparsity, and to minimize the amount of labeled data that is
+needed, models of distributional semantics were leveraged to create dense word representations. These were, in turn, used to model
+context information, which for most tasks was shown to be important to increase the predictive performance; this scalable approach
+allows variable amounts of context information to be incorporated
+without increasing the dimensionality, which is a consequence of
+using bag-of-words representations. In most cases, employing distributional semantic features improved the predictive performance
+and, in certain cases, further improvements were obtained by utilizing multiple distributional semantic spaces.
+Acknowledgements
+This work was partly supported by the project HighPerformance Data Mining for Drug Effect Detection at Stockholm
+
+348
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+
+University, funded by the Swedish Foundation for Strategic
+Research under grant IIS11-0053.
+
+References
+[1] P.B. Jensen, L.J. Jensen, S. Brunak, Mining electronic health records: towards
+better research applications and clinical care, Nat. Rev. Genet. 13 (6) (2012)
+395–405.
+[2] S.M. Meystre, G.K. Savova, K.C. Kipper-Schuler, J.F. Hurdle, et al., Extracting
+information from textual documents in the electronic health record: a review
+of recent research, Yearb. Med. Inform. 35 (2008) 128–144.
+[3] K. Smith, B. Megyesi, S. Velupillai, M. Kvist, Professional language in Swedish
+clinical text: linguistic characterization and comparative studies, Nord. J.
+Linguist. 37 (02) (2014) 297–323.
+[4] B. Sibbald, Rofecoxib (vioxx) voluntarily withdrawn from market, Can. Med.
+Assoc. J. 171 (9) (2004) 1027–1028.
+[5] C.D. Furberg, B. Pitt, Withdrawal of cerivastatin from the world market, Curr.
+Control Trials Cardiovasc Med. 2 (5) (2001) 205–207.
+[6] H. Beijer, C. De Blaey, Hospitalisations caused by adverse drug reactions (adr):
+a meta-analysis of observational studies, Pharm. World Sci. 24 (2) (2002) 46–
+54.
+[7] R. Howard, A. Avery, S. Slavenburg, S. Royal, G. Pipe, P. Lucassen, M.
+Pirmohamed, Which drugs cause preventable admissions to hospital? a
+systematic review, Brit. J. Clin. Pharmacol. 63 (2) (2007) 136–147.
+[8] K.M. Hakkarainen, K. Hedna, M. Petzold, S. Hägg, Percentage of patients with
+preventable adverse drug reactions and preventability of adverse drug
+reactions – a meta-analysis, PloS One 7 (3) (2012) e33236.
+[9] S.A. Goldman, Limitations and strengths of spontaneous reports data, Clin.
+Ther. 20 (1998) C40–C44.
+[10] L. Hazell, S.A. Shakir, Under-reporting of adverse drug reactions, Drug Safety
+29 (5) (2006) 385–396.
+[11] E.M. Van Mulligen, A. Fourrier-Reglat, D. Gurwitz, M. Molokhia, A. Nieto, G.
+Trifiro, J.A. Kors, L.I. Furlong, The EU-ADR corpus: annotated drugs, diseases,
+targets, and their relationships, J. Biomed. Inform. 45 (5) (2012) 879–884.
+[12] A. Sarker, R. Ginn, A. Nikfarjam, K. O’Connor, K. Smith, S. Jayaraman, T.
+Upadhaya, G. Gonzalez, Utilizing social media data for pharmacovigilance: a
+review, J. Biomed. Inform. 54 (2015) 202–212.
+[13] R. Harpaz, K. Haerian, H.S. Chase, C. Friedman, Mining electronic health records
+for adverse drug effects using regression based methods, in: Proceedings of the
+1st ACM International Health Informatics Symposium, ACM, 2010, pp. 100–
+107.
+[14] E. Chazard, G. Ficheur, S. Bernonville, M. Luyckx, R. Beuscart, Data mining to
+generate adverse drug events detection rules, IEEE Trans. Inform. Technol.
+Biomed. 15 (6) (2011) 823–830.
+[15] J. Zhao, A. Henriksson, H. Boström, Detecting adverse drug events using
+concept hierarchies of clinical codes, in: IEEE International Conference on
+Healthcare Informatics, IEEE, 2014, pp. 285–293.
+[16] J. Zhao, A. Henriksson, L. Asker, H. Boström, Detecting adverse drug events
+with multiple representations of clinical measurements, in: IEEE International
+Conference on Bioinformatics and Biomedicine, IEEE, 2014, pp. 536–543.
+[17] J. Zhao, A. Henriksson, M. Kvist, L. Asker, H. Boström, Handling temporality of
+clinical events for derug safety surveillance, in: AMIA Annual Proceedings,
+American Medical Informatics Association, 2015.
+[18] R. Eriksson, P.B. Jensen, S. Frankild, L.J. Jensen, S. Brunak, Dictionary
+construction and identification of possible adverse drug events in Danish
+clinical narrative text, J. Am. Med. Inform. Assoc. 20 (5) (2013) 947–953.
+[19] R. Eriksson, T. Werge, L.J. Jensen, S. Brunak, Dose-specific adverse drug reaction
+identification in electronic patient records: temporal data mining in an
+inpatient psychiatric population, Drug Safety 37 (4) (2014) 237–247.
+[20] X. Wang, G. Hripcsak, M. Markatou, C. Friedman, Active computerized
+pharmacovigilance using natural language processing, statistics, and
+electronic health records: a feasibility study, J. Am. Med. Inform. Assoc. 16
+(3) (2009) 328–337.
+[21] P. LePendu, S. Iyer, C. Fairon, N.H. Shah, et al., Annotation analysis for testing
+drug safety signals using unstructured clinical notes, J. Biomed. Semant. 3 (S-1)
+(2012) S5.
+[22] P. LePendu, S.V. Iyer, A. Bauer-Mehren, R. Harpaz, J.M. Mortensen, T.
+Podchiyska, T.A. Ferris, N.H. Shah, Pharmacovigilance using clinical notes,
+Clin. Pharmacol. Ther. 93 (6) (2013) 547–555.
+[23] S.V. Iyer, R. Harpaz, P. LePendu, A. Bauer-Mehren, N.H. Shah, Mining clinical
+text for signals of adverse drug-drug interactions, J. Am. Med. Inform. Assoc. 21
+(2) (2014) 353–362.
+[24] E. Aramaki, Y. Miura, M. Tonoike, T. Ohkuma, H. Masuichi, K. Waki, K. Ohe,
+Extraction of adverse drug effects from clinical records, Stud. Health Technol.
+Inform. 160 (Pt 1) (2010) 739–743.
+[25] S. Santiso, A. Pérez, K. Gojenola, I. Taldea, A. Casillas, M. Oronoz, Adverse Drug
+Event prediction combining shallow analysis and machine learning, in:
+Proceedings of the 5th International Workshop on Health Text Mining and
+Information Analysis (Louhi)@ EACL, 2014, pp. 85–89.
+[26] Ö. Uzuner, I. Solti, E. Cadag, Extracting medication information from clinical
+text, J. Am. Med. Inform. Assoc. 17 (5) (2010) 514–518.
+[27] Ö. Uzuner, B.R. South, S. Shen, S.L. DuVall, 2010 i2b2/va challenge on concepts,
+assertions, and relations in clinical text, J. Am. Med. Inform. Assoc. 18 (5)
+(2011) 552–556.
+
+[28] S. Pradhan, N. Elhadad, W. Chapman, S. Manandhar, G. Savova, Semeval-2014
+task 7: analysis of clinical text, SemEval 2014 199 (99) (2014) 54.
+[29] S. Pradhan, N. Elhadad, B.R. South, D. Martinez, L. Christensen, A. Vogel, H.
+Suominen, W.W. Chapman, G. Savova, Evaluating the state of the art in
+disorder recognition and normalization of the clinical narrative, J. Am. Med.
+Inform. Assoc. 22 (1) (2015) 143–154.
+[30] C. Friedman, Towards a comprehensive medical language processing system:
+methods and issues, in: Proceedings of the AMIA Annual Fall Symposium,
+American Medical Informatics Association, 1997, pp. 595.
+[31] A.R. Aronson, F.-M. Lang, An overview of metamap: historical perspective and
+recent advances, J. Am. Med. Inform. Assoc. 17 (3) (2010) 229–236.
+[32] G.K. Savova, J.J. Masanz, P.V. Ogren, J. Zheng, S. Sohn, K.C. Kipper-Schuler, C.G.
+Chute, Mayo clinical text analysis and knowledge extraction system (ctakes):
+architecture, component evaluation and applications, J. Am. Med. Inform.
+Assoc. 17 (5) (2010) 507–513.
+[33] B. de Bruijn, C. Cherry, S. Kiritchenko, J. Martin, X. Zhu, Machine-learned
+solutions for three stages of clinical information extraction: the state of the art
+at i2b2 2010, J. Am. Med. Inform. Assoc. 18 (5) (2011) 557–562.
+[34] B. Tang, H. Cao, Y. Wu, M. Jiang, H. Xu, Recognizing clinical entities in hospital
+discharge summaries using structural support vector machines with word
+representation features, BMC Med. Inform. Decis. Making 13 (Suppl 1) (2013)
+S1.
+[35] Y. Zhang, J. Wang, B. Tang, Y. Wu, M. Jiang, Y. Chen, H. Xu, Uth_ccb: a report for
+semeval 2014-task 7 analysis of clinical text, SemEval (2014) 802–806.
+[36] M. Skeppstedt, M. Kvist, G.H. Nilsson, H. Dalianis, Automatic recognition of
+disorders, findings, pharmaceuticals and body structures from clinical text: An
+annotation and machine learning study, J. Biomed. Inform. 49 (2014) 148–158.
+[37] W.W. Chapman, W. Bridewell, P. Hanbury, G.F. Cooper, B.G. Buchanan, A
+simple algorithm for identifying negated findings and diseases in discharge
+summaries, J. Biomed. Inform. 34 (5) (2001) 301–310.
+[38] W.W. Chapman, D. Hilert, S. Velupillai, M. Kvist, M. Skeppstedt, B.E. Chapman,
+M. Conway, M. Tharp, D.L. Mowery, L. Deleger, Extending the NegEx lexicon for
+multiple languages, Stud. Health Technol. Inform. 192 (2013) 677.
+[39] M. Skeppstedt, Negation detection in Swedish clinical text: an adaption of
+NegEx to Swedish, J. Biomed. Seman. 2 (S-3) (2011) S3.
+[40] I. Goldin, W.W. Chapman, Learning to detect negation with ‘not’ in medical
+texts, in: Proc. Workshop on Text Analysis and Search for Bioinformatics, ACM
+SIGIR, 2003.
+[41] Y. Huang, H.J. Lowe, A novel hybrid approach to automated negation detection
+in clinical radiology reports, J. Am. Med. Inform. Assoc. 14 (3) (2007) 304–311.
+[42] S. Wu, T. Miller, J. Masanz, M. Coarr, S. Halgrim, D. Carrell, C. Clark, Negation’s
+not solved: generalizability versus optimizability in clinical natural language
+processing, PloS One 9 (11) (2014) e112774.
+[43] Ö. Uzuner, X. Zhang, T. Sibanda, Machine learning and rule-based approaches
+to assertion classification, J. Am. Med. Inform. Assoc. 16 (1) (2009) 109–115.
+[44] S. Velupillai, Shades of Certainty: Annotation and Classification of Swedish
+Medical Records, Doctoral Thesis, Stockholm University, 2012.
+[45] H. Harkema, J.N. Dowling, T. Thornblade, W.W. Chapman, Context: an
+algorithm for determining negation, experiencer, and temporal status from
+clinical reports, J. Biomed. Inform. 42 (5) (2009) 839–851.
+[46] Y.-K. Lin, H. Chen, R.A. Brown, Medtime: a temporal information extraction
+system for clinical narratives, J. Biomed. Inform. 46 (2013) S20–S28.
+[47] W. Sun, A. Rumshisky, O. Uzuner, Evaluating temporal relations in clinical text:
+2012 i2b2 challenge, J. Am. Med. Inform. Assoc. (2013). amiajnl-2013.
+[48] S. Bethard, L. Derczynski, J. Pustejovsky, M. Verhagen, Semeval-2015 task 6:
+clinical tempeval, in: Proceedings of the 9th International Workshop on
+Semantic Evaluation (SemEval 2015), Association for Computational
+Linguistics, 2015.
+[49] S. Velupillai, Temporal expressions in swedish medical text – a pilot study, in:
+Proceedings of BioNLP, 2014, pp. 88–92.
+[50] H. Shatkay, R. Feldman, Mining the biomedical literature in the genomic era:
+an overview, J. Comput. Biol. 10 (6) (2003) 821–855.
+[51] C. Giuliano, A. Lavelli, L. Romano, Exploiting shallow linguistic information for
+relation extraction from biomedical literature, EACL, vol. 18, Citeseer, 2006, pp.
+401–408.
+[52] B. Rink, S. Harabagiu, K. Roberts, Automatic extraction of relations between
+medical concepts in clinical texts, J. Am. Med. Inform. Assoc. 18 (5) (2011)
+594–600.
+[53] A. Sun, R. Grishman, S. Sekine, Semi-supervised relation extraction with largescale word clustering, Proceedings of the 49th Annual Meeting of the
+Association for Computational Linguistics: Human Language Technologies,
+vol. 1, Association for Computational Linguistics, 2011, pp. 521–529.
+[54] S. Miller, J. Guinness, A. Zamanian, Name tagging with word clusters and
+discriminative training, HLT-NAACL, vol. 4, Citeseer, 2004, pp. 337–342.
+[55] J. Turian, L. Ratinov, Y. Bengio, Word representations: a simple and general
+method for semi-supervised learning, in: Proceedings of the 48th Annual
+Meeting of the Association for Computational Linguistics, Association for
+Computational Linguistics, 2010, pp. 384–394.
+[56] Z.S. Harris, Distributional Structure, Word.
+[57] P.D. Turney, P. Pantel, et al., From frequency to meaning: vector space models
+of semantics, J. Artif. Intell. Res. 37 (1) (2010) 141–188.
+[58] T. Cohen, D. Widdows, Empirical distributional semantics: methods and
+biomedical applications, J. Biomed. Inform. 42 (2) (2009) 390–405.
+[59] A. Henriksson, Semantic Spaces of Clinical Text: Leveraging Distributional
+Semantics for Natural Language Processing of Electronic Health Records,
+Licentiate Thesis, Stockholm University, 2013.
+
+A. Henriksson et al. / Journal of Biomedical Informatics 57 (2015) 333–349
+[60] A. Henriksson, H. Moen, M. Skeppstedt, V. Daudaravicius, M. Duneld, Synonym
+extraction and abbreviation expansion with ensembles of semantic spaces, J.
+Biomed. Seman. 5 (2014) 6.
+[61] A. Henriksson, H. Dalianis, S. Kowalski, Generating features for named entity
+recognition by learning prototypes in semantic space: the case of deidentifying health records, in: IEEE International Conference on
+Bioinformatics and Biomedicine, IEEE, 2014, pp. 450–457.
+[62] M. Sahlgren, The Word-Space Model: Using Distributional Analysis to
+Represent Syntagmatic and Paradigmatic Relations Between Words in HighDimensional Vector Spaces, Ph.D. Thesis, Stockholm University, 2006.
+[63] G. Lapesa, S. Evert, S.S. im Walde, Contrasting syntagmatic and paradigmatic
+relations: insights from distributional semantic models, in: Proceedings of the
+Third Joint Conference on Lexical and Computational Semantics (*SEM 2014),
+2014, pp. 160–170.
+[64] G. Lapesa, S. Evert, A large scale evaluation of distributional semantic models:
+parameters, interactions and model selection, Trans. Assoc. Comput. Linguist.
+2 (2014) 531–545.
+[65] A. Henriksson, Learning multiple distributed prototypes of semantic categories
+for named entity recognition, Int. J. Data Min. Biomed. (in press).
+[66] H. Dalianis, M. Hassel, A. Henriksson, M. Skeppstedt, Stockholm EPR Corpus: a
+clinical database used to improve health care, in: Swedish Language
+Technology Conference, SLTC-2012, 2012, pp. 17–18.
+[67] J. Stausberg, J. Hasford, Drug-related admissions and hospital-acquired
+adverse drug events in Germany: a longitudinal analysis from 2003 to 2007
+of ICD-10-coded routine data, BMC Health Serv. Res. 11 (1) (2011) 134.
+[68] P. Stenetorp, S. Pyysalo, G. Topić, T. Ohta, S. Ananiadou, J. Tsujii, Brat: a webbased tool for nlp-assisted text annotation, in: Proceedings of the
+Demonstrations at the 13th Conference of the European Chapter of the
+Association for Computational Linguistics, Association for Computational
+Linguistics, 2012, pp. 102–107.
+[69] J. Lafferty, A. McCallum, F.C. Pereira, Conditional Random Fields: Probabilistic
+Models for Segmenting and Labeling Sequence Data.
+[70] T. Kudo, CRF++: Yet Another CRF Toolkit. <http://crfpp. sourceforge.net>.
+[71] L. Breiman, Random forests, Mach. Learn. 45 (1) (2001) 5–32.
+[72] Y. Sun, A.K. Wong, M.S. Kamel, Classification of imbalanced data: a review, Int.
+J. Pattern Recogn. Artif. Intell. 23 (04) (2009) 687–719.
+[73] C. Chen, A. Liaw, L. Breiman, Using Random Forest to Learn Imbalanced Data,
+University of California, Berkeley.
+[74] F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M.
+Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, Scikit-learn: machine learning
+in python, J. Mach. Learn. Res. 12 (2011) 2825–2830.
+
+349
+
+[75] T. Mikolov, K. Chen, G. Corrado, J. Dean, Efficient estimation of word
+representations in vector space, in: ICLR Workshop, 2013.
+[76] M. Baroni, G. Dinu, G. Kruszewski, Don’t count, predict! a systematic
+comparison of context-counting vs. context-predicting semantic vectors, in:
+Association for Computational Linguistics, vol. 1, 2014, pp. 238–247.
+[77] Y. Goldberg, O. Levy, Word2vec Explained: Deriving Mikolov et al.’s NegativeSampling Word-Embedding Method, Available from: arXiv:<arXiv:1402.
+3722>.
+[78] R. Östling, Stagger: an open-source part of speech tagger for swedish, Northern
+Euro. J. Lang. Technol. 3 (2013) 1–18.
+[79] N. Japkowicz, M. Shah, Evaluating Learning Algorithms: A Classification
+Perspective, Cambridge University Press, 2011.
+[80] J. Demšar, Statistical comparisons of classifiers over multiple data sets, J. Mach.
+Learn. Res. 7 (2006) 1–30.
+[81] G. Hommel, A stagewise rejective multiple test procedure based on a modified
+Bonferroni test, Biometrika 75 (2) (1988) 383–386.
+[82] T. Lingren, L. Deleger, K. Molnar, H. Zhai, J. Meinzen-Derr, M. Kaiser, L.
+Stoutenborough, Q. Li, I. Solti, Evaluating the impact of pre-annotation on
+annotation speed and potential bias: natural language processing gold
+standard development for clinical named entity recognition in clinical trial
+announcements, J. Am. Med. Inform. Assoc. (2013). amiajnl-2013.
+[83] W.W. Chapman, J.N. Dowling, G. Hripcsak, Evaluation of training with an
+annotation schema for manual annotation of clinical conditions from
+emergency department reports, Int. J. Med. Inform. 77 (2) (2008) 107–113.
+[84] S. Jonnalagadda, T. Cohen, S. Wu, G. Gonzalez, Enhancing clinical concept
+extraction with distributional semantics, J. Biomed. Inform. 45 (1) (2012) 129–
+140.
+[85] S. Zhang, N. Elhadad, Unsupervised biomedical named entity recognition:
+experiments with clinical and biological texts, J. Biomed. Inform. 46 (6) (2013)
+1088–1098.
+[86] A. Henriksson, M. Conway, M. Duneld, W.W. Chapman, Identifying synonymy
+between SNOMED clinical terms of varying length using distributional
+analysis of electronic health records, in: AMIA Annual Symposium
+Proceedings, American Medical Informatics Association, 2013, pp. 600–609.
+[87] A. Henriksson, M. Skeppstedt, M. Kvist, M. Duneld, M. Conway, Corpus-driven
+terminology development: populating swedish SNOMED CT with synonyms
+extracted from electronic health records, in: Proceedings of BioNLP,
+Association for Computational Linguistics, 2013.
+[88] A. Henriksson, M. Hassel, Optimizing the dimensionality of clinical term
+spaces for improved diagnosis coding support, in: Proceedings of Louhi
+Workshop on Health Document Text Mining and Information Analysis, 2013.
+
+

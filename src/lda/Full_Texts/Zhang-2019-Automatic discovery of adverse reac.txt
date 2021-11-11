@@ -1,0 +1,1349 @@
+Data Mining and Knowledge Discovery (2019) 33:848–870
+https://doi.org/10.1007/s10618-018-00610-2
+
+Automatic discovery of adverse reactions through Chinese
+social media
+Mengxue Zhang1 · Meizhuo Zhang2 · Chen Ge1 · Quanyang Liu1 ·
+Jiemin Wang2 · Jia Wei2 · Kenny Q. Zhu1
+Received: 6 September 2017 / Accepted: 14 December 2018 / Published online: 20 February 2019
+© The Author(s), under exclusive licence to Springer Science+Business Media LLC, part of Springer Nature 2019
+
+Abstract
+Despite tremendous efforts made before the release of every drug, some adverse drug
+reactions (ADRs) may go undetected and thus, cause harm to both the users and to the
+pharmaceutical companies. One plausible venue to collect evidence of such ADRs is
+online social media, where patients and doctors discuss medical conditions and their
+treatments. There is substantial previous research on ADRs extraction from English
+online forums. However, very limited research was done on Chinese data. In this
+paper, we try to use the posts from two popular Chinese social media as the original
+dataset. We propose a semi-supervised learning framework that detects mentions of
+medications and colloquial ADR terms and extracts lexicon-syntactic features from
+natural language text to recognize positive associations between drug use and ADRs.
+The key contribution is an automatic label generation algorithm, which requires very
+little manual annotation. This bootstrapping algorithm could also be further applied on
+English data. The research results indicate that our algorithm outperforms the hidden
+Markov model and conditional random fields. With this approach, we discovered a
+large number of side effects for a variety of popular medicines in real world scenarios.
+Keywords Adverse drug reaction · Chinese social media · Natural language
+processing
+
+Responsible editor: Fei Wang
+Mengxue Zhang and Meizhuo Zhang have contributed equally to this work.
+
+B
+B
+
+Jia Wei
+Jenny.Wei@astrazeneca.com
+Kenny Q. Zhu
+kzhu@cs.sjtu.edu.cn
+
+1
+
+Department of Computer Science and Engineering, Shanghai Jiao Tong University,
+800 Dongchuan Road, Shanghai 200240, China
+
+2
+
+R&D Information, AstraZeneca, 199 Liangjing Road, Pudong, Shanghai 201203, China
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+849
+
+1 Introduction
+Determination of adverse drug reactions (ADR) is an important part of pharmaceutical
+research and drug development. Pre-marketing clinical trials are limited by the number
+of participants, the length of the study and the underlying economic burden for both
+the pharmaceutical companies and the patients. Several recent researches try to predict
+the potential ADR of drug by using the drug chemical structures, protein targets or
+therapeutic indications during the drug development cycle (Scheiber et al. 2009; Xie
+et al. 2009; Yamanishi et al. 2012; Wang et al. 2014; Xiao et al. 2017). Some of the new
+adverse reactions to a drug are learned only when the drug is used in a wide spectrum
+of patients, with varied ethnicity, underlying diseases and a range of concomitant
+medication, in a post-launch setting. Furthermore, some reactions take a long time to
+develop a process which goes well beyond the pre-marketing development cycles of
+the drugs. For example, Vioxx, developed by Merck & Co, was approved by the FDA
+in May 1999 as a nonsteroidal anti-inflammatory drug to treat osteoarthritis, acute
+pain and dysmenorrhea. However, other Merck & Co sponsored studies, which were
+concluded or commenced after the drug was launched, indicated that it was associated
+with elevated risk of cardiovascular complications (Bombardier et al. 2000; Bresalier
+et al. 2005). In September of 2004, Merck withdrew Vioxx from the market because
+of concerns about increased risk of heart attack and stroke associated with long-term,
+high-dosage use. An FDA study estimated that Vioxx could have caused up to 140, 000
+cases of serious heart disease in the US since 1999 (Graham et al. 2005). Regulatory
+authorities and pharmaceutical companies make tremendous effort in avoiding such
+incidences by conducting post-launch Phase IV clinical trials. In the United States,
+drug companies spend up to $12,000 per patient in Phase IV clinical trials, with an
+average of $5856.1 Conducting such studies in an “in silico” fashion, i.e., collecting
+ADRs from pre-existing data sources, has become a valid complement, if not an
+attractive alternative, to costly Phase IV studies.
+Recent years saw a growing research interest in mining adverse drug reactions from
+various data sources. Data sources can be divided into structured data and unstructured
+text data, and the approaches differ. Structured data primarily includes official adverse
+event reports collected by health authorities (Harpaz et al. 2010, 2012; Hahn et al. 2012;
+Gurulingappa et al. 2013) such as FDA. These reports are relatively easy to process
+due to their strict conformance to the adverse event reporting standards. However, the
+quantity of such reports is limited due to the complex procedure of submitting reports
+and patients’ unawareness of spontaneous reporting systems. Unstructured data so far
+includes biomedical literature, clinical notes or medical records, and online health
+discussions. These data sources pose more processing challenges because signals are
+embedded in natural language, which is inherently ambiguous and noisy. Biomedical
+literatures such as scientific papers are comparatively easier to mine (Wang et al. 2011;
+Yang et al. 2012a) since the medication and adverse reaction are referred to by their
+formal names. However, the information therein is not up-to-date and is sometimes
+biased. Clinical resources were targeted using various methods, such as text mining
+for identifying ADRs from medicine uses (Warrer et al. 2012), rule-based methods
+1 https://www.cuttingedgeinfo.com/2011/us-phase-iv-budgets/.
+
+123
+
+850
+
+M. Zhang et al.
+
+to extract side effects from clinical narratives (Sohn et al. 2011) and retrospective
+medication orders along with inpatient laboratory results to identify ADRs (Liu and
+Chen 2013). Privacy concerns and access restrictions are the biggest obstacles for its
+wide adoption. Compared to the above data sources, online social media, especially
+health discussion forums, provide the most comprehensive and timely information
+about medication use experiences. The large volume, colloquial use of natural language, spelling and grammatical errors are some of the major challenges in mining
+ADRs from such data sources.
+Existing methods for social media text mining can be categorized into lexicon-based
+methods, statistical methods, rule-based method, advanced NLP and neural network.
+Most prior studies (Leaman et al. 2010; Yang et al. 2012b; Benton et al. 2011; Wu
+et al. 2013; Yates and Goharian 2013; Liu et al. 2014; Jiang et al. 2013; Freifeld et al.
+2014; Yeleswarapu et al. 2014) focused on expanding lexicons to find ADRs in text. In
+these lexicon-based methods, due to the novel adverse reaction phrases on websites,
+they could not recognize non-regular ADRs that are not contained in the lexicon.
+Besides, they suffer from poor approximate string matching caused by misspelled
+words. Some researchers instead utilized statistical (Li 2011; Wu et al. 2012; Liu and
+Chen 2013), rule (pattern) based methods (Nikfarjam and Gonzalez 2011; Benton
+et al. 2011; Karimi et al. 2011; Yang et al. 2012b); When it comes to NLP techniques,
+common approaches used Support Vector Machine(SVM) and Conditional Random
+Field(CRF) to detect ADR from social media (Sharif et al. 2014; Sarker and Gonzalez
+2015; Jonnagaddala et al. 2016; Nikfarjam et al. 2015). They always consider different
+features such as N-grams, POS tags, negation, sentiment word, polarity and etc. These
+methods could offer a reasonable accuracy, however they are built with supervised
+training and require large volume of data during the learning process which requires
+a tremendous amount of manual effort. Various architectures of neural network have
+also been researched for the detection of ADRs. People have tried convolutional neural
+network (Lee et al. 2017), recurrent neural network (Cocos et al. 2017) or combine them
+together (Huynh et al. 2016). Moreover, attention mechanism and CRF are sometimes
+added into the architecture to improve the performance of system (Pandey et al. 2017).
+Although there is substantial previous research on ADRs extraction from English
+online forums, very limited research was done on Chinese data. To the best of our
+knowledge, this paper is the first attempt to mine ADRs from two popular Chinese
+social media sites, namely Xunyiwenyao2 and Haodaifu.3 Xunyiwenyao and Haodaifu
+are both online public forums for health-related discussions. We have also attempted
+to use the data from Weibo4 which is a Chinese microblogging website. However, very
+few Weibo messages contain a drug and an ADR at the same time, and most of the
+messages are noisy. For example, among all the messages we crawled from Weibo,
+7734 messages mentioned Betaloc, but only 1323 of these also contain an ADR. After
+viewing these messages, only 36% of them are really experience reports from the
+patients who have taken that medicine. In consequence, we only use the the data from
+“Xunyiwenyao” and “Haodaifu” in this paper to discover the potential ADRs.
+2 http://club.xywy.com/.
+3 http://www.haodf.com/.
+4 http://weibo.com.
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+851
+
+Fig. 1 System framework
+
+Herein, we propose a semi-supervised learning framework requiring very little
+manual annotations for mining ADRs from Chinese social media. As an alternative
+to the methods described above, we build a list of commonly misspelled drug names
+and extend the customized lexicon with colloquial words and adjective modifiers, in
+order to address the problem of irregular ADR terms and typos. We also focus on
+distinguishing between indications and ADRs by training a binary classifier, using the
+SVM model. To train the classifier, we introduce an automatic labeling algorithm to
+generate large amount of training data.
+
+2 Methods
+Our framework (depicted in Fig. 1) is divided into four parts, namely constructing lexica, extracting candidate ADRs, classifying evidences and finally ranking the ADRs.
+2.1 Lexicon construction
+We need two lexicons, one for the names of medications of interest; the other for
+ADRs to be recognized from text.
+2.1.1 Lexicon of medication
+We start with a list that contains common names and registered trade names of known
+drugs. On social media, drug names may be spelled with variation, either by similar
+(Nexium)”(nàn xìn in
+characters or homophones. For example, a drug called “
+Chinese phonetic alphabet) may be misspelled as “
+”(nàn xìn), “
+” (nàn xìn)
+and so on. To solve this problem, we expand each correct character in a drug name to
+
+123
+
+852
+
+M. Zhang et al.
+
+several commonly misspelled characters in Chinese according to the Chinese phonetic
+alphabet. For example, “ ” is extended to “ ” or “ ”, while “ ” is extended to “ ”,
+“ ” and so on. However, if “
+” is transformed to “
+”, which is a commonly
+used Chinese word, many irrelevant posts containing “
+” maybe returned. Thus
+common Chinese words which are clearly not drug names are filtered out. After this
+kind of expansion, we obtain a total of 110,779 different drug names for 79 drugs of
+interest. The list of all these 79 drugs of interest can be found in “Appendix A”.
+2.1.2 Basic ADR lexicon
+The basic ADR lexicon comes from four sources: NCI Common Terminology Criteria
+for Adverse Events (CTCAE) (Trotti et al. 2003), Sougou Pinyin ADRs lexicon5
+MedDRA(The Medical Dictionary for Regulatory Activities) (Brown et al. 1999) and
+the ADR database by Ye et al. (2014). CTCAE contains formal terms of the ADRs
+used for adverse event reporting to regulatory agencies. Sougou ADRs is utilized
+particularly for colloquial terms. Here are some examples: “
+” (poor hearing),
+“
+” (anxious), “
+” (forgetful), “
+” (hair thinning). Both CTCAE
+and Sougou ADRs are available in Chinese. The ADRs database covers more than 6000
+ADRs in English. It was translated into Chinese by Google Translate.6 In addition,
+classification of these terms is very important. Because some words have the same
+or similar meaning, their results can be merged in the following analysis steps. For
+example, “
+” (loss of weight) is the same as “
+” (drop in weight).
+If we classify both words in the same category, their result can be directly added and
+we get one total result for later discussion. Finally, based on MedDRAs category, we
+classify all the words into structured lexicon which has four levels. The lowest level
+contains ADR words from the three data sources. The three upper levels are custom
+categories in MedDRA. In Table 1, the first column in the left is the fourth level and
+the next three columns are the upper levels in MedDRA.
+2.1.3 Extended ADR lexicon
+To improve the ability to match colloquial terms in online discussion, we further
+expand our basic ADR lexicon by adding variations of the terms. For example, when
+(headache)” or “
+(a little
+a person has a headache, he or she may say “
+headache)”, the latter of which is a slight variation with a degree modifier between
+an organ name and symptom word such as “ ” (pain), and is added to our extended
+lexicon.
+There is a variety of such degree modifiers. We adopt a data-driven approach to
+mine such degree modifiers by pattern-matching an organ name, up to 5 characters and
+a symptom word, for example “ (head)XXXXX (pain)”, from online discussion
+corpus. The algorithm to extend ADR lexicon is presented briefly as Algorithm 1.
+5 Sogou Pinyin is a Chinese input method, and there are many available lexicons, one of which is the ADRs
+lexicon, http://pinyin.sogou.com/dict/detail/index/644.
+6 https://translate.google.com/.
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+853
+
+Table 1 ADRs lexicon
+
+Algorithm 1 Extending ADR lexicon
+1: //Construct regular expression patterns
+2: for each term in basic ADRs do
+3:
+if term contains organ then
+4:
+construct a regular pattern
+5: //Discover degree words
+6: for each line in all data do
+7:
+if line match a pattern then
+8:
+count one for this word
+9: //Extend lexicon
+10: for each term in lexicon do
+11:
+if term contains organ then
+12:
+for each word in words list do
+13:
+insert word into term to generate a new term
+
+2.2 Data sources and data preparation
+This section describes two Chinese social media and how we extract evidences of
+ADRs for drugs from them.
+2.2.1 Chinese social media
+Xunyiwenyao was established in 2004. By 2014, it has over 80,000,000 registered
+accounts, over 20,000,000 daily independent, and is ranked first in the medical and
+health service industry. The forum contains 14 categories and 64,050 discussion
+threads on average, every day. Each discussion thread starts with a patient’s question,
+which is followed by responses from multiple doctors or other patients (see Fig. 2).
+
+123
+
+854
+
+M. Zhang et al.
+
+Fig. 2 Question posted on Xunyiwenyao website
+
+Haodaifu was launched in 2006. Its physician-patient interactive forum is the largest
+in China, with over 501,000 registered healthcare professionals. It contains 29 categories and 18,632,602 discussion threads until now. The format of the discussion is
+similar to Xunyiwenyao.
+2.2.2 Extraction of evidences
+First, we preprocess all the user posts from three websites. If one post contains a
+drug name of interest, this post is considered as an “effective” target. All sentences
+in “effective” posts are segmented by ICTCLAS (Zhang et al. 2003), a Chinese word
+segmentation tool.
+With the ADR lexicon, we can detect candidate ADR terms from the effective posts.
+However, when a drug name X is mentioned in a post, the user may not actually have
+taken that drug. Similarly, when an ADR term is mentioned, the user may not actually
+have the symptom, or the symptom may not be the result of taking X . Therefore, given
+a pair of a drug name and an ADR, we need to determine whether the ADR is truly the
+consequence of taking the drug, given the context of the pair in the post. Because of
+that a drug-ADR pair that is too far away from each other in the text is not reliable, the
+context is defined as one or more consecutive sentences where the distance between
+drug and ADR is less than 55 Chinese words (including punctuations but excluding
+spaces). We ensure that each context contains one drug-ADR pair.
+We define a context as a positive evidence if the candidate ADR in the context is
+a real ADR, while the other cases belong to the negative sentence. The following are
+two contexts showing a positive evidence and a negative evidence:
+(After taking Iressa, had a headache, eye
+
+–
+diplopia and blurred vision)
+–
+
+(After taking Omeprazole, Clarithromycin, Amoxicillin, Domperidone and other
+drugs, cough lessened)
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+855
+
+Table 2 Category of drugs studied
+Category
+
+Number of drugs
+
+Diseases
+
+Number of drugs
+
+Hypertension
+
+29
+
+Hyperacidity
+
+2
+
+Diabetes
+
+18
+
+Lung cancer
+
+1
+
+Asthma
+
+15
+
+Rhinitis
+
+1
+
+Statins
+
+9
+
+Schizophrenia
+
+1
+
+Breast cancer
+
+1
+
+Acute coronary syndrome
+
+1
+
+Anesthesia
+
+1
+
+2.2.3 Data set
+We have crawled user messages posted between January 2011 to April 2015 on Haodaifu and Xunyiwenyao. These messages mentioned 79 drugs, which treat 11 types
+of diseases. Table 2 summarizes the diseases and the number of corresponding drugs.
+In total, 456,753 posts were crawled.
+After preprocessing these posts, we obtain 302,180 sentences where a drug-ADR
+pair is revealed. We first manually label 1200 sentences which contains 600 positive
+evidences and 600 negative evidences. Then we divide them into training set, tuning set
+and test set. Finally, we get a training set with 300 positive evidences and 300 negative
+evidences, a tuning set with 200 positive evidences and 200 negative evidences and a
+test set with 100 positive evidences and 100 negative evidences.
+2.3 Evidence classifier
+Given a drug name and a medical condition, identified by the extended lexicon, as
+well as their context in the original text, the problem of evidence classification is to
+determine whether the medical condition is actually an ADR resulting from the drug.
+Next we present a method to train such an evidence classifier. In particular, we show
+how to produce large amount of training data by automatic labeling.
+2.3.1 Building the training set
+A supervised classifier requires labeled training data. However, manual labeling on
+user discussion posts can’t scale up because of the large amount of informal use of
+language and colloquial terms. Fortunately, information in the package insert of the
+drugs, e.g., the indications and the known side effects of the drug, can be used to
+automatically generate labeled data.
+Our first and simple idea is to regard a pair of drug and medical condition as
+true if the medical condition is listed as a side effect in the package insert of the
+drug. Conversely, we regard the pair as false if the medical condition is listed as an
+indication of the drug. All other pairs are discarded from labeled data set. However,
+(dizzyness)” is a known ADR for
+this approach is not perfect. For example, “
+Betaloc, but sometimes in the real discussion it serves as an indication:
+
+123
+
+856
+
+M. Zhang et al.
+
+–
+(Suddenly I felt dizzy, flustered, and restless, my blood pressure was at 160/100;
+tachycardia electrocardiogram was at 160 times. Consequently I was given
+Betaloc)
+(atrial fibrillation)” is an indication for Betaloc, but sometimes it
+Similarly, “
+is reported as if its a side effect:
+–
+(According to the doctors advice, Cordarone was reduced to 1/4 tablets per day,
+plus one tablet of Betaloc (slow release). Atrial fibrillation occurred after a period
+of time)
+Because the actual situation arising from patients experience may be more complicated than specified on the inserts, we adopt a semi-supervised approach instead. We
+first use the 600 manually labeled data to train a simple SVM classifier and use it to
+predict for all the sentences in the corpus. The features used are discussed in Section
+2.3.2. If the classifier predicts a sentence to be positive, and the medical condition
+is a known ADR for the drug according to the insert, we add this sentence into the
+new positive training set. If a sentence is predicted to be negative, and the condition
+in that sentence is a known indication of the drug, then we add this sentence into the
+negative training set. We exclude those sentences for which the prediction of classifier
+and content of the package insert are different. The new training set also contains our
+original 600 manual labeling data.
+With little manual effort, we have now obtained a much larger set of positive and
+negative training data (called semi-supervised data) — 12,238 training instances in
+total. By manual validation, the accuracy of such automatic labeling is 82%.
+2.3.2 Features extraction
+Our main evidence classifier extracts the following features (see Table 3), after parsing
+the evidence sentences into dependency trees:
+The set of features described in Table 3 are used in both the initial and the final
+classifier. However, with more training data, the final classifier can better distinguish
+unseen tokens. Its worth noting that all these seven features are independent of the
+name of the drug and the ADR.
+2.3.3 Automatic labeling by bootstrapping
+We choose SVM as our primary classifier, because our feature vectors are highdimensional (many different words). The overall process of our method is indicated
+in Algorithm.2.
+The above algorithm uses the package inserts and the initial classifier M to generate
+more training data. One interesting thought is to use that newly obtained classifier M to
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+857
+
+Table 3 Features that we extracted
+
+Algorithm 2 Automatic labeling by bootstrapping
+1:
+2:
+3:
+4:
+5:
+6:
+7:
+
+Manually label small amount of seed data S
+Train an initial SVM classifier M from S
+Calculate F1-score of this SVM classifier based on the test data set
+repeat
+//Use M to classify all the sentences and enlarge our training set with the help of packet inserts
+for each sentence in corpus do
+if M predicts this sentence to be positive && the medication condition is a known ADR for the
+drug according to the packet insert then
+8:
+Add this sentence to the positive training set
+9:
+else if M predicts this sentence to be negative && the medication condition is a known indication
+of the drug according to the packet insert then
+10:
+Add this sentence to the negative training set
+11:
+else keep this sentence in the corpus
+12:
+//update the SVM classifier
+13:
+Use the new training set to train a new SVM classifier and update M
+14:
+Calculate F1-score of the updated classifier M based on the test data set
+15: until training set converges
+
+123
+
+858
+
+M. Zhang et al.
+
+label even more training data, and thus build a newer classifier. This process can go on
+iteratively until no more new training data is obtained. We will show the results of this
+in Section 3. The training data obtained at the final iteration is called semi-supervised
+data and will be used to train our SVM classifier and the other baseline classifiers (see
+Section 2.4).
+2.4 Baseline classifier techniques
+2.4.1 Pattern-based method
+Beside the above semi-supervised learning method, we have also tried an intuitive
+pattern-based classifier as a baseline. We extract preposition, conjunction and noun of
+locality from sentences as patterns from training data generated by package inserts.
+Each pattern has a weight, which is its frequency of occurrence; a negative pattern
+extracted from negative examples will have a negative weight. For example, below are
+two patterns we extracted and their weight:
+–
+–
+For a new sentence that can be matched to several patterns, the score is the sum of
+these patterns. Then a classifier is built based on the score: if the score is greater than
+0, it’s positive; otherwise negative.
+2.4.2 HMM-based classifier
+We train a HMM classifier (Sampathkumar et al. 2014). Particularly, comparing to
+original HMM paper where the sentences to be classified may not contain a drugADR pair, our task is more challenging because we firstly ensure a drug-ADR pair in
+all sentences and then make the classification. We train two HMM classifiers in all.
+One classifier is only trained with 600 manually-labeled data and another classifier is
+trained with the semi-supervised data by using the package insert.
+2.4.3 CRF-based classifier
+We train a CRF-based classifier (Nikfarjam et al. 2015). We also use two kinds of
+data to train the two CRF-based classifiers: one with 600 manually-labeled data and
+another with semi-supervised data.
+Both the HMM and CRF classifiers were slightly modified to adapt to the Chinese
+input. For example we use ICTCLAS to segment and POS to tag the input sentences.
+2.5 Ranking
+For each drug, there are many candidate ADRs. We are interested in those of high
+confidence. One way of ranking the ADRs of a drug is by the number of its appearances
+in positive evidence posts. This doesn’t work well because, most discussions about
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+859
+
+a drug involves the indications of the drug. For example, discussion about Betaloc
+would naturally include a lot of occurrences of the term “hypertension” and the absolute
+number of such mentions is very large. Although our classifier can give a high accuracy,
+a number of sentences which contains “hypertension” as ADR are incorrectly predicted
+to be positive. Consequently, “hypertension” would be ranked highly as an ADR of
+Betaloc. To solve this problem, we rank the ADRs according to the frequency of the
+positive evidences minus that of the negative evidences. This approach effectively
+lowers the rankings of the indications of a drug, but promotes real ADRs.
+
+3 Results
+We divide our evaluation into six parts. Firstly, we run the automatically labeling algorithm iteratively and show the change of the performance. Secondly, we will examine
+the importance of different features in the SVM classifier. Thirdly, we compare the
+accuracy of our final classifier with other several baseline classifiers (HMM, CRF and
+pattern-based), the difference caused by the difference training set will also be shown.
+Fourthly, we evaluate the effect of enlarging the drug and ADR lexica. Finally, we
+evaluate the accuracy of discovered ADRs with the help of drug package inserts, and
+show the top-ten discovered ADRs of several drugs, as verification and supplement
+for the known ADRs in the package inserts.
+3.1 Impact of the iteration
+Figure 3 shows the accuracies and F1-scores on the tuning set after each iteration, using
+the bootstrapping approach in Section 2.3. The result at iteration 0 is obtained using
+only the manually labeled data. After each iteration, the training set will enlarge, however the speed of growth becomes slow in each iteration and drops to 0 at 15th iteration.
+
+0.85
+
+60000
+50000
+
+0.83
+0.82
+
+40000
+
+0.81
+0.8
+
+30000
+
+0.79
+20000
+
+0.78
+0.77
+
+F1-score
+accuracy
+training data size
+
+training data size
+
+F1-score/accuracy
+
+0.84
+
+10000
+
+0.76
+0.75
+
+0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+
+0
+
+iteration
+Fig. 3 F1-score, accuracy and training data size of the new SVM classifier at each iteration
+
+123
+
+860
+
+M. Zhang et al.
+
+Table 4 The effectiveness of classification features
+SVM features
+
+Positive pairs
+
+Negative pairs
+
+R
+
+P
+
+F1
+
+Accuracy
+
+All
+
+184/200
+
+148/200
+
+0.92
+
+0.78
+
+0.844
+
+0.830
+
+Without feature 1
+
+175/200
+
+152/200
+
+0.875
+
+0.785
+
+0.827*
+
+0.818
+
+Without feature 2
+
+184/200
+
+147/200
+
+0.92
+
+0.776
+
+0.842
+
+0.828
+
+Without feature 3
+
+175/200
+
+153/200
+
+0.875
+
+0.789
+
+0.829*
+
+0.820
+
+Without feature 4
+
+187/200
+
+144/200
+
+0.935
+
+0.770
+
+0.844
+
+0.828
+
+Without feature 5
+
+169/200
+
+131/200
+
+0.845
+
+0.710
+
+0.772*
+
+0.750
+
+Without feature 6
+
+180/200
+
+141/200
+
+0.900
+
+0.753
+
+0.820*
+
+0.803
+
+Without feature 7
+
+173/200
+
+146/200
+
+0.865
+
+0.762
+
+0.810*
+
+0.798
+
+By using the tuning set which contains 400 manually labeled data (200 positive + 200
+negative) to calculate the f1-score and accuracy of our SVM classifier in each iteration,
+we observe quick convergence: the two values keep constant after 9th iteration.
+The biggest improvement of performance comes from the 0th iteration to the 1st
+iteration since the most knowledge is acquired in the first round of bootstrapping. The
+gain in accuracy and f1-score saturates after a peak is reached at the 5th iteration. We
+therefore use the training data obtained at that time to train our final SVM classifier
+and other baseline classifiers.
+3.2 The effectiveness of classification features
+To examine the contribution of each feature of our SVM classifier, we use the previous
+tuning set which contains 400 manually labeled sentences to performed ablation tests
+on the tuning set. The result is shown in Table 4. Compared with All features set,
+those significant changes (the difference of F1-score is more than 0.10) are marked
+with asterisks. Besides, the highest values in each column are highlighted in bold.
+We find that each feature does the contribution for the performance of the classifier.
+Among all the features, feature 1, 3, 5, 6, 7 are the most important ones as F1-score
+decreases sigificantly without these features.
+3.3 Drug-ADR association
+According to the previous research, we use the training data obtained at the 5th iteration and all the features to train our SVM classifier. To make the comparison with
+several baseline classifiers, another 200 manually-labeled test data (100 positive +
+100 negative), which are different from the previous tuning set, is chosen to check the
+performance of the various classifier. The result is shown in Table 5 where the highest
+values in each column are highlighted in bold. There are three kinds of training data:
+– Manual labels: use the manually labeled training set with 300 positive instances
+and 300 negative instances
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+861
+
+Table 5 Performance of various classifier
+Methods
+
+Positive pairs
+
+Negative pairs
+
+Recall
+
+Precision
+
+F1-score
+
+Manual labels (pattern-based)
+
+24/100
+
+97/100
+
+0.24
+
+0.889
+
+0.378
+
+Manual labels (HMM)
+
+62/100
+
+85/100
+
+0.62
+
+0.805
+
+0.700
+
+Manual labels (CRF)
+
+86/100
+
+75/100
+
+0.86
+
+0.775
+
+0.815
+
+Manual labels (SVM)
+
+68/100
+
+87/100
+
+0.68
+
+0.840
+
+0.751
+
+Auto labels from inserts
+(pattern-based)
+
+47/100
+
+77/100
+
+0.47
+
+0.671
+
+0.553
+
+Auto labels from inserts
+(HMM)
+
+85/100
+
+55/100
+
+0.85
+
+0.654
+
+0.739
+
+Auto labels from inserts
+(CRF)
+
+98/100
+
+32/100
+
+0.98
+
+0.590
+
+0.737
+
+Auto labels from inserts
+(SVM)
+
+81/100
+
+65/100
+
+0.81
+
+0.698
+
+0.75
+
+Semi-supervised labels
+(pattern-based)
+
+76/100
+
+89/100
+
+0.76
+
+0.874
+
+0.813
+
+Semi-supervised labels
+(HMM)
+
+87/100
+
+54/100
+
+0.87
+
+0.654
+
+0.747
+
+Semi-supervised labels (CRF)
+
+98/100
+
+34/100
+
+0.98
+
+0.598
+
+0.742
+
+Semi-supervised labels
+(SVM)
+
+86/100
+
+79/100
+
+0.86
+
+0.804
+
+0.831
+
+– Auto labels from insert: use the training data that we obtained according to the
+package insert directly without help of the manually labeled data. If the symptom in
+the sentence is ADR according to the package insert, it will be added into positive
+training set. Inversely, if the symptom in the sentence is indication according to
+the package insert, it will be added into negative training set.
+– Semi-supervised labels: use the training data that we obtained after the 5th iteration.
+The pattern-based classifier depends a lot on the size of the training data set. More
+training data could help it to recognize more patterns of a positive sentence. In consequence, the performance improves a lot when using semi-supervised labels.
+The HMM-based classifier emphasizes on the structure of sentences. The performance improved if the structure in training set and testing set is standard. Therefore,
+when we use the manually-labeled data to train the HMM classifier, the small size
+of training data set results in a low precision. It can be also seen that the percentage of true positives is inversely correlated with the percentage of true negatives.
+This means a classifier is biased to produce either more positive labels or more negative labels. A good classifier, such as the one trained with the semi-supervised labels
+manages to strike a balance between the two biases and produce a better overall
+F1-score.
+CRF-based classifier use the sequence labeling with word embedding cluster features, which reduces the effect of the training sets size. However, this kind of classifier
+also depends on the grammatical form of a sentence. When training set enlarges, the
+
+123
+
+862
+
+M. Zhang et al.
+
+Table 6 Enlarging data set through homophone transform
+All 79 drugs
+(Betaloc)
+
+(Nexium)
+
+(Glucobay)
+
+(Aminophylline)
+
+Official name
+
+24,073
+
+6521
+
+530
+
+7493
+
+158,695
+
+Homophone
+
+13,177
+
+6369
+
+1611
+
+2388
+
+143,485
+
+Total
+
+37,250
+
+12,890
+
+2141
+
+9881
+
+302,180
+
+%increase
+
+35.4%
+
+49.4%
+
+75.2%
+
+24.2%
+
+47.5%
+
+structure of negative instances becomes various and does not have a regular form,
+which leads to a bad performance of the CRF classifier.
+In short, both the HMM and CRF concentrate more on the information of the single
+word itself and its limited surrounding words. However, SVM focus on the features
+of the whole sentence.
+The semi-supervised data, which is doubly verified by the primary SVM classifier
+and package inserts, may not have a very standard form (e.g., some sentences do
+not have the causal keyword but have a lot of noisy words between the ADR and
+its associated drug). For those user posts, which do not have a standard form, SVM
+performs clearly better because of its global view, and HMM doesn’t perform as well
+because it requires sentences in their standard form.
+3.4 Homophone transformation and extended ADR lexicon
+As shown in Table 6, our data set, measured by the number of sentences containing at
+least one of the 4 selected drugs and an ADR, is enlarged significantly after homophone
+transformation.
+Among all the 302,180 sentences which contains a (drug, ADR) pair, there are
+totally 1328 sentences where the candidate ADR contains an adverb of degree and
+can only be extracted by using the extended ADR lexicon. Although 1328 is not large
+compared to 302,180, extended ADR lexicon could also help us to enlarge the data
+set to find more potential ADRs.
+In addition, we randomly select 100 original posts to assess the quality of our ADR
+lexicon. Among all the 451 medications mentioned, we could detect 159 medications.
+After calculation, we obtain the precision and recall of our ADR lexicon is 1.0 and
+0.353. Although there are still a number of undetected colloquial medications, we
+have tried our best to combine lexicons from sources(see Section 2.1.2) and add the
+colloquial term(see Section 2.1.3).
+3.5 End-to-end ranking
+By using the ranking method which is referred in Section 2.5, our system returns a
+ranked list of possible ADRs when given a drug. We evaluate the end-to-end perfor-
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+863
+
+0.3
+AveP(ADR)
+AveP(Indication)
+
+0.25
+0.2
+0.15
+0.1
+0.05
+0
+
+y
+
+hy
+
+ba
+
+op
+
+co
+
+in
+
+l
+ta
+To
+
+Am
+
+lu
+
+c
+
+m
+
+lo
+
+iu
+
+ta
+
+ex
+
+G
+
+N
+
+Be
+
+llin
+e
+
+Fig. 4 End-to-end rankings AveP
+
+mance of the system by the Average Precision (AveP) according to the package insert
+of the drug:
+n
+AveP =
+
+k=1 (P(k) × r el(k))
+
+number of ADRs in package inserts
+
+(1)
+
+where P(k) is the precision at cut-off k in the list, rel(k) is an indicator function
+equaling 1 if the item at rank k is a relevant document, 0 otherwise.7
+We expect the true ADR of a drug to rank high in the list while the true indication
+ranks lower in the list. The ground truth we use here is the known ADRs and known
+indications of four random-sampled drugs according to the package inserts. Figure 4
+shows the results of the four previous randomly chosen drugs,
+(Betaloc),
+(Nexium),
+(Glucobay) and
+(Aminophylline). We also calculate the
+weighted average of AveP for all the 79 drugs.
+From Fig. 4, we can see that AveP(ADR) is much larger than AveP(Indication),
+which means that most of ADRs that our classifier discovers are already included in
+the package insert. Besides, the known indications are not in our returned ADR list or
+ranked very low in our list.
+Together with Table 6, which gives the sizes of the datasets for four drugs, we learn
+that more data helps to increase the ADR prediction accuracy.
+
+7 AveP is defined athttps://en.wikipedia.org/wiki/Information_retrieval.
+
+123
+
+864
+
+M. Zhang et al.
+
+Table 7 Top 10 discovered ADRs for 4 common drugs
+
+3.6 Top-ten discovered ADRs
+Table 7 shows the top-ten discovered ADRs for 4 aforementioned drugs. The percentage in the parentheses is calculated as followed:
+percentage =
+
+# of patients who report that ADR
+# of posts which discuss this drug
+
+(2)
+
+ADRs which don’t have direct match in the package inserts (therefore potentially
+new discoveries) are marked using underline.
+In Table 7, we discovered many ADRs that are already included in the package
+inserts. Although these ADRs are known, the frequency statistics can be valuable for:
+(i) verifying ADRs listed in the package inserts; (ii) studying the relative frequency
+between the ADRs. For example, the frequency of Fatigue and Constipation of Betaloc
+in package insert are both larger than 1%, but they are 0.67% and 0.16% respectively
+in our result.
+There are also a number of ADRs without direct match in the manuals. These fall
+into several cases:
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+865
+
+Newly discovered ADRs (e.g., “
+(Cough)” for “
+(Betaloc)”). This is the
+most valuable discovery for the drug maker in the analysis of the drug reactions
+because some ADRs may not be observed during the trials on a small population.
+(Exhaustion)” is a synonym of “
+Synonyms of the known ADRs (e.g., “
+(Fatigue)” for “
+(Nexium)”. While they are synonyms, the ADRs listed in package
+inserts are often some terminologies and the colloquial synonyms can help patients
+understand them easily.
+Generalization of the known ADRs (e.g., “
+(Emesis)” is a specialization of the
+symptom “
+(Discomfort)” for “
+(Betaloc)”). Some ADRs from package
+inserts is a specific symptom. Our results give a general term.
+
+4 Conclusion
+We have proposed an effective framework for extracting and analyzing ADRs from
+Chinese online social media. It uses a lexicon-based method to extract ADRs from
+the data followed by a binary classifier to identify the positive evidences. In this
+framework, we introduce a data-driven algorithm to extend the drug and ADR lexica.
+In order to build the evidence classifier, we propose an automatic labeling algorithm
+to produce large amounts of labeled sentences. Completely relying on the information
+from the package inserts produces training data which is too noisy. Our tradeoff is a
+semi-supervised approach where we manually label a small set, then use these data
+and package inserts collectively to generate more training data. This approach was
+shown to be highly effective.
+Acknowledgements This work has been partially supported by AstraZeneca and NSFC grant 91646205.
+
+123
+
+866
+
+A List of 79 drugs studied
+
+123
+
+M. Zhang et al.
+
+Automatic discovery of adverse reactions through Chinese..
+
+867
+
+123
+
+868
+
+M. Zhang et al.
+
+References
+Benton A, Ungar LH, Hill S, Hennessy S, Mao J, Chung A, Leonard CE, Holmes JH (2011) Identifying
+potential adverse effects using the web: a new approach to medical hypothesis generation. J Biomed
+Inform 44(6):989–996
+Bombardier C, Laine L, Reicin A, Shapiro D, Burgos-Vargas R, Davis B, Day R, Ferraz MB, Hawkey CJ,
+Hochberg MC et al (2000) Comparison of upper gastrointestinal toxicity of rofecoxib and naproxen
+in patients with rheumatoid arthritis. N Engl J Med 343(21):1520–1528
+Bresalier RS, Sandler RS, Quan H, Bolognese JA, Oxenius B, Horgan K, Lines C, Riddell R, Morton
+D, Lanas A et al (2005) Cardiovascular events associated with rofecoxib in a colorectal adenoma
+chemoprevention trial. N Engl J Med 352(11):1092–1102
+Brown E, Wood L, Wood S (1999) The medical dictionary for regulatory activities (meddra). Drug Saf
+20(2):109–117
+Cocos A, Fiks AG, Masino AJ (2017) Deep learning for pharmacovigilance: recurrent neural network
+architectures for labeling adverse drug reactions in twitter posts. J Am Med Inform Assoc 24(4):813–
+821
+Freifeld CC, Brownstein JS, Menone CM, Bao W, Filice R, Kass-Hout T, Dasgupta N (2014) Digital drug
+safety surveillance: monitoring pharmaceutical products in twitter. Drug Saf 37(5):343–350
+Graham DJ, Campen D, Hui R, Spence M, Cheetham C, Levy G, Shoor S, Ray WA (2005) Risk of
+acute myocardial infarction and sudden cardiac death in patients treated with cyclo-oxygenase 2
+selective and non-selective non-steroidal anti-inflammatory drugs: nested case–control study. The
+Lancet 365(9458):475–481
+Gurulingappa H, Toldo L, Rajput AM, Kors JA, Taweel A, Tayrouz Y (2013) Automatic detection of adverse
+events to predict drug label changes using text and data mining techniques. Pharmacoepidemiol Drug
+Saf 22(11):1189–1194
+Hahn U, Cohen KB, Garten Y, Shah NH (2012) Mining the pharmacogenomics literaturea survey of the
+state of the art. Brief Bioinform 13(4):460–494
+Harpaz R, Haerian K, Chase HS, Friedman C (2010) Statistical mining of potential drug interaction adverse
+effects in FDAS spontaneous reporting system. In: AMIA annual symposium proceedings, vol 2010.
+American Medical Informatics Association, p 281
+Harpaz R, DuMouchel W, Shah NH, Madigan D, Ryan P, Friedman C (2012) Novel data-mining methodologies for adverse drug event discovery and analysis. Clin Pharmacol Ther 91(6):1010–1021
+
+123
+
+Automatic discovery of adverse reactions through Chinese..
+
+869
+
+Huynh T, He Y, Willis A, Rüger S (2016) Adverse drug reaction classification with deep neural networks.
+COLING
+Jiang L, Yang CC, Li J (2013) Discovering consumer health expressions from consumer-contributed content.
+In: SBP. Springer, Berlin, pp 164–174
+Jonnagaddala J, Jue TR, Dai H (2016) Binary classification of twitter posts for adverse drug reactions. In:
+Proceedings of the social media mining shared task workshop at the pacific symposium on biocomputing, Big Island, HI, USA, pp 4–8
+Karimi S, Kim S, Cavedon L (2011) Drug side-effects: What do patient forums reveal. In: The second
+international workshop on Web science and information exchange in the medical Web. ACM, pp
+10–11
+Leaman R, Wojtulewicz L, Sullivan R, Skariah A, Yang J, Gonzalez G (2010) Towards internet-age pharmacovigilance: extracting adverse drug reactions from user posts to health-related social networks.
+In: Proceedings of the 2010 workshop on biomedical natural language processing. Association for
+Computational Linguistics, pp 117–125
+Lee K, Qadir A, Hasan SA, Datla V, Prakash A, Liu J, Farri O (2017) Adverse drug event detection in
+tweets with semi-supervised convolutional neural networks. In: Proceedings of the 26th international
+conference on World Wide Web. International World Wide Web Conferences Steering Committee, pp
+705–714
+Li YA (2011) Medical data mining: improving information accessibility using online patient drug reviews.
+PhD thesis, Massachusetts Institute of Technology
+Liu X, Chen H (2013) Azdrugminer: an information extraction system for mining patient-reported adverse
+drug events in online patient forums. In: International conference on smart health. Springer, Berlin,
+pp 134–150
+Liu X, Liu J, Chen H (2014) Identifying adverse drug events from health social media: a case study on heart
+disease discussion forums. In: International conference on smart health. Springer, Berlin, pp 25–36
+Nikfarjam A, Gonzalez GH (2011) Pattern mining for extraction of mentions of adverse drug reactions from
+user comments. In: AMIA annual symposium proceedings, vol 2011. American Medical Informatics
+Association, p 1019
+Nikfarjam A, Sarker A, OConnor K, Ginn R, Gonzalez G (2015) Pharmacovigilance from social media:
+mining adverse drug reaction mentions using sequence labeling with word embedding cluster features.
+J Am Med Inform Assoc 22(3):671–681
+Pandey C, Ibrahim Z, Wu H, Iqbal E, Dobson R (2017) Improving RNN with attention and embedding for
+adverse drug reactions. In: Proceedings of the 2017 international conference on digital health. ACM,
+pp 67–71
+Sampathkumar H, Xw Chen, Luo B (2014) Mining adverse drug reactions from online healthcare forums
+using hidden Markov model. BMC Med Inform Decis Mak 14(1):91
+Sarker A, Gonzalez G (2015) Portable automatic text classification for adverse drug reaction detection via
+multi-corpus training. J Biomed Inform 53:196–207
+Scheiber J, Jenkins JL, Sukuru SCK, Bender A, Mikhailov D, Milik M, Azzaoui K, Whitebread S, Hamon J,
+Urban L et al (2009) Mapping adverse drug reactions in chemical space. J Med Chem 52(9):3103–3107
+Sharif H, Zaffar F, Abbasi A, Zimbra D (2014) Detecting adverse drug reactions using a sentiment classification framework. In: SocialCom, Academy of Science and Engineering (ASE), USA, ASE 2014
+Sohn S, Kocher JPA, Chute CG, Savova GK (2011) Drug side effect extraction from clinical narratives of
+psychiatry and psychology patients. J Am Med Inform Assoc 18(Supplement-1):i144–i149
+Trotti A, Colevas AD, Setser A, Rusch V, Jaques D, Budach V, Langer C, Murphy B, Cumberlin R, Coleman
+CN et al (2003) Ctcae v3. 0: development of a comprehensive grading system for the adverse effects
+of cancer treatment. Semin Radiat Oncol 13:176–181
+Wang W, Haerian K, Salmasian H, Harpaz R, Chase H, Friedman C (2011) A drug-adverse event extraction
+algorithm to support pharmacovigilance knowledge mining from pubmed citations. In: AMIA annual
+symposium proceedings, vol 2011. American Medical Informatics Association, p 1464
+Wang F, Zhang P, Cao N, Hu J, Sorrentino R (2014) Exploring the associations between drug side-effects
+and therapeutic indications. J Biomed Inform 51:15–23
+Warrer P, Hansen EH, Juhl-Jensen L, Aagaard L (2012) Using text-mining techniques in electronic patient
+records to identify ADRs from medicine use. Br J Clin Pharmacol 73(5):674–684
+Wu H, Fang H, Stanhope SJ (2012) An early warning system for unrecognized drug side effects discovery.
+In: Proceedings of the 21st international conference on World Wide Web. ACM, pp 437–440
+
+123
+
+870
+
+M. Zhang et al.
+
+Wu H, Fang H, Stanhope S et al (2013) Exploiting online discussions to discover unrecognized drug side
+effects. Methods Inf Med 52(2):152–9
+Xiao C, Zhang P, Chaowalitwongse WA, Hu J, Wang F (2017) Adverse drug reaction prediction with
+symbolic latent Dirichlet allocation. In: Proceedings of the thirty-first AAAI conference on artificial
+intelligence
+Xie L, Li J, Xie L, Bourne PE (2009) Drug discovery using chemical systems biology: identification of
+the protein–ligand binding network to explain the side effects of CETP inhibitors. PLoS Comput Biol
+5(5):e1000387
+Yamanishi Y, Pauwels E, Kotera M (2012) Drug side-effect prediction based on the integration of chemical
+and biological spaces. J Chem Inf Model 52(12):3284–3292
+Yang C, Srinivasan P, Polgreen PM (2012a) Automatic adverse drug events detection using letters to the
+editor. In: AMIA annual symposium proceedings. American Medical Informatics Association, vol
+2012, p 1030
+Yang CC, Jiang L, Yang H, Tang X (2012b) Detecting signals of adverse drug reactions from health
+consumer contributed content in social media. In: Proceedings of ACM SIGKDD workshop on health
+informatics
+Yates A, Goharian N (2013) ADRTrace: detecting expected and unexpected adverse drug reactions from
+user reviews on social media sites. Springer, Berlin
+Ye H, Liu Q, Wei J (2014) Construction of drug network based on side effects and its application for drug
+repositioning. PLoS ONE 9(2):e87864
+Yeleswarapu S, Rao A, Joseph T, Saipradeep VG, Srinivasan R (2014) A pipeline to extract drug-adverse
+event pairs from multiple data sources. BMC Med Inform Decis Mak 14(1):13
+Zhang HP, Yu HK, Xiong DY, Liu Q (2003) HHMM-based Chinese lexical analyzer ICTCLAS. In: Proceedings of the second SIGHAN workshop on Chinese language processing, -volume 17. Association
+for Computational Linguistics, pp 184–187
+Publisher’s Note Springer Nature remains neutral with regard to jurisdictional claims in published maps
+and institutional affiliations.
+
+123
+
+

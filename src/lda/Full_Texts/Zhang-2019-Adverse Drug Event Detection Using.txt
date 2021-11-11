@@ -1,0 +1,2243 @@
+information
+Article
+
+Adverse Drug Event Detection Using a Weakly
+Supervised Convolutional Neural Network and
+Recurrent Neural Network Model
+Min Zhang 1,2 and Guohua Geng 1, *
+1
+2
+
+*
+
+School of Information Science and Technology, Northwest University, Xi’an 710127, China
+School of Engineering and Technology, Xi’an Fanyi University, Xi’an 710127, China
+Correspondence: ghgeng@nwu.edu.cn
+
+Received: 16 July 2019; Accepted: 29 August 2019; Published: 4 September 2019
+
+
+
+
+Abstract: Social media and health-related forums, including the expression of customer reviews, have
+recently provided data sources for adverse drug reaction (ADR) identification research. However, in the
+existing methods, the neglect of noise data and the need for manually labeled data reduce the accuracy
+of the prediction results and greatly increase manual labor. We propose a novel architecture named
+the weakly supervised mechanism (WSM) convolutional neural network (CNN) long-short-term
+memory (WSM-CNN-LSTM), which combines the strength of CNN and bi-directional long short-term
+memory (Bi-LSTM). The WSM applies the weakly labeled data to pre-train the parameters of the
+model and then uses the labeled data to fine-tune the initialized network parameters. The CNN
+employs a convolutional layer to study the characteristics of the drug reviews and active features at
+different scales, and then the feed-forward and feed-back neural networks of the Bi-LSTM utilize these
+salient features to output the regression results. The experimental results effectively demonstrate that
+our model marginally outperforms the comparison models in ADR identification and that a small
+quantity of labeled samples results in an optimal performance, which decreases the influence of noise
+and reduces the manual data-labeling requirements.
+Keywords: adverse drug reactions (ADRs); CNN-LSTM; sentiment classification; weakly supervised
+
+1. Introduction
+Adverse drug reactions (ADRs) are part of the leading cause of morbidity and mortality in public
+health. Research has indicated that death and hospitalizations due to ADRs number in the millions
+(up to 5% hospitalizations, 28% emergency treatments, and 5% death), and the related consumption is
+approximately 75 billion dollars annually [1–3]. Post-marketing drug safety monitoring is therefore
+essential for pharmacovigilance. Regulatory agencies (e.g., the Food and Drug Administration
+(FDA)) establish and support spontaneous reporting systems (SRS) to monitor the most current
+pharmacovigilance activities in the United States. Suspected ADRs may be raised by patients and
+healthcare providers through these surveillance systems. However, biased and underreported events
+limit the effectiveness of these systems, which report an estimated ADR rate of approximately 10% [4].
+Social media, especially health-related social networks (e.g., DailyStrength (http://www.
+dailystrength.org) and AskaPatient (https://www.askapatient.com/)), enable both the patients and
+nursing staff to share and obtain comments regarding drug safety. Drug reviews of patient feedback
+on social media are a potential and timely source for ADR identification [5,6]. User reviews contain
+sentiment information (i.e., positive, negative or neutral expressions) to provide important features for
+ADR identification [7], and sentiment features can marginally improve ADR detection in health-related
+forum reviews [8].
+
+Information 2019, 10, 276; doi:10.3390/info10090276
+
+www.mdpi.com/journal/information
+
+Information 2019, 10, 276
+
+2 of 13
+
+In this study, based on the intuition of patient reviews about adverse drug reactions (ADRs)
+expressing negative sentiments, we aim to recognize ADRs through sentiment classification, which
+is commonly used to complete ADR identification through social media reviews [9]. The current
+sentiment classification methods are typically divided into three categories: (1) lexicon-based methods,
+(2) traditional machine learning methods, and (3) deep learning methods. Lexicon-based methods have
+implemented a string-matching method that matches the detected terms to predefined drug adverse
+event lexicons [10,11]. However, lexicon matching cannot easily distinguish whether a drug-related
+event is related to an ADR or to an indication for a medication. In addition, the characteristics of
+social media language (e.g., informal, vernacular, abbreviations, symbols, misspellings, and irregular
+grammar) further limit the precision of the lexicon matching method in ADR identification.
+Traditional machine learning classifiers (e.g., conditional random fields (CRFs)) [12,13] combine
+knowledge bases with sentiment-related text features. However, the fixed-width window mechanism
+of CRFs only considers the target word and its neighbouring words in the scope of their input; therefore,
+important information associated with more distant words may be excluded.
+Deep learning models (e.g., convolutional neural networks CNNs) [14–16] may limit CRF’s.
+Hierarchical CNNs specialize in extracting position-invariant features. Given the specificity of social
+media user reviews, an entire sentence may describe a positive sentiment, but the phrases that contain a
+negative sentiment (e.g., “don’t” and “miss”) may appear. Thus, the long-short-term-memory (LSTM)
+network (specifically a class of recurrent neural networks (RNNs) [17,18] with a sequential architecture
+can be used to correctly process long sentences. The LSTM ’memory mechanism, which is well suited
+for marking tasks, has a hidden state to remember previous labeling decisions and then labels the
+current token. However, LSTM does not perform well in the emotional classification of social media to
+complete a key-phrase recognition task [19].
+Furthermore, a deep learning model is an end-to-end model, allowing the computer
+to automatically learn sentiment features, thereby reducing feature-extracted complexity and
+incompleteness. However, a successful deep learning model depends on large-scale labeled data,
+and obtaining massive labeled training data manually is time-consuming and expensive. The lack
+of large-scale labeled data has become a bottleneck for deep learning in ADR identification-related
+research [20].
+To reduce the limitations of deep learning, researchers mine the information from the data
+generated by users (e.g., sentiment ratings, tweets, reviews, and emoticons), which is helpful in the
+training of sentiment classifiers. However, the behaviour of labeling texts, which users designate as
+predefined labels for each review, is arbitrary and has no uniform standard. These labeled data are
+noisy (a high score with a negative review) and are called weakly labeled data [21]. The classification
+model influenced by noise data in weakly labeled data will lower the accuracy [22].
+In this work, we propose a deep learning framework for the sentiment classification of drug
+reviews. The framework utilizes a weakly supervised mechanism (WSM) that applies weakly labeled
+data to pre-train the parameters of the model and then uses the labeled data to fine-tune the initialized
+parameters. First, we attempt to leverage a large quantity of weakly labeled data to pre-train a deep
+neural network that reflects the drug reviews’ sentiment distribution in the neural network. Second,
+we utilize a small quantity of labeled data to fine-tune the network and learn the target prediction
+function. In contrast, previous training methods, usually based on weakly labeled data, directly
+learn the target prediction function, which can impact the prediction function because of the noise in
+the data. CNN is better at classifying sentences with simple syntactic structure. LSTM can capture
+long-distance dependencies in comment statements and is better at "understanding" the semantics of
+sentences as a whole. Through the training framework of "weak supervised pre-training + supervised
+fine-tuning", the influence of noise on the model training process is reduced, and a large amount of
+useful information in the weak labeled data is better "remembered" in the depth model. The time
+efficiency of CNN, LSTM and CNN_LSTM are not very different when we use our small datasets. Our
+method performs well in ADR recognition.
+
+Information 2019, 10, 276
+
+3 of 13
+
+We propose a model that applies the WSM combining the strength of the CNN and bi-directional
+long-short-term memory (Bi-LSTM) [23–25] (named WSM-CNN-LSTM) to complete the sentiment
+classification task of ADR reviews. The WSM-CNN-LSTM model includes two parts: the CNN employs
+a convolutional layer to study and extract the characteristics of the drug review and active features of
+different scales within the drug reviews. Then, the Bi-LSTM seizes past and future information by
+the forward and backward networks, respectively, and utilizes the sentence sequence information to
+compose features sequentially and output the regression results.
+To effectively train the WSM-CNN-LSTM model, we collect drug reviews identified as weakly
+labeled datasets, containing 61,263 comments from the AskaPatient.com forum to pre-train a deep
+neural network. Additionally, a manually labeled dataset containing 11,083 comments is used to
+fine-tune the network to learn the target prediction function. Sufficient experiments are designed and
+implemented to validate the effectiveness of the WSM-CNN-LSTM model.
+In this work, our contributions are as follows:
+We propose a novel method that uses a WSM for the sentiment analysis of ADR reviews to avoid
+a large amount of manually labeled data. The WSM greatly reduces the influence of noise on the model
+in the weakly labeled data. To our knowledge, this is the first work in the health forum, particularly in
+the field of drug review sentiment analysis.
+We propose a novel architecture named WSM-CNN-LSTM to complete the task of ADR
+identification. This model reports that the stand-alone CNN model performs poorly in the characteristics
+of the long text of most drug reviews, while adding feed-forward and feed-back neural networks
+dramatically improves the classification effects.
+We validate that the WSM-CNN-LSTM model presents superior performance in ADR identification
+through experiments, in which a large amount of weakly labeled data is utilized to pre-train a deep
+neural network and a small quantity of labeled data is used to fine-tune the network and learn
+the target prediction function. Our proposed training method avoids the direct use of a weakly
+labeled data training target prediction function, which can partly reduce the influence of noise on the
+prediction function.
+This paper is organized as follows. The weakly supervised multi-channel CNN-LSTM model
+proposed in this paper is introduced in Section 2. In Section 3, the experimental process and results are
+discussed. Finally, Section 4 is conclusions and presents directions for future work.
+2. Related Work
+In recent years, some researchers used potential resources from social media to detect ADR.
+Leaman et al. [26] applied Lexicon-based approach and used 450 comments for Concept/relation
+extraction system development. Akhtyamova et al. [27] proposed a CNNs model based on varied
+structural parameters. The majority vote determines the prediction of the model. Santiso et al. [28]
+proposed a deep model based on the LSTM to discover ADRs from Electronic Health Records (EHRs).
+Embeddings are created using lemmas to reinforce lexical variability of EHRs. However, due to the
+lack of labeled data, the accuracy of prediction results needs to be improved.
+Fortunately, although there is a lack of large-scaled of labeled data, there is still a large amount
+of weakly labeled data on social networks, such as comment containing sentiment orientation.
+Tutubalina Elena et al. [29] proposed the method based on ADR review scores to predict demographic.
+The weak-tagged text corpus is used to generate dictionary. However, in their work, the generated
+lexicon using weakly labeled is still not escape the limitations of domain knowledge.
+3. Methods
+3.1. Word Embedding
+As the input of our model, we normally needed to generate high-dimensional word vectors that
+capture information regarding the words of morphology, syntax, and semantics in the word embedding
+
+Information 2019, 10, 276
+Information 2019, 10, x FOR PEER REVIEW
+
+143
+144
+145
+146
+147
+148
+
+4 of 13
+4 of 13
+
+embedding layer. We trained every word as a k-dimensional (300 dimensions) word vector using the
+layer. We trained every word as a k-dimensional (300 dimensions) word vector using the publicly
+publicly available GloVe toolkit [30], where k represents the dimension of the word vector. The
+available GloVe toolkit [30], where k represents the dimension of the word vector. The sentence
+sentence matrix is achieved by connecting the word vectors together after pre-training. Let
+𝑊 ∈𝑅
+matrix is achieved by connecting the word vectors together after pre-training. Let Wi ∈ Rk be the i-th
+be the i-th k-dimensional word vector in a sentence; therefore, a drug review with n word vectors is
+k-dimensional word vector in a sentence;
+therefore, a drug review with n word vectors is encoded as
+encoded as the sentence matrix
+W ∈ 𝑅 × , which is composed of a sequence of word vectors denoted
+the sentence matrix W ∈ Rn×k , which is composed of a sequence of word vectors denoted as:
+as:
+W
+. . ,, 𝑤
+wn ]T..
+𝑊==[w𝑤1 , ,w𝑤2 , ,.…
+
+(1)
+(1)
+
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+
+3.2. Framework of the WSM-CNN-LSTM Model
+3.2. Framework of the WSM-CNN-LSTM Model
+We propose a novel architecture named WSM-CNN-LSTM, which introduces a WSM that
+We
+a novel
+WSM-CNN-LSTM,
+which
+WSM that
+combinedpropose
+the strengths
+of architecture
+CNN-LSTM named
+to complete
+the task of three
+labelsintroduces
+(positive, aneutral,
+and
+combined
+the
+strengths
+of
+CNN-LSTM
+to
+complete
+the
+task
+of
+three
+labels
+(positive,
+neutral,
+and
+negative) for drug reviews, which is a variation in the CNN-LSTM model in [31,32].
+negative)
+for1drug
+reviews,
+is a variation
+in the CNN-LSTM model
+[31,32].
+Figure
+indicates
+the which
+architecture
+of the WSM-CNN-LSTM
+model.inThere
+were six varieties
+Figure
+1
+indicates
+the
+architecture
+of
+the
+WSM-CNN-LSTM
+model.
+There
+were
+six varieties
+of
+of layers in this model: input layer, convolutional layer, max-pooling and dropout layer,
+Bi-LSTM
+layers
+in thisconnected
+model: input
+layer,
+and word
+dropout
+layer,were
+Bi-LSTM
+layer, fully
+layer,
+andconvolutional
+softmax layer.layer,
+First,max-pooling
+the pre-trained
+vectors
+inputlayer,
+into
+fully
+connected
+layer,
+and
+softmax
+layer.
+First,
+the
+pre-trained
+word
+vectors
+were
+input
+into
+the convolutional layer perform a convolution via linear filters with different lengths. The effectthe
+of
+convolutional
+perform
+convolution
+linear
+filters
+with
+different
+lengths.
+TheSecond,
+effect of
+a
+a convolution layer
+was to
+extract afeatures
+from via
+word
+vectors
+and
+generate
+feature
+maps.
+the
+convolution
+to extracted
+extract features
+wordfrom
+vectors
+and maps
+generate
+feature by
+maps.
+the maxmax-poolingwas
+layer
+salientfrom
+features
+feature
+generated
+the Second,
+convolution
+and
+pooling
+layer
+extracted
+salient
+features
+from
+feature
+maps
+generated
+by
+the
+convolution
+and
+then
+then input them into the forward and backward LSTM network. In the LSTM layer, these salient
+input
+them
+into
+the to
+forward
+network.
+thefully
+LSTM
+layer, these
+salient
+features
+features
+were
+used
+outputand
+thebackward
+regressionLSTM
+results.
+Finally,Inthe
+connected
+layer
+and softmax
+were
+to output
+the regression
+results.
+the fully
+connected
+layer results.
+and softmax layers
+layersused
+extracted
+regression
+results from
+LSTMFinally,
+and output
+the final
+classification
+extracted regression results from LSTM and output the final classification results.
+
+162
+163
+
+Figure 1.
+1. Architecture
+Architecture of
+of the
+the WSM-CNN-LSTM
+WSM-CNN-LSTM model.
+model.
+Figure
+
+149
+
+164
+165
+166
+167
+168
+169
+170
+
+3.3. CNN-LSTM Model
+3.3. CNN-LSTM Model
+3.3.1. Convolutional Layer
+3.3.1. Convolutional Layer
+The convolutional layer was used to effectively extract features from the sentence matrix through
+convolutional
+layer
+toheffectively
+extract
+from
+the sentence
+matrix
+a set The
+of convolution
+filters
+F ∈ was
+Rh×k ,used
+where
+is the length
+of thefeatures
+filter. This
+method
+convolutes
+the
+×
+through
+a
+set
+of
+convolution
+filters
+𝐹
+∈
+𝑅
+,
+where
+h
+is
+the
+length
+of
+the
+filter.
+This
+method
+n−h
++
+1
+sentence matrix W input by the word embedding layer to obtain the feature map M∈ R
+, in which
+convolutes
+the one
+sentence
+matrix
+W input
+by of
+thethe
+word
+embedding
+to obtain
+thethe
+feature
+mapfilter
+M∈
+the vector has
+column.
+Different
+sizes
+feature
+map arelayer
+produced
+from
+different
+𝑅
+,
+in
+which
+the
+vector
+has
+one
+column.
+Different
+sizes
+of
+the
+feature
+map
+are
+produced
+from
+the
+sizes. The i-th result output element of each filter m is generated as:
+different filter sizes. The i-th result output element of each filter m is generated as:
+mi = f (wi:i+h−1 ⊗ F + b)(i : i + h − 1 ≤ n),
+mi =f (wi:i + h −1 ⊗ F+b)(i:i+h-1 ≤ n)
+,
+n−h
++
+1
+and the feature map M ∈ R
+is produced as:
+
+171
+
+and the feature map M∈ 𝑅
+
+is produced as:
+M = [m1 , m2 , . . . , mn−h+1 ],
+
+M=[m1 ,m2 , ,mn − h +1 ]
+
+172
+173
+174
+
+,
+
+(2)
+(2)
+
+(3)
+
+(3)
+
+where 𝑏 is a bias, ⊗ is the convolutional operator, and 𝑓 is a nonlinear function (e.g., tanh). We
+used the activation function ReLU [33] for a fast calculation, and 𝑤 :
+denotes the word vectors,
+represented as:
+
+Information 2019, 10, 276
+
+5 of 13
+
+where b is a bias, ⊗ is the convolutional operator, and f is a nonlinear function (e.g., tanh). We
+Information 2019, 10, x FOR PEER REVIEW
+5 of 13
+used the activation function ReLU [33] for a fast calculation, and wi:i+h−1 denotes the word vectors,
+represented as:
+(4)
+W𝑊i:i:+h−1 ==w𝑤i , ,w𝑤i+1 ,,.…
+. . ,,𝑤
+wi+h−1..
+(4)
+
+175
+
+3.3.2.
+Max-Pooling and
+and Dropout
+Dropout Layer
+Layer
+3.3.2. Max-Pooling
+
+176
+177
+178
+179
+180
+181
+182
+183
+184
+
+The
+max-pooling layer,
+most salient
+salient feature
+feature was
+was further
+further extracted
+extracted from
+from the
+the previous
+previous
+The max-pooling
+layer, in
+in which
+which the
+the most
+different
+filters
+using
+the
+maximum
+mechanism,
+down-sampled
+the
+features
+learned
+in
+the
+convolutional
+different filters using the maximum mechanism, down-sampled the features learned in the
+layer.
+This method
+took
+themethod
+most salient
+andsalient
+reducedfeature
+the computation
+by choosing
+a maximum
+convolutional
+layer.
+This
+tookfeature
+the most
+and reduced
+the computation
+by
+value,
+which
+eliminated
+the
+non-maximal
+values.
+Because
+the
+maximum
+value
+represents
+thevalue
+most
+choosing a maximum value, which eliminated the non-maximal values. Because the maximum
+distinguishing
+salient
+feature of a drug
+review
+in aoffilter,
+wereview
+chose max-pooling
+average
+represents the most
+distinguishing
+salient
+feature
+a drug
+in a filter, werather
+chose than
+max-pooling
+pooling.
+In this
+layer,pooling.
+we applied
+multiple
+filters toconvolutional
+extract the different
+features
+rather than
+average
+In this
+layer, convolutional
+we applied multiple
+filters to
+extractthat
+the
+were
+fed
+into
+the
+Bi-LSTM
+layer.
+different features that were fed into the Bi-LSTM layer.
+At
+the same
+same time,
+time, in
+in our
+our model,
+model, aa dropout
+dropout layer
+layer [34]
+[34] was
+was introduced
+introduced after
+after the
+the max-pooling
+max-pooling layer
+layer
+At the
+because
+because of
+of the
+the inevitable
+inevitable over-fitting
+over-fitting in
+in the
+the CNN.
+CNN.
+
+185
+
+3.3.3. Bi-LSTM Layer
+3.3.3. Bi-LSTM Layer
+The RNN was applied to suitably process sequence data, whose hidden layer’s input combined the
+The RNN was applied to suitably process sequence data, whose hidden layer’s input combined
+output of the input layer and the output of the hidden layer at the preceding moment, and the neuron
+the output of the input layer and the output of the hidden layer at the preceding moment, and the
+had a memory ability. However, the vanishing gradient problem will produce very small numbers in
+neuron had a memory ability. However, the vanishing gradient problem will produce very small
+a simple RNN [35]. Bi-LSTM, with the capacity to catch long-term dependencies, introduced a gate
+numbers in a simple RNN [35]. Bi-LSTM, with the capacity to catch long-term dependencies,
+mechanism to effectively address this problem.
+introduced a gate mechanism to effectively address this problem.
+LSTM (long short term memory) is specially designed to solve the long-term dependence problem
+LSTM (long short term memory) is specially designed to solve the long-term dependence
+of general RNN, which is added memory units to the neurons of the hidden layer on the basis of RNN.
+problem of general RNN, which is added memory units to the neurons of the hidden layer on the
+As shown in Figure 2, the LSTM cell consisted of three gates, namely, the input gate i, the forget gate f,
+basis of RNN. As shown in Figure 2, the LSTM cell consisted of three gates, namely, the input gate i,
+and the output gate o, to control the memory length. At each step time t, the three gates, input vector,
+the forget gate f, and the output gate o, to control the memory length. At each step time t, the three
+and state update of a memory cell were calculated as follows.
+gates, input vector, and state update of a memory cell were calculated as follows.
+
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+
+196
+Figure 2. Architecture of the LSTM memory.
+Figure 2. Architecture of the LSTM memory.
+
+197
+198
+
+199
+
+Three gates:
+Three gates:
+
+it = σ(Wij xt + Vij ht−1 + bij ),
+
+(5)
+
++V
+ft =itσ=(σW(W
+Vi jfhjth−t−1
+1 +b+
+i j )b f j ),
+f j ixj txt+
+,
+
+(6)
+(5)
+
+ot =f =σσ(W
++ boj ).
+(Wojf xj xt t+
++VVfojj hht −t−1
+t
+1 +b f j )
+,
+
+(7)
+(6)
+
+ot =σ (Wo j xt +Vo j ht − 1 +bo j )
+
+(7)
+
+.
+
+Input vector:
+d_int =tanh(Wd j xt +Vd j ht − 1 +bd j )
+
+.
+
+(8)
+
+Information 2019, 10, 276
+
+6 of 13
+
+Input vector:
+d_int = tanh(W dj xt + Vdj ht−1 + bdj ).
+
+(8)
+
+ct = ft ⊗ ct−1 + it ⊗ d_int ,
+
+(9)
+
+ht = ot ⊗ tanh(ct ),
+
+(10)
+
+State update:
+
+where xt is the input vector; W and V represent the weight matrix of the input xt and hidden state ht−1 ,
+respectively; b is the bias matrix for the input cell and three gates; d_int is the dimension of the word
+vector for the input cell; it , ft , and ot denote the input gate, and forget gate, output gate, respectively; ct
+is the memory cell; pt is the hidden state; ⊗ is the element-wise multiplication; and σ is the sigmoid
+activation function.
+In the bi-directional LSTM, the model learned the output weights of the previous moment and
+the input of each sequence at the current time. Additionally, a forward network and a backward
+network were beneficial for simultaneously capturing the past (backward direction) and future (forward
+direction) information of sentence sequences to obtain the contextual information for many sequential
+tagging tasks during sentence sequence modeling. Therefore, this approach was utilized to capture all
+the information during sentence sequence modeling [36].
+3.3.4. Fully Connected Layer
+Fully connected layers playing the role of classifiers mapped the distributed feature representation
+to the sample space to feature vectors that contained the combination information of the characteristics of
+the input reviews. Finally, these vectors were input to the output layer to complete the classification task.
+3.3.5. Softmax Layer
+In the softmax layer, we used the softmax activation function [37] to compute classification, which
+was converted by the outputs of the fully connected layer. A vector is output in this layer and is
+calculated by (11),
+T
+e z wi
+P(c = i|z) = PN
+,
+(11)
+zT wi
+n=1 e
+where N is number of classes, z is the input vector from the previous layer, and w is the parameter
+vector. The final classification labels, namely, positive, neutral, and negative, were output in this layer.
+The classification result ĉ is calculated by (12):
+ĉ = argmaxP(c = i|z).
+i
+
+(12)
+
+3.4. Weakly Supervised Mechanism
+The WSM-CNN-LSTM model, trained by a scheme called unsupervised pre-training appended
+supervised fine-tuning, was first pre-trained by a large amount of weekly labeled data and then
+fine-tuned by a small amount of labeled data via manual labeling.
+First, our model was pre-trained by a considerable amount of weakly labeled data from the
+drug rating reviews obtained from the AskaPatient forum. Second, to improve the accuracy of the
+pre-trained model by a large amount of weekly labeled data with noise, we manually labeled a small
+amount of labeled data that was used to fine-tune the pre-trained model. The parameters of the
+pre-trained model were used as the initial parameters of the supervised training. The labeled data
+were used to supervise the training and testing of the model, and finally, the classification model
+was trained.
+
+Information 2019, 10, 276
+
+7 of 13
+
+Information 2019, 10, x FOR PEER REVIEW
+
+236
+237
+238
+239
+240
+241
+242
+243
+244
+
+Table 1. Review Rating for AskaPatient.com.
+Table 1. Review Rating for AskaPatient.com.
+
+Drug ratings
+
+Satisfied level
+
+1Drug Ratings
+2
+3
+4
+5
+
+245
+246
+247
+248
+249
+250
+251
+252
+253
+254
+255
+256
+
+7 of 13
+
+4. Experiments and Discussion
+4.1. Dataset
+4.1. Dataset
+In our work, a dataset was collected from the drug ratings and health care opinions forum
+In AskaPatient,
+our work, a where
+datasetactual
+was collected
+from
+the previously
+drug ratings
+andthe
+health
+forum
+named
+patients who
+have
+taken
+drug care
+shareopinions
+their treatment
+named
+AskaPatient,
+where
+actual
+patients
+who
+have
+previously
+taken
+the
+drug
+share
+their
+treatment
+experience. The drug reviews were gathered from 1 May 2012 to 31 December 2017. The drug reviews
+experience.
+The drug
+were
+1 May as
+2012
+to 31
+December
+2017.
+The drug
+reviews
+from
+this forum
+withreviews
+comments
+bygathered
+patientsfrom
+are shown
+eight
+fields,
+namely,
+review
+the rating
+of
+from
+this reason
+forum with
+comments
+by patients
+areeffects
+shown
+as were
+eight experienced
+fields, namely,
+review
+the rating
+of the
+the
+drug,
+for taking
+this drug,
+and side
+that
+with
+the drug.
+Additional
+drug, reason
+for gender,
+taking this
+and side effects
+experienced
+with
+the drug.
+reviews
+include
+age,drug,
+duration/dosage,
+andthat
+datewere
+added.
+The general
+meaning
+for Additional
+the ratings
+reviews
+include
+gender,
+is
+displayed
+in Table
+1. age, duration/dosage, and date added. The general meaning for the ratings is
+displayed in Table 1.
+
+1
+2
+3
+4
+5
+
+Satisfied Level
+Dissatisfied
+
+General meaning
+
+General Meaning
+I would not recommend
+taking this medicine
+
+Not Dissatisfied
+satisfied
+
+I would not recommend taking this medicine
+This
+medicine did not work to my satisfaction
+Not satisfied
+This medicine did not work to my satisfaction
+Somewhat
+Satisfied
+helpedsomewhat
+somewhat
+Somewhat
+Satisfied This
+Thismedicine
+medicine helped
+Satisfied
+This medicine helped
+Satisfied
+This medicine helped
+This medicine cured me or helped me a great deal
+Very Satisfied
+
+Very Satisfied
+
+This medicine cured me or helped me a great deal
+
+Our
+for the
+of the
+Our target
+target was
+was aa multi-classification
+multi-classification problem
+problem for
+the sentiment
+sentiment classification
+classification of
+the drug
+drug reviews
+reviews
+on
+the
+AskaPatient
+forum.
+We
+regarded
+the
+reviews
+of
+the
+4
+and
+5
+ratings
+as
+positive
+weakly
+on the AskaPatient forum. We regarded the reviews of the 4 and 5 ratings as positive weakly labeled
+labeled
+data
+2. The
+data and
+and divided
+divided them
+them into
+into class
+class 2.
+The 33 ratings
+ratings reviews
+reviews were
+were regarded
+regarded as
+as neutral
+neutral and
+and divided
+divided into
+into
+class
+1.
+Finally,
+the
+reviews
+of
+the
+1
+and
+2
+ratings
+were
+regarded
+as
+negative
+and
+were
+divided
+into
+class 1. Finally, the reviews of the 1 and 2 ratings were regarded as negative and were divided into
+class
+0.
+class 0.
+In
+the forum
+forum of
+of AskaPatient.com,
+AskaPatient.com, we
+captured 63,782
+63,782 reviews
+reviews on
+on 2000
+2000 publicly
+publicly available
+available drugs
+drugs
+In the
+we captured
+containing
+prescriptionmedicines
+medicinescurrently
+currently
+approved
+by FDA,
+the FDA,
+with over-the-counter
+many over-thecontaining prescription
+approved
+by the
+alongalong
+with many
+counter
+medicines.
+The
+remaining
+61,263
+reviews
+were
+non-null
+comments.
+The
+labeled11,083
+data
+medicines. The remaining 61,263 reviews were non-null comments. The labeled data containing
+containing
+11,083
+drug
+reviews
+took
+one
+month
+for
+two
+authors
+to
+manually
+label.
+The
+composed
+drug reviews took one month for two authors to manually label. The composed proportion of weakly
+proportion
+weakly
+labeled
+data
+are labeled
+data
+in the
+Figure
+3. Wewere
+noteroughly
+that thebalanced
+datasets
+labeled dataofare
+labeled
+data are
+shown
+in Figure
+3. are
+We shown
+note that
+datasets
+were
+roughly
+balanced
+and
+that
+the
+labeled
+data
+were
+approximately
+one-fifth
+of
+the
+weakly
+labeled
+and that the labeled data were approximately one-fifth of the weakly labeled data.
+data.
+
+257
+258
+259
+260
+261
+262
+263
+264
+265
+
+Figure 3. Sizes of the weakly labeled and manually labeled datasets.
+Figure 3. Sizes of the weakly labeled and manually labeled datasets.
+
+4.2. Experimental Setup
+4.2. Experimental Setup
+Seventy percent of the weakly labeled data was randomly leveraged to pre-train the deep neural
+Seventy
+of the
+labeledfor
+data
+was randomly
+leveraged
+to pre-train
+neural
+network,
+and percent
+30% of the
+dataweakly
+were utilized
+testing.
+Every drug
+review was
+trained asthe
+andeep
+embedding
+network,
+andpublicly
+30% ofavailable
+the dataGloVe
+weretoolkit
+utilized
+for300
+testing.
+Every using
+drug the
+review
+was trained
+an
+matrix by the
+with
+dimensions,
+TensorFlow
+model as
+of the
+embedding
+matrix
+by
+the
+publicly
+available
+GloVe
+toolkit
+with
+300
+dimensions,
+using
+the
+TensorFlow
+Python module [38]. The matrix was composed of a sequence of word embeddings. We prepared an
+model of the Python module [38]. The matrix was composed of a sequence of word embeddings. We
+prepared an embedding matrix and initialized the words that were not found in the embedding index
+to be all-zeros. Then, pre-trained word embeddings were loaded into the embedding layer. The batch
+
+Information 2019, 10, 276
+
+8 of 13
+
+embedding matrix and initialized the words that were not found in the embedding index to be all-zeros.
+Then, pre-trained word embeddings were loaded into the embedding layer. The batch size was 64, the
+dropout was 0.5 and the activation function was softmax. The output of the one-dimensional (1D)
+CNN with global max-pooling was the input of the Bi-LSTM.
+According to the characteristics of the drug reviews and to facilitate implementation convenience,
+we restricted the number of words in each drug review to within 100 words. For a drug review with
+k words, if k < 100, then we appended it to 100 with a zero vector. The model truncated the vector,
+leaving only the first 100 words, when a drug review had more than 100 words. No drug reviews
+contained more than 100 words.
+4.3. Comparison Models
+In our experiments, we specifically compared the performance of our model, SVM [39,40],
+WSM-CNN-LSTM, with the CNN, LSTM, and CNN-LSTM-rand models and the WSM-CNN and
+WSM-LSTM models. The compared models were as follows:
+•
+•
+•
+
+•
+•
+
+•
+
+SVM. Support vector machines. We used trigrams and Liblinear classifier;
+CNN-rand. We trained the CNN on of the labeled dataset and randomly initialized the
+network parameters;
+Weakly supervised mechanism CNN model (WSM-CNN). The weakly labeled data were utilized
+to train the network model based on the CNN, and the labeled data were used to fine-tune the
+initialized network parameters;
+LSTM-rand. We trained the LSTM on the labeled dataset and randomly initialized the
+network parameters;
+Weakly supervised mechanism LSTM model (WSM-LSTM). The weakly labeled data were utilized
+to train the network model based on LSTM, and the labeled data were used to fine-tune the
+initialized network parameters;
+CNN-LSTM-rand. We trained the combined CNN and LSTM on the labeled dataset and randomly
+initialize the network parameters.
+
+4.4. Experimental Results and Discussion
+4.4.1. Weakly Supervised Model Performance
+Table 2 shows the preliminary experimental results of WSM-CNN-LSTM and the comparison
+baseline model for the dataset. Except for the overall accuracy, we employed micro-F1 [40], precision,
+and recall as evaluation metrics. They are computed as follows:
+Precision =
+Recall =
+
+TP
+,
+TP + FP
+
+TP
+,
+TP + FN
+
+micro − F1 =
+
+2×P×R
+.
+P+R
+
+(13)
+(14)
+(15)
+
+Importantly, the experimental results demonstrate that WSM-CNN-LSTM improved the
+comparison models with regard to accuracy and F1 during classification. It is likely that the CNN
+is good at classifying simple sentence structures, and the LSTM layer can capture the long-distance
+dependencies in the drug reviews. The WSM-CNN-LSTM model, utilizing the WSM and combining
+the strengths of both the CNN and LSTM, understood the semantics of the sentence as a whole and
+improved the classification performance of the model in the sentiment analysis of drug reviews.
+
+Information 2019, 10, 276
+
+9 of 13
+
+Table 2. ADR identification performance percentages when testing different comparison models.
+Method
+
+Accuracy
+
+F1
+
+Precision
+
+Recall
+
+SYM
+CNN-rand
+WSM-CNN
+LSTM-rand
+WSM-LSTM
+CNN-LSTM-rand
+WSM-CNN-LSTM
+
+80.69
+79.17
+83.29
+80.71
+84.92
+83.78
+86.72
+
+75.93
+75.18
+81.01
+79.77
+82.82
+83.12
+86.81
+
+81.56
+80.21
+82.47
+81.86
+83.02
+85.3
+87.92
+
+71.02
+70.74
+79.60
+77.78
+82.62
+81.05
+85.73
+
+Note: Statistically significant improvements over comparison models are bolded.
+
+4.4.2. Rand Compared with the WSM
+In the comparison experiments, we deliberately used two mechanisms for the same model.
+The *-rand mechanism trained the network model based on randomly initialized network parameters
+with labeled datasets, and the WSM-* mechanism was a WSM in which weakly labeled data were
+used to pre-train the network model and parameters. Then, the small amount of labeled data was
+used to fine-tune the pre-trained model. Clearly, all WSM-* model results are slightly higher than
+the *-rand model results in Table 2. This increase is likely due to the expression of the WSM, which
+uses pre-training to record the prior knowledge of the emotional distribution, and fine-tuning the
+parameters of the model reduces the effect of noise data on the model training process.
+4.4.3. Macro-F1 Result of Our Model
+Macro-F1 is the average of the F1 of each class. In order to verify the performance of our model
+in each class, we present the F1 of each class in Table 3, thus macro-F1 is 86.64. As can be seen from
+the results in the Table 4, F1 of the negative and positive class are higher than the neural class, which
+prove that our model is more effective in capturing negative and positive words in drug reviews.
+Table 3. ADR identification performance percentages when testing different compared models.
+Stratified 10 × 10-fold cross validation results.
+Method
+
+Accuracy
+
+F1
+
+Precision
+
+Recall
+
+SVM
+CNN-rand
+WSM-CNN
+LSTM-rand
+WSM-LSTM
+CNN-LSTM-rand
+WSM-CNN-LSTM
+
+80.42
+78.36
+82.94
+80.32
+84.56
+82.79
+85.67 *
+
+77.68
+74.76
+80.41
+79.63
+82.01
+82.83
+85.57 *
+
+82.01
+79.76
+81.91
+81.28
+82.36
+85.12
+86.88 *
+
+73.78
+70.97
+78.19
+77.29
+81.92
+80.15
+84.16 *
+
+Note: Statistically significant improvements over comparison models are bolded and marked with an asterisk (*).
+
+Table 4. F1 percentages of each class individually.
+Negative
+
+Neural
+
+Positive
+
+89.73
+
+78.94
+
+91.25
+
+4.4.4. Impact of the Labeled Training Data Size on Our Model
+It was important to identify the sensitivity of the data sample to the weakly supervised machine
+learning model, especially the influence of sample size on the model. To investigate this issue, we
+examined the influence of the labeled training data size on each model. D% of the labeled data, where
+D ranged between 10 and 90, was chosen to fine-tune our experiments. The model learning curves
+are shown in Figure 4. Our model reached more than an 80% accuracy and an F1 score from the 30%
+
+Information 2019, 10, 276
+
+331
+332
+333
+334
+
+10 of 13
+
+training set and appeared to be stable from the 70% training set. The experimental results prove that
+our model was not influenced by the size of the manually labeled data. It is therefore likely that a small
+amount
+labeled
+data,PEER
+which
+was used to fine-tune the WSM-CNN-LSTM model, is more suitable
+Informationof2019,
+10, x FOR
+REVIEW
+10 offor
+13
+the sentiment analysis of drug reviews. Furthermore, this finding significantly reflects the advantages
+suitable
+the sentiment
+analysis
+drug
+reviews.
+Furthermore,
+finding
+of
+a smallfor
+amount
+of manual
+labor inofour
+work.
+Although
+90% of thethis
+labeled
+datasignificantly
+can achieve areflects
+better
+the
+advantages
+of
+a
+small
+amount
+of
+manual
+labor
+in
+our
+work.
+Although
+90%
+of
+the
+labeled
+data
+can
+result, a 70% partition ratio is common and reasonable. In our experiments, we chose 70% labeled data
+achieve
+a better
+as
+a training
+set.result, a 70% partition ratio is common and reasonable. In our experiments, we chose
+70% labeled data as a training set.
+
+(a) Accuracy curves
+
+(b) F1 curves
+
+335
+
+Figure
+Figure 4.
+4. Impact of labeled training data size on
+on each
+each model.
+model.
+
+336
+337
+338
+339
+340
+341
+342
+343
+344
+345
+
+Stratified
+10-fold cross
+cross validation
+Experiments of
+10-fold cross
+Stratified 10
+10 ×
+× 10-fold
+validation results.
+results. Experiments
+of stratified
+stratified 10
+10 ×
+× 10-fold
+cross
+validations
+were
+conducted
+to
+further
+verify
+the
+statistical
+significance
+of
+the
+improvements.
+validations were conducted to further verify the statistical significance of the improvements. We
+We
+combined
+combined the
+the training
+training and
+and test
+test data
+data and
+and then
+then distributed
+distributed them
+them randomly
+randomly to
+to 10
+10 folds,
+folds, ensuring
+ensuring that
+that
+all
+folds had
+had approximately
+approximatelythe
+thesame
+sameproportion
+proportion
+positive,
+negative,
+neutral
+drug
+reviews.
+all folds
+ofof
+positive,
+negative,
+andand
+neutral
+drug
+reviews.
+We
+We
+repeatedly
+used
+randomly
+generated
+folds
+for
+training
+and
+verification,
+each
+time
+training
+on
+repeatedly used randomly generated folds for training and verification, each time training on nine
+nine
+folds
+and
+testing
+on
+one
+fold.
+The
+average
+results
+after
+100
+experiments
+are
+shown
+in
+Table
+3.
+folds and testing on one fold. The average results after 100 experiments are shown in Table 3. The
+The
+validation
+results
+further
+demonstrate
+thatthe
+the*-rand
+*-randmodels
+models exhibited
+exhibited no
+no substantial
+crosscross
+validation
+results
+further
+demonstrate
+that
+substantial
+improvement
+in
+accuracy
+and
+precision
+due
+to
+the
+influence
+of
+noise
+data
+on
+the
+model
+functions.
+improvement in accuracy and precision due to the influence of noise data on the model functions.
+The
+The WSM-CNN-LSTM
+WSM-CNN-LSTM model
+model was
+was relatively
+relatively effective
+effective at
+at avoiding
+avoiding the
+the impact
+impact of
+of noise
+noise and
+and statistically
+statistically
+discriminating
+long
+and
+short
+sentences
+to
+improve
+the
+accuracy.
+discriminating long and short sentences to improve the accuracy.
+
+346
+347
+348
+349
+350
+351
+352
+353
+354
+355
+356
+357
+358
+359
+360
+361
+
+5.
+5. Conclusions
+Conclusions and
+and Future
+Future Work
+Work Discussion
+Discussion
+In
+In this
+this work,
+work, we
+we proposed
+proposed aa weakly
+weakly supervised
+supervised deep
+deep learning
+learning model
+model named
+named WSM-CNN-LSTM
+WSM-CNN-LSTM
+for
+identifying
+ADRs,
+utilizing
+the
+drug
+reviews
+of
+customers
+on
+health
+for identifying ADRs, utilizing the drug reviews of customers on health forums
+forums through
+through multiple
+multiple
+classification.
+Our
+model
+was
+an
+effective
+combination
+of
+a
+CNN
+and
+LSTM,
+along
+with
+a
+WSM
+classification. Our model was an effective combination of a CNN and LSTM, along with a WSM that
+that
+employed
+employed both
+both weakly
+weakly labeled
+labeled data
+data to
+to pre-train
+pre-train the
+the model
+model and
+and the
+the use
+use of
+of labeled
+labeled data
+data to
+to fine-tune
+fine-tune
+the
+the initialized
+initialized network
+network parameters.
+parameters. Experiments
+Experiments on
+on the
+the drug
+drug reviews
+reviews collected
+collected from
+from the
+the AskaPatient
+AskaPatient
+forum
+indicated
+that
+the
+effect
+of
+our
+model
+on
+ADR
+identification
+was
+significantly
+superior
+forum indicated that the effect of our model on ADR identification was significantly superior to
+to the
+the
+contrast
+model
+in
+accuracy
+and
+F1
+performance,
+which
+reflects
+the
+effectiveness
+of
+our
+model
+for
+contrast model in accuracy and F1 performance, which reflects the effectiveness of our model for the
+the
+sentiment
+through
+drug
+reviews
+by by
+customers
+on
+sentimentclassification
+classificationofofdrug
+drugreview
+reviewdata.
+data.ADR
+ADRidentification
+identification
+through
+drug
+reviews
+customers
+health
+forums
+was remarkably
+enhanced
+by ourby
+model.
+We alsoWe
+observed
+that the that
+WSMthe
+only
+required
+on health
+forums
+was remarkably
+enhanced
+our model.
+also observed
+WSM
+only
+arequired
+small amount
+of
+labeled
+samples
+to
+attain
+optimal
+performance,
+which
+decreased
+the
+influence
+of
+a small amount of labeled samples to attain optimal performance, which decreased the
+noise
+and
+reduced
+the
+manual
+data-labeling
+requirements.
+influence of noise and reduced the manual data-labeling requirements.
+Drug
+In future
+future work,
+work,
+Drug review
+review data
+data in
+in social
+social media
+media and
+and health
+health forums
+forums offer
+offer us
+us valuable
+valuable resources.
+resources. In
+our
+continuing
+research
+will
+focus
+on
+investigating
+the
+potential
+relationships
+of
+the
+drug
+reviews
+and
+our continuing research will focus on investigating the potential relationships of the drug reviews
+exploring
+the impact
+of otheroffeatures
+of the drug
+ADR identification,
+so that considerable
+and exploring
+the impact
+other features
+of reviews
+the drugforreviews
+for ADR identification,
+so that
+online
+review
+data
+can
+better
+serve
+the
+healthy
+life
+of
+individuals.
+considerable online review data can better serve the healthy life of individuals.
+
+362
+363
+
+Author Contributions: Conceptualization, G.G.; Methodology, Z.M.; Data collection, Z.M.; experiment, Z.M.;
+writing—original draft preparation, Z.M.; writing—review and editing, G.G.; supervision, G.G.
+
+364
+365
+
+Funding: This research was funded by National Natural Science Foundation of China, grant number
+61731015, 61673319 and 61802311. National Key Research and Development Program of China, grant
+
+Information 2019, 10, 276
+
+11 of 13
+
+Author Contributions: Conceptualization, G.G.; Methodology, M.Z.; Data collection, M.Z.; experiment, M.Z.;
+writing—original draft preparation, M.Z.; writing—review and editing, G.G.; supervision, G.G.
+Funding: This research was funded by National Natural Science Foundation of China, grant number 61731015,
+61673319 and 61802311. National Key Research and Development Program of China, grant number 2017YFB1402103.
+Scientific Research Team of Xian Fanyi University, grant number XFU17KYTDB02.
+Conflicts of Interest: The authors declare no conflict of interest.
+
+References
+1.
+2.
+
+3.
+
+4.
+5.
+
+6.
+
+7.
+8.
+
+9.
+
+10.
+
+11.
+12.
+
+13.
+
+14.
+
+15.
+
+16.
+
+Lazarou, J.; Pomeranz, B.H.; Corey, P.N. Incidence of adverse drug reactions in hospitalized patients:
+A meta-analysis of prospective studies. JAMA 1998, 279, 1200–1205. [CrossRef] [PubMed]
+Hakkarainen, K.M.; Hedna, K.; Petzold, M.; Hägg, S. Percentage of Patients with Preventable Adverse Drug
+Reactions and Preventability of Adverse Drug Reactions—A Meta-Analysis. PLoS ONE 2012, 7, e33236.
+[CrossRef] [PubMed]
+Xu, R.; Wang, Q. Large-scale combining signals from both biomedical literature and the FDA Adverse
+Event Reporting System (FAERS) to improve post-marketing drug safety signal detection. BMC Bioinform.
+2014, 15, 17. [CrossRef] [PubMed]
+Hazell, L.; Shakir, S.A. Under-Reporting of Adverse Drug Reactions. Drug Saf. 2006, 29, 385–396. [CrossRef]
+[PubMed]
+Pirmohamed, M.; James, S.; Meakin, S.; Green, C.; Scott, A.K.; Walley, T.J.; Farrar, K.; Park, B.K.;
+Breckenridge, A.M. Adverse drug reactions as cause of admission to hospital: Prospective analysis of
+18820 patients. BMJ Br. Med. J. 2004, 329, 15–19. [CrossRef] [PubMed]
+Curcin, V.; Ghanem, M.; Molokhia, M.; Guo, Y.; Darlington, J. Mining Adverse Drug Reactions with E-Science
+Workflows. In Proceedings of the Cairo International Biomedical Engineering Conference, Cairo, Egypt,
+18–20 December 2008; pp. 1–5.
+Sarker, A.; Gonzalez, G. Portable automatic text classification for adverse drug reaction detection via
+multi-corpus training. J. Biomed. Inform. 2015, 53, 196–207. [CrossRef] [PubMed]
+Korkontzelos, I.; Nikfarjam, A.; Shardlow, M.; Sarker, A.; Ananiadou, S.; Gonzalez, G.H. Analysis of the effect
+of sentiment analysis on extracting adverse drug reactions from tweets and forum posts. J. Biomed. Inform.
+2016, 62, 148–158. [CrossRef] [PubMed]
+Ji, X.; Chun, S.A.; Geller, J. Monitoring Public Health Concerns Using Twitter Sentiment Classifications.
+In Proceedings of the IEEE International Conference on Healthcare Informatics (ICHI), Philadelphia, PA, USA,
+9–11 September 2013; pp. 335–344.
+Sarker, A.; Ginn, R.; Nikfarjam, A.; O’Connor, K.; Smith, K.; Jayaraman, S.; Upadhaya, T.; Gonzalez, G.
+Utilizing social media data for pharmacovigilance: A review. J. Biomed. Inform. 2015, 54, 202–212. [CrossRef]
+[PubMed]
+Freifeld, C.C.; Brownstein, J.S.; Menone, C.M.; Bao, W.; Filice, R.; Kass-Hout, T.; Dasgupta, N. Digital Drug
+Safety Surveillance: Monitoring Pharmaceutical Products in Twitter. Drug Saf. 2014, 37, 343–350. [CrossRef]
+Lafferty, J.; McCallum, A.; Pereira, F.C. Conditional Random Fields: Probabilistic Models for Segmenting
+and Labeling Sequence Data. In Proceedings of the 18th International Conference on Machine Learning,
+Williamstown, MA, USA, 28 June–1 July 2001; pp. 282–289.
+Wang, W. Mining Adverse Drug Reaction Mentions in Twitter with Word Embeddings. In Proceedings
+of the Social Media Mining Shared Task Workshop at the Pacific Symposium on Biocomputing,
+Kohala Coast, HI, USA, 4–8 January 2016.
+Limsopatham, N.; Collier, N. Modeling the Combination of Generic and Target Domain Embeddings in
+a Convolutional Neural Network for Sentence Classification. In Proceedings of the 15th Workshop on
+Biomedical Natural Language Processing, Berlin, Germany, 12 August 2016; pp. 136–140.
+Magge, A.; Scotch, M.; Gonzalez, G. CSaRUS-CNN at AMIA-2017 Tasks 1, 2: Under Sampled CNN for Text
+Classification. In Proceedings of the CEUR Workshop Proceedings, Honolulu, HI, USA, 27 January 2017;
+pp. 76–78.
+Odeh, F. A Domain-Based Feature Generation and Convolution Neural Network Approach for Extracting
+Adverse Drug Reactions from Social Media Posts. Ph.D. Thesis, Birzeit University, Birzeit, Palestine,
+22 February 2018.
+
+Information 2019, 10, 276
+
+17.
+18.
+
+19.
+20.
+
+21.
+
+22.
+
+23.
+24.
+25.
+26.
+
+27.
+
+28.
+29.
+30.
+
+31.
+
+32.
+
+33.
+34.
+35.
+36.
+
+37.
+
+12 of 13
+
+Gupta, S.; Pawar, S.; Ramrakhiyani, N.; Palshikar, G.K.; Varma, V. Semi-Supervised Recurrent Neural
+Network for Adverse Drug Reaction mention extraction. BMC Bioinform. 2018, 19, 212. [CrossRef]
+Comfort, S.; Perera, S.; Hudson, Z.; Dorrell, D.; Meireis, S.; Nagarajan, M.; Ramakrishnan, C.; Fine, J. Sorting
+Through the Safety Data Haystack: Using Machine Learning to Identify Individual Case Safety Reports in
+Social-Digital Media. Drug Saf. 2018, 41, 579–590. [CrossRef] [PubMed]
+Yin, W.; Kann, K.; Yu, M.; Schütze, H. Comparative study of cnn and rnn for natural language processing.
+arXiv 2017, arXiv:170201923.
+Cocos, A.; Fiks, A.G.; Masino, A.J. Deep learning for pharmacovigilance: Recurrent neural network
+architectures for labeling adverse drug reactions in Twitter posts. J. Am. Med. Inform. Assoc. 2017, 24, 813–821.
+[CrossRef] [PubMed]
+Guan, Z.; Chen, L.; Zhao, W.; Zheng, Y.; Tan, S.; Cai, D. Weakly-Supervised Deep Learning for Customer
+Review Sentiment Classification. In Proceedings of the Twenty-Fifth International Joint Conference on
+Artificial Intelligence (IJCAI), New York, NY, USA, 9–15 July 2016; pp. 3719–3725.
+Qu, L.; Gemulla, R.; Weikum, G. A Weakly Supervised Model for Sentence-Level Semantic Orientation
+Analysis with Multiple Experts. In Proceedings of the Joint Conference on Empirical Methods in Natural
+language Processing and Computational Natural Language Learning. Association for Computational
+Linguistics, Jeju Island, Korea, 12–14 July 2012; pp. 149–159.
+Hochreiter, S.; Schmidhuber, J. Long short-term memory. Neural Comput. 1997, 9, 1735–1780. [CrossRef]
+[PubMed]
+Paliwal, K.; Schuster, M. Bidirectional recurrent neural networks. IEEE Trans. Signal Process. 1997, 45, 2673–2681.
+Graves, A.; Schmidhuber, J. Framewise phoneme classification with bidirectional LSTM and other neural
+network architectures. Neural Netw. 2005, 18, 602–610. [CrossRef]
+Leaman, R.; Wojtulewicz, L.; Sullivan, R.; Skariah, A.; Yang, J.; Gonzalez, G. Towards Internet-Age
+Pharmacovigilance: Extracting Adverse Drug Reactions from User Posts to Health-Related Social Networks.
+In Proceedings of the 2010 Workshop on Biomedical Natural Language Processing, Uppsala, Sweden,
+15 July 2010; pp. 117–125.
+Liliya, A.; Ignatov, A.; Cardiff, J. A Large-scale CNN ensemble for medication safety analysis. In Proceedings
+of the International Conference on Applications of Natural Language to Information Systems, Liège, Belgium,
+21–23 June 2017; pp. 247–253.
+Sara, S.; Perez, A.; Casillas, A. Exploring Joint AB-LSTM with embedded lemmas for Adverse Drug Reaction
+discovery. IEEE J. Biomed. Health Inform 2018, 2168–2194.
+Tutubalina, E.; Nikolenko, S. Demographic Prediction Based on User Reviews about Medications.
+Comput. y Sist. 2017, 21, 227–241.
+Pennington, J.; Socher, R.; Manning, C. Glove: Global Vectors for Word Representation. In Proceedings of the
+Conference on Empirical Methods in Natural Language Processing (EMNLP), Doha, Qatar, 25–29 October 2014;
+pp. 1532–1543.
+Yoon, J.; Kim, H. Multi-Channel Lexicon Integrated CNN-BiLSTM Models for Sentiment Analysis.
+In Proceedings of the 29th Conference on Computational Linguistics and Speech Processing (ROCLING),
+Taipei, Taiwan, 27–28 November 2017; pp. 244–253.
+Zhang, Y.; Yuan, H.; Wang, J.; Zhang, X. YNU-HPCC at EmoInt-2017: Using a CNN-LSTM Model for
+Sentiment Intensity Prediction. In Proceedings of the 8th Workshop on Computational Approaches to
+Subjectivity, Sentiment and Social Media Analysis, Copenhagen, Denmark, 8 September 2017; pp. 200–204.
+Nair, V.; Hinton, G.E. Rectified Linear Units Improve Restricted Boltzmann Machines. In Proceedings of the
+27th international conference on machine learning (ICML-10), Haifa, Israel, 21–24 June 2010; pp. 807–814.
+Tobergte, D.R.; Curtis, S. Improving neural networks with dropout. J. Chem. Inf. Model. 2015, 5, 1689–1699.
+Bengio, Y.; Simard, P.; Frasconi, P. Learning long-term dependencies with gradent descent is difficult.
+IEEE Trans. Neural Netw. 1994, 5, 157–166. [CrossRef]
+Mesnil, G.; He, X.; Deng, L.; Bengio, Y. Investigation of Recurrent-Neural-Network Architectures and
+Learning Methods for Spoken Language Understanding. In Proceedings of the 14th Annual Conference of
+the International Speech Communication Association (INTERSPEECH), Lyon, France, 25–29 August 2013;
+pp. 3771–3775.
+Nasrabadi, N.M. Pattern Recognition and Machine Learning; Springer International Publishing:
+Cham, Switzerland, 2007; Volume 16, p. 049901.
+
+Information 2019, 10, 276
+
+38.
+
+39.
+40.
+
+13 of 13
+
+Owoputi, O.; O’Connor, B.; Dyer, C.; Gimpel, K.; Schneider, N. Part-of-Speech Tagging for Twitter: Word
+Clusters and Other Advances. Available online: http://www.cs.cmu.edu/~{}ark/TweetNLP/owoputi+etal.
+tr12.pdf (accessed on 30 August 2019).
+Ikonomakis, M.; Kotsiantis, S.; Tampakas, V. Text classification using machine learning techniques.
+WSEAS Trans. Comput. 2005, 4, 966–974.
+Guo, S.X.; Sun, X.; Wang, S.X.; Gao, Y.; Feng, J. Attention-Based Character-Word Hybrid Neural Networks
+with semantic and structural information for identifying of urgent posts in MOOC discussion forums.
+IEEE Access 2019, 1–9. [CrossRef]
+© 2019 by the authors. Licensee MDPI, Basel, Switzerland. This article is an open access
+article distributed under the terms and conditions of the Creative Commons Attribution
+(CC BY) license (http://creativecommons.org/licenses/by/4.0/).
+
+

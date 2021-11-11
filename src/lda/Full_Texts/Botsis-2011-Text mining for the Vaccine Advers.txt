@@ -1,0 +1,1473 @@
+Research and applications
+
+Text mining for the Vaccine Adverse Event Reporting
+System: medical text classification using informative
+feature selection
+Taxiarchis Botsis,1,2 Michael D Nguyen,1 Emily Jane Woo,1 Marianthi Markatou,3,4
+Robert Ball1
+< Additional materials are
+
+published online only. To view
+these files please visit the
+journal online (www.jamia.org).
+1
+
+Office of Biostatistics and
+Epidemiology, Center for
+Biologics Evaluation and
+Research (CBER), Food and
+Drug Administration (FDA),
+Rockville, Maryland, USA
+2
+Department of Computer
+Science, University of Tromsø,
+Tromsø, Norway
+3
+Department of Statistical
+Sciences, Cornell University,
+New York, New York, USA
+4
+IBM T.J. Watson Research
+Center, Hawthorne, New York,
+New York, USA
+Correspondence to
+Dr Taxiarchis Botsis, Office of
+Biostatistics and Epidemiology,
+Center for Biologics Evaluation
+and Research (CBER), Food and
+Drug Administration (FDA),
+Woodmont Office Complex 1,
+Rm 306N, 1401 Rockville Pike,
+Rockville, Maryland 20852,
+USA;
+taxiarchis.botsis@fda.hhs.gov
+MM and RB have contributed as
+senior authors to this work.
+Received 2 November 2010
+Accepted 23 May 2011
+Published Online First
+27 June 2011
+
+ABSTRACT
+Objective The US Vaccine Adverse Event Reporting
+System (VAERS) collects spontaneous reports of adverse
+events following vaccination. Medical officers review the
+reports and often apply standardized case definitions,
+such as those developed by the Brighton Collaboration.
+Our objective was to demonstrate a multi-level text
+mining approach for automated text classification of
+VAERS reports that could potentially reduce human
+workload.
+Design We selected 6034 VAERS reports for H1N1
+vaccine that were classified by medical officers as
+potentially positive (Npos¼237) or negative for
+anaphylaxis. We created a categorized corpus of text
+files that included the class label and the symptom text
+field of each report. A validation set of 1100 labeled text
+files was also used. Text mining techniques were applied
+to extract three feature sets for important keywords,
+low- and high-level patterns. A rule-based classifier
+processed the high-level feature representation, while
+several machine learning classifiers were trained for the
+remaining two feature representations.
+Measurements Classifiers’ performance was evaluated
+by macro-averaging recall, precision, and F-measure, and
+Friedman’s test; misclassification error rate analysis was
+also performed.
+Results Rule-based classifier, boosted trees, and
+weighted support vector machines performed well in
+terms of macro-recall, however at the expense of
+a higher mean misclassification error rate. The rule-based
+classifier performed very well in terms of average
+sensitivity and specificity (79.05% and 94.80%,
+respectively).
+Conclusion Our validated results showed the possibility
+of developing effective medical text classifiers for VAERS
+reports by combining text mining with informative
+feature selection; this strategy has the potential to
+reduce reviewer workload considerably.
+
+INTRODUCTION
+Biomedical research is often confronted with large
+data sets containing vast amounts of free text that
+have remained largely untapped sources of information. The analysis of these data sets poses
+unique challenges, particularly when the goal is
+knowledge discovery and real-time surveillance.1
+Spontaneous reporting systems (SRSs), such as the
+US Vaccine Adverse Event Reporting System
+(VAERS), encounter this issue.2 When extraordinary events occur, such as the H1N1 pandemic,
+routine methods of safety surveillance struggle to
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+produce timely results due to the resource-intensive
+nature of manual review. Consequently, there is an
+urgent need to develop alternative approaches that
+facilitate efﬁcient report review and identiﬁcation
+of safety issues resulting from the administration of
+vaccines. Text classiﬁcation (TC) provides an
+alternative and more efﬁcient process by distinguishing the most relevant information from
+adverse event (AE) reports.
+Medical TC is the process of assigning labels to
+a span of text (sentence, paragraph, or document)
+using trained or rule-based classiﬁers,3e10 or
+both.11 12 The utilization of natural language
+processing (NLP) techniques may provide better
+classiﬁcation results through improvements in text
+exploration. However, according to Cohen and
+Hersh, TC should be placed closer to the text
+mining (TM) ﬁeld than the full-blown NLP ﬁeld.13
+TM and NLP techniques have been used before to
+identify AEs in electronic health records
+(EHRs)14e17; however, the issue of a complete
+surveillance system that could be generalized has
+not been addressed yet.
+Safety surveillance in VAERS (and other SRSs)
+has two main purposes. The ﬁrst purpose is
+monitoring known adverse effects for unusual
+features or increases in reporting rate (ie, number of
+reports/number of doses) while looking for potential associations with new products (eg, H1N1
+vaccine) or new demographic groups. The second
+purpose is looking for unexpected AEs by identifying unusual patterns. In the ﬁrst case, we are
+more interested in the identiﬁcation of the actual
+adverse cases, while in the second case we primarily
+need to know whether the identiﬁed patterns
+represent ‘real’ conditions in terms of clinical
+syndromes.
+Here, we present a multi-level TM approach that
+was applied to a group of VAERS reports involving
+the AE of anaphylaxis for text classiﬁcation
+purposes. This investigation of TM for anaphylaxis
+could serve as a model for TM in the ﬁrst purpose
+of safety surveillance in VAERS and could also serve
+as the basis to generalize our work to other AEs
+that are acute, serious, and occur in close temporal
+proximity to the vaccination. Our scope was not to
+present a fully developed system for AE identiﬁcation but rather to study patterns in the narrative of
+VAERS reports that are used to identify a known
+adverse effect. The strength of our study lies in
+demonstrating the feasibility of using TM on large
+SRS databases to exploit the information content
+of a new data source, other than EHRs or clinical
+631
+
+Research and applications
+trials data, for adverse event identiﬁcation as well as in saving
+time and human resources.
+
+BACKGROUND
+Vaccine Adverse Event Reporting System
+The Vaccine Adverse Event Reporting System is a passive
+surveillance repository that monitors the number and type of
+AEs that occur after the administration of vaccines licensed for
+use in the USA.18 VAERS contains both structured (eg, vaccination date) and unstructured data (eg, symptom text). The VAERS
+case reports should be distinguished from any other type of
+medical documentation (eg, discharge summaries), since both
+experts (physicians) and non-experts (patients and relatives) act
+directly as the reporters of AEs. Therefore, special processing is
+needed to handle the frequent non-medical syntax and semantics.
+
+Review process
+Medical ofﬁcers (MOs) review all serious and death VAERS
+reports manually. Speciﬁcally, they review the unstructured free
+text ﬁelds to identify the clinical entities in a given case report,
+decide upon the acquisition of additional information (eg,
+request a copy of the medical records), and consider whether any
+regulatory action is warranted. VAERS reports are coded with
+Medical Dictionary for Regulatory Activities (MedDRA)
+preferred terms (PTs).19 Non-medical data-entry personnel apply
+PTs to terms in AE reports according to coding conventions and
+algorithms; the codes are not considered to be medically
+conﬁrmed diagnoses. MOs may screen and select case reports
+based on MedDRA codes, but they cannot fully rely on them for
+the analysis of safety data, mainly due to the MedDRA limitations. The inability of MedDRA to automatically group PTs
+with similar meanings from different system organ classes
+makes PT based searches incomplete unless they are based on
+a validated standardized MedDRA query, which are resource
+intensive to develop.20 The process is performed in two steps
+(ﬁgure 1), both of which are laborious and time-consuming.
+Step 1 involves manual review of case reports, which can
+number in the thousands, while step 2 involves review of
+medical records and other documentation for a smaller number
+of possible cases (see example for anaphylaxis; ﬁgure 1). Here,
+we incorporated a variety of TM techniques and automated
+classiﬁers to reliably substitute the manual classiﬁcation of
+anaphylaxis case reports at the ﬁrst step and, thus, reduce
+human effort.
+
+Brighton case definitions: the example of anaphylaxis
+The Brighton Collaboration (https://brightoncollaboration.org)
+develops standardized, widely disseminated, and globally
+
+VAERS
+
+PT & keyword
+search
+
+A
+Flu reports
+
+6034
+
+1
+Manual
+Review
+
+B
+1st step
+
+237
+
+2
+MR
+Review
+
+C
+Confirmed
+
+100
+
+Figure 1 Initially medical officers use specific MedDRA preferred
+terms (PT) or other keywords to extract the Vaccine Adverse Event
+Reporting System (VAERS) case reports of interest (usually a few
+thousand). Manual review requires two steps: (i) review of each case
+report (mainly symptom and laboratory text fields) and (ii) review of the
+medical record for a much smaller portion of case reports. For example,
+in the case of anaphylaxis, which was investigated in the current study,
+the PT and keyword search returned 6034 case reports that were
+reduced to 237 after manual review; the medical records (MR) for the
+latter portion of VAERS reports were obtained and reviewed resulting in
+100 confirmed anaphylaxis cases.
+632
+
+accepted case deﬁnitions for a large number of adverse events
+following immunizations (AEFIs). Each case deﬁnition is developed in a strict process that is monitored by a speciﬁc international working group of up to 20 experts and, among other
+items, incorporates a systematic literature search and evaluation
+of previous ﬁndings.21 Based on certain criteria, the Brighton
+Collaboration deﬁnes the patterns that should be discovered in
+the reports of a surveillance system. Often, MOs try to match
+them with the reported symptoms in each case report (or the
+medical record at step 2). The Brighton Collaboration has
+developed a case deﬁnition for anaphylaxis (see online supplementary appendix 1), which is an acute hypersensitivity reaction with multi-organ-system involvement and can rapidly
+progress to a life-threatening reaction.22 Common causes for
+anaphylaxis include allergens, drugs, and immunizations.23
+According to the Brighton case deﬁnition for anaphylaxis,
+speciﬁc major and minor criteria are described per organ system;
+MOs try to discover these criteria in each case report, ﬁt them
+into a pattern, and classify the report as anaphylaxis or not. For
+example, when they read the report ‘immediately after vaccination the patient presented with face edema, difﬁculty
+breathing, red eyes, wheezing, and localized rash at site of
+injection; also complained for weakness and reported fever
+2 days before vaccination’ they classify it as potentially positive
+primarily because there are at least two organ systems involved:
+dermatologic (face edema, red eyes) and respiratory (difﬁculty
+breathing, wheezing). The described ‘rash’ is localized and
+should not be considered as a dermatologic criterion, while
+neither ‘fever’ or ‘weakness’ are related to the vaccination or
+included in the case deﬁnition. It should be mentioned that the
+above narrative would alarm MOs even if the sudden onset
+(stated by ‘immediately after’) and the apparent rapid progression of symptoms (even though not clearly stated) were missing.
+Often, the time dimension is missing from VAERS reports, so
+MOs would still pick up this report for further review and
+deﬁnition of the diagnostic certainty at step 2.
+
+METHODS
+Corpus and validation set
+We selected a subset of all the case reports that were submitted
+to VAERS following inﬂuenza A (H1N1) 2009 monovalent
+vaccines,24 covering a period from November 22, 2009 to January
+31, 2010 (Ntotal¼6034). This time-window corresponded to the
+same period that a thorough analysis of H1N1 reports was
+performed following the receipt of a safety signal from Canada
+in mid-November.18 25 26 Twelve MOs reviewed the reports daily
+(the workload share was approximately equal); their task was
+to use the Brighton Collaboration criteria for anaphylaxis to
+label them as potentially positive requiring further investigation
+or negative. Then, in one session with all MOs participating,
+the potentially positive reports were selected by consensus
+(Npos¼237); the remaining reports were classiﬁed as negative
+(Nneg¼5797). MOs’ classiﬁcation was the gold standard for our
+study. Subsequently, the identiﬁcation number and the
+symptom text ﬁeld were extracted, and a class label was
+assigned to each case report according to the gold standard (‘pos’
+vs ‘neg’ label for potentially positive vs negative reports,
+respectively). These data were included in a text ﬁle (one text ﬁle
+per report); all text ﬁles were further organized in a categorized
+corpus under two distinct categories (‘pos’ vs ‘neg’). Moreover,
+a second set was created for validation purposes following
+a similar process: two MOs retrospectively reviewed (February 1,
+2010eApril 28, 2010) the case reports for H1N1 vaccine
+and created a validation set (Nvalid¼1100) with the same
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+Research and applications
+distributional properties as the original set, that is, 4% of the
+case reports were potentially positive for anaphylaxis
+(NvalidPos¼44).
+
+Feature extraction
+The backbone of our work has been the TM of VAERS case
+reports. The starting point was the ‘informative feature selection,’ that is, the combination of the Brighton Collaboration
+criteria with the MOs’ experience. Three feature representations
+were used:
+1. Important keywords (ﬁrst feature representation>keywords).
+2. Major and minor criteria that included one or more of the
+above keywords; MOs considered ‘epinephrine’ to be equal
+to a major criterion. Adding the feature representing the
+diagnosis of anaphylaxis (sometimes stated in a case report)
+to the feature space, a set of low-level patterns were deﬁned
+(second feature representation>low-level patterns).
+3. Filtering patterns that consisted of the above criteria
+(‘pattern1,’ ‘pattern2’, and ‘pattern3’; at least two major
+criteria, one major and one minor criterion, and three minor
+criteria, respectively). Diagnosis of anaphylaxis was also
+considered to be a ﬁltering pattern alone (‘pattern4’) and,
+thus, played a dual role in our work; it should be mentioned
+that the proportion of cases that were detected based on the
+explicit diagnosis of anaphylaxis were equal to 9% (16 out of
+178) in the training set, 3% (2 out of 59) in the testing set
+and 9% (4 out of 44) in the validation set. All ﬁltering
+patterns were treated as high-level patterns (third feature
+representation>high-level patterns).
+
+Text mining processes and rule-based classifier
+First, the free text in our corpus was processed using the
+appropriate NLP methods. Second, we worked in two directions
+by: (i) creating the list of lemmas (hereafter called dictionary) to
+represent the keywords of interest (ﬁrst feature representation>keyword>lemma), and (ii) developing the anaphylaxis
+lexicon, building the grammar, tagging and parsing the free text.
+The grammar rules supported the extraction of major and minor
+criteria (second feature representation) and patterns (third
+feature representation) from the case reports. Using these
+patterns, the corresponding part of the algorithm (ie, the rulebased classiﬁer) classiﬁed the reports into potentially positive
+and negative. The technical details of these processes are
+presented in online supplementary appendix 2.
+
+Supervised machine learning classifiers
+A number of machine learning (ML) classiﬁers that have
+been previously found to be the appropriate solutions for TC
+problems were trained; most of them have been also used for
+medical TC (binary or not): naive Bayes (NB),5 maximum
+entropy (ME),27 decision trees (DT),6 recursive partitioning
+classiﬁcation trees (RPCT),28 boosted trees (BT),29 weighted
+support vector machines (w-SVM),3 4 SVM for sparse data
+(s-SVM),30 stochastic boosting,31 multivariate adaptive regression splines (MARS),32 regularized discriminant analysis
+(RDA),33 random forests (RF),34 generalized additive model
+(GAM),31 and weighted k-nearest neighbors (w-kNN).35 The
+splitting rules that were used by the decision tree classiﬁers (DT,
+RPCT, and BT) should not be confused with the advanced
+grammar rules that represented the ﬁltering patterns and were
+used by the rule-based classiﬁer, as described above and
+presented in online supplementary appendix 2. For this reason,
+the decision tree classiﬁers and the rule-based classiﬁer could not
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+form a homogeneous group in a hypothetical comparison with
+the other classiﬁers.
+An issue with ML classiﬁers is that they assign equal weights
+to all classes, no matter their rarity; this may affect their
+performance in favor of the commonest class. Thus, we included
+a weight parameter into the training process that allowed us to
+handle the problem of class imbalance; for instance, the libSVM
+tool (library for SVM) allows the addition of the weight
+parameter to the training process.36 The weight for each class
+was calculated by the formula proposed by Cohen4:
+wclass ¼ ðNtotal  Nclass Þ=Ntotal
+where Ntotal is the total number of cases and Nclass the number
+of cases per class. Our weighted approach was also applied to BT,
+GAM, and s-SVM.
+Python (v 2.6.4), several packages in R-statistics (v 2.11.1),
+and the libSVM tool were used for the training of binary
+classiﬁers, as well as for the calculation of metric values in the
+testing and validation sets.
+
+Evaluation metrics and statistical analysis
+For evaluating the performance of class-labeling by the classiﬁers, we used the macro-averaging of standard recall
+(R/macro-R), precision (P/macro-P), and F-measure
+(F/macro-F); macro-R and macro-P are preferable here since
+they are dominated by the more rare ‘pos’ category.37 We
+analyzed macro-P and macro-R using Friedman’s test that avoids
+the normality assumption and analyzes the ranks of classiﬁers
+within the data sets.38 Moreover, the test is appropriate for use
+with dependent observations, which is the case here, because
+classiﬁers were tested using the same data sets. The original level
+of signiﬁcance of 0.05 was adjusted by Bonferroni correction to
+account for multiplicity in testing (thus, the level of the test was
+0.0125, adjusted further for multiple comparisons to 0.001).
+We also performed an exploratory error analysis by presenting
+the mean misclassiﬁcation error rate (mean-MER) for each
+classiﬁer over the data set. Each classiﬁer’s SE is computed ﬁrst
+on each data set (testing or validation) using the formula:
+"
+#1=2
+b
+pij ð1  b
+pij
+ni
+where ni, i¼1,2 is 1508 or 1100, respectively, and b
+pij , j¼1,.,13 is
+the error rate of the classiﬁer on the testing and validation set.
+The mean-MER is obtained by averaging the individual data set
+dependent error rates and the associated SE is computed using
+a formula that adjusts for the different sizes of the data sets.
+Furthermore, the impact of speciﬁc features on the classiﬁcation was evaluated by computing the information gain for each
+unique lemma, low- and high-level pattern; information gain is
+employed as a term-goodness criterion for category prediction
+and is based on the presence or absence of a term in a document.39 The FSelector package in R-statistics (v 2.11.1) and the
+training set were used for the corresponding calculations.
+
+RESULTS
+Text mining results
+The application of our TM techniques and the vectorization of
+the TM results are shown in ﬁgure 2; the same processes were
+applied to all reports (both in the corpus and the validation set).
+The bag-of-lemmas representing a case report was compared
+against the dictionary and a vector of binary values was
+constructed to indicate the presence or absence of dictionary
+633
+
+Research and applications
+Figure 2 An example of text mining
+processes for a case report for
+anaphylaxis using either the dictionary
+(left branch of the diagram) or the
+lexicon and the grammar rules (right
+branch of the diagram). The output of
+each case report is a vector of lemmas
+(type I vector), a vector of low-level
+patterns (type II vector), or a set of
+high-level patterns. The two types of
+vectors are extended by one position to
+include the class label for the report.
+The rule-based classifier classifies
+this report as potentially positive based
+on the identification of a high-level
+pattern (‘class’¼1, ie, potentially
+positive). GI, gastrointestinal; MCDV,
+major cardiovascular; MDERM, major
+dermatologic; mDERM, minor
+dermatologic; MRESP, major
+respiratory; mRESP, minor respiratory.
+
+123456-1
+"FACIAL SWELLING 6HRS AFTER H1N1 NASAL MIST VOMITING, TIRED,
+NOT EATING, URTICARIA IN FACE/NECK."
+Normalization
+Tokenization
+['123456', '1', 'facial', 'swelling', '6hrs', 'h1n1', 'nasal', 'mist', 'vomiting', 'tired', 'eating', 'urticaria', 'face',
+'neck']
+Stemming
+
+Tagging
+
+['123456', '1', 'face', 'swell', '6hr',
+'h1n1', 'nasal', 'mist', 'vomit', 'tire',
+'eat', 'urticaria', 'face', 'neck']
+
+[('123456', 'UNIMPORTANT'), ('1', 'UNIMPORTANT'),
+('facial', 'face_ANATOMY'), ('swelling',
+'swell_RESPIRATORY'), ('6hrs', 'UNIMPORTANT'),
+('h1n1', 'UNIMPORTANT'), ('nasal', 'UNIMPORTANT'),
+('mist', 'UNIMPORTANT'), ('vomiting', '
+minor_GASTROINTESTINAL '), ('tired',
+'UNIMPORTANT'), ('eating', 'UNIMPORTANT'),
+('urticaria', 'minor_DERMATOLOGIC'), ('face',
+'face_ANATOMY'), ('neck', 'ANATOMY')]
+
+Vectorization
+
+[1 0 0 0 1 0 … 1 0 1 0 0 1 0]
+face
+
+swell vomit
+
+throat
+
+neck
+
+urticaria
+
+Parsing
+
+class
+
+MDERM*
+('facial', 'face_ANATOMY')
+
+('swelling', 'swell_RESPIRATORY')
+
+('vomiting', ' minor_GASTROINTESTINAL ')
+
+pattern2
+
+MDERM
+
+*Vectorization
+
+GI*
+
+GI
+
+[0 0 0 0 1 0 1 0 1]
+MRESP
+DRUG
+DIAGNOSIS
+
+class
+
+MCDV
+mRESP
+
+entries in the case report; the vector (hereafter called type I
+vector) was extended by one position to include the class label
+of the report. The whole process is presented in the left branch
+of ﬁgure 2.
+The semantic tagger assigned tags to the lemmas of each case
+report, while the parser interpreted the grammar to ﬁt each
+tagged lemma into a rule; the rules were executed in order. Thus,
+the parsing process returned the low- and high-level patterns
+(ﬁgure 2, right branch). Again, a binary vector was created to
+indicate the presence or absence of the low-level patterns in each
+class-labeled report; each vector (hereafter called type II vector)
+had nine positions corresponding to the eight low-level patterns
+plus the class label. As for the high-level patterns, no vectorization was performed since the rule-based classiﬁer processed
+this output directly by classifying a case report as potentially
+positive when the parser output matched any of ‘pattern1,’
+‘pattern2’, ‘pattern3’, or ‘pattern4’; the report was otherwise
+classiﬁed as negative. The rule-based classiﬁcation was
+straightforward and was applied to the case reports of all sets
+without getting into any training process.
+On the other hand, in order to examine ML classiﬁers, all
+vectors (both type I and type II) of the original set were
+randomly split into a training and a testing set following the
+75%e25% splitting rule (Ntrain¼4526 and Ntest¼1508, respectively). Both sets had the same distributional properties, that is,
+4% of the case reports were potentially positive for anaphylaxis.
+The performance of rule-based and ML classiﬁers over the
+634
+
+mDERM
+
+testing and validation sets is presented in tables 1e3. Supplementary table 1 presents the average (over testing and validation
+sets) sensitivity and speciﬁcity and their associated standard
+errors, as well as the positive and negative predictive value of the
+best (across metrics) performing machine learning classiﬁers and
+rule-based classiﬁer. Note here the equivalent performance of
+these classiﬁers in terms of all metrics presented. Yet, the rulebased classiﬁer saved considerable computational time since it
+did not have to be trained, a process that was followed for
+w-SVM and BT, that is, the best ML classiﬁers. Moreover, the
+w-SVM and BTclassiﬁers were also using features extracted from
+the Brighton Collaboration case deﬁnition and that, to a large
+extent, accounts for their good performance. Further analysis
+was performed for macro-averages and MER (see next paragraph).
+
+Quantitative and qualitative error analysis
+The null hypothesis of no difference, on average, among the ML
+classiﬁers in terms of macro-R for lemmas was rejected by
+Friedman’s test (test statistic¼12.37; p value¼0.000 058, with
+F12,12 distribution). Bonferroni corrected multiple comparisons
+(a¼0.0125) indicated that BT and w-SVM classiﬁers performed
+best in terms of macro-R but were statistically equivalent to NB,
+RDA, or GAM. Notice that macro-R is equivalent to a function
+of sensitivity. MER analysis indicated that the mean-MER
+associated with BTand w-SVM classiﬁers was 0.08 (SE: 60.0053)
+and 0.1015 (SE: 60.006), respectively; this was 2.5 and 3.2 times
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+Research and applications
+Table 1 Macro-averaged metrics for ML classifiers’ performance on the first feature representation
+(lemmas); the ranks of classifiers are included in parentheses
+Testing set
+
+Validation set
+
+Classifiers
+
+macro-R
+
+macro-P
+
+macro-F*
+
+macro-R
+
+macro-P
+
+macro-F*
+
+NB
+ME
+DT
+RPCT
+BT
+w-SVM
+s-SVM
+SB
+MARS
+RDA
+RF
+GAM
+w-kNN
+
+0.794
+0.701
+0.609
+0.642
+0.881
+0.871
+0.642
+0.708
+0.707
+0.831
+0.642
+0.751
+0.576
+
+0.753
+0.863
+0.891
+0.872
+0.639
+0.619
+0.855
+0.836
+0.809
+0.649
+0.855
+0.885
+0.892
+
+0.773
+0.773
+0.724
+0.740
+0.741
+0.724
+0.734
+0.767
+0.755
+0.729
+0.734
+0.813
+0.700
+
+0.671
+0.577
+0.544
+0.544
+0.789
+0.809
+0.555
+0.574
+0.576
+0.640
+0.589
+0.577
+0.554
+
+0.697
+0.775
+0.767
+0.732
+0.648
+0.619
+0.795
+0.677
+0.733
+0.702
+0.817
+0.775
+0.732
+
+0.684
+0.661
+0.637
+0.624
+0.711
+0.701
+0.654
+0.622
+0.645
+0.669
+0.684
+0.661
+0.631
+
+(10)
+(6)
+(2)
+(4)
+(13)
+(12)
+(4)
+(8)
+(7)
+(11)
+(4)
+(9)
+(1)
+
+(4)
+(9)
+(12)
+(10)
+(2)
+(1)
+(7.5)
+(6)
+(5)
+(3)
+(7.5)
+(11)
+(13)
+
+(11)
+(7.5)
+(1.5)
+(1.5)
+(12)
+(13)
+(4)
+(5)
+(6)
+(10)
+(9)
+(7.5)
+(3)
+
+(4)
+(10.5)
+(9)
+(6.5)
+(2)
+(1)
+(12)
+(3)
+(8)
+(5)
+(13)
+(10.5)
+(6.5)
+
+*Friedman’s test indicated no statistically significant differences between the classifiers.
+BT, boosted trees; DT, decision trees; F, F-measure; GAM, generalized additive model; MARS, multivariate adaptive regression splines;
+ME, maximum entropy; ML, machine learning; NB, naive Bayes; P, precision;
+R, recall; RPCT, recursive partitioning classification trees; SB, stochastic boosting; s-SVM, SVM for sparse data; RDA, regularized
+discriminant analysis; RF, random forests; w-kNN, weighted k-nearest neighbors; w-SVM, weighted support vector machines.
+
+higher than the smallest mean-MER among the equivalent
+classiﬁers (table 4). Additionally, the higher variability of these
+two classiﬁers as compared with the remaining classiﬁers should
+be noted. Therefore, higher macro-R comes at the expense of
+a higher mean-MER (and associated SE). Similarly, the null
+hypothesis of no differences, on average, among the ML classiﬁers in terms of macro-P was rejected by Friedman’s test (test
+statistic¼4.2346; p value¼0.0092). Bonferroni adjusted multiple
+comparisons, indicated that the worst performance, in terms of
+macro-P, was achieved by BT and w-SVM classiﬁers, while GAM
+exhibited the best performance. GAM, RF, w-KNN, ME, DT,
+RPCT, and s-SVM were statistically equivalent in terms of
+macro-P.
+Similar results were obtained for low-level patterns. Speciﬁcally, BT and w-SVM classiﬁers performed best in terms of
+macro-R with NB, ME, RDA, and GAM being statistically
+equivalent to BT and w-SVM. Our error analysis indicated higher
+mean-MER for the latter classiﬁers (for BT and w-SVM these
+
+were 0.0815 (60.0055) and 0.1015 (60.0059), respectively).
+These rates were two and three times higher than the minimum
+mean-MER obtained from the group of equivalent to the best
+performing classiﬁers. In terms of macro-P, BT and w-SVM
+exhibited the worst performance, while best performers were
+RF and MARS. Statistically equivalent to the latter were GAM,
+w-KNN, DT, ME, SB, s-SVM, and RPCT. The error analysis
+attributed a mean-MER of 0.032 (SE: 60.0035) to RF and
+MARS, which is the smallest among all.
+For the rule-based classiﬁers, the mean-MER over the testing
+and validation set was 0.0585 (SE: 60.00465). This error rate
+was smaller than the best performing ML classiﬁers, while the
+performance in terms of macro-recall/precision was equivalent.
+Moreover, the mean macro-R was 0.8690 (SE: 60.00 674), the
+mean macro-P was 0.6875 (SE: 60.00 919), and the mean
+macro-F was 0.7675 (SE: 60.00 839).
+In addition to the aforementioned quantitative error analysis,
+we evaluated the classiﬁcation performance of the ML classiﬁers
+
+Table 2 Macro-averaged metrics for ML classifiers’ performance on the second feature representation
+(low-level patterns); the ranks of classifiers are included in parentheses
+Testing set
+
+Validation set
+
+Classifiers
+
+macro-R
+
+macro-P
+
+macro-F*
+
+macro-R
+
+macro-P
+
+macro-F*
+
+NB
+ME
+DT
+RPCT
+BT
+w-SVM
+s-SVM
+SB
+MARS
+RDA
+RF
+GAM
+w-kNN
+
+0.789
+0.707
+0.667
+0.651
+0.869
+0.883
+0.710
+0.693
+0.677
+0.788
+0.661
+0.707
+0.693
+
+0.799
+0.809
+0.871
+0.877
+0.672
+0.628
+0.905
+0.899
+0.944
+0.783
+0.962
+0.809
+0.899
+
+0.794
+0.755
+0.756
+0.747
+0.758
+0.734
+0.796
+0.783
+0.789
+0.786
+0.783
+0.755
+0.783
+
+0.584
+0.587
+0.576
+0.555
+0.894
+0.882
+0.577
+0.576
+0.567
+0.585
+0.578
+0.589
+0.577
+
+0.665
+0.719
+0.716
+0.795
+0.635
+0.629
+0.752
+0.733
+0.816
+0.683
+0.833
+0.791
+0.775
+
+0.622
+0.646
+0.638
+0.654
+0.743
+0.734
+0.653
+0.645
+0.669
+0.630
+0.683
+0.675
+0.661
+
+(11)
+(7.5)
+(3)
+(1)
+(12)
+(13)
+(9)
+(5.5)
+(4)
+(10)
+(2)
+(7.5)
+(5.5)
+
+(4)
+(5.5)
+(7)
+(8)
+(2)
+(1)
+(11)
+(9.5)
+(12)
+(3)
+(13)
+(5.5)
+(9.5)
+
+(8)
+(10)
+(3.5)
+(1)
+(13)
+(12)
+(5.5)
+(3.5)
+(2)
+(9)
+(7)
+(11)
+(5.5)
+
+(3)
+(6)
+(5)
+(11)
+(2)
+(1)
+(8)
+(7)
+(12)
+(4)
+(13)
+(10)
+(9)
+
+*Friedman’s test indicated no statistically significant differences between the classifiers.
+BT, boosted trees; DT, decision trees; F, F-measure; GAM, generalized additive model; MARS, multivariate adaptive regression splines;
+ME, maximum entropy; ML, machine learning; NB, naive Bayes; P, precision; R, recall; RPCT, recursive partitioning classification trees;
+SB, stochastic boosting; s-SVM, SVM for sparse data; RDA, regularized discriminant analysis; RF, random forests; w-kNN, weighted
+k-nearest neighbors; w-SVM, weighted support vector machines.
+
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+635
+
+Research and applications
+Table 3 Macro-averaged metrics for rule-based classifier’s
+performance (high-level patterns); MER was also calculated
+Data set
+
+macro-R
+
+macro-P
+
+macro-F
+
+MER
+
+Testing set
+Validation set
+
+0.889
+0.849
+
+0.691
+0.684
+
+0.777
+0.758
+
+0.058
+0.059
+
+F, F-measure; MER, misclassification error rate; P, precision; R, recall.
+
+using the area under the ROC curve (AUC). There are several
+compelling reasons as to why the AUC is appropriate for
+quantifying the predictive ability of classiﬁers, one reason being
+the use of AUC for testing whether predictions are unrelated to
+true outcomes is equivalent to using the Wilcoxon test. The best
+performing classiﬁers when AUC was used were BT and w-SVM.
+The AUC of BT when lemmas were used in the testing and
+validation set was, respectively, 0.9234 (95% CI 0.9198 to
+0.9270) and 0.7888 (95% CI 0.7771 to 0.8006). The corresponding values of the AUC and 95% CI when low-level
+patterns were used for the BT classiﬁer and for the testing and
+validation sets, respectively, were 0.8686 (95% CI 0.8636 to
+0.8737) and 0.8944 (95% CI 0.8896 to 0.8992). For the w-SVM
+and for lemmas in the testing and validation sets we obtained
+AUC of 0.8706 (95% CI 0.8662 to 0.8750) and 0.8087 (95% CI
+0.7989 to 0.8185). These values indicate equivalent performance
+of BT and w-SVM classiﬁers in terms of their predictive ability to
+identify truly positive reports.
+We also performed a qualitative error analysis aimed at
+understanding if any patterns are present that allow the
+misclassiﬁcation of reports as negative when they are truly
+positive. The total number of false negative reports, in both the
+testing and validation sets, returned by the three best
+performing classiﬁers (rule-based, BT, and w-SVM) was 36 (16
+and 20 in the testing and validation sets, respectively). None of
+these reports contained the word ‘anaphylaxis’ and all were
+missing an equivalent diagnosis. MOs examined, at a second
+stage, these 36 reports and reclassiﬁed 15 of them as truly
+positive (2 and 13 in the testing and validation sets, respectively). Recall that the total number of truly positive reports in
+both sets equals 103. Our best performing rule-based classiﬁer
+falsely misclassiﬁed only seven of these reports as negative. The
+Table 4 Mean misclassification error rate (mean-MER) over the testing
+and validation data sets and the associated SE for the different ML
+classifiers in the case of lemmas and low-level patterns
+Lemmas
+
+Low-level patterns
+
+Classifiers
+
+Mean-MER
+
+SE
+
+Mean-MER
+
+SE
+
+NB
+ME
+DT
+RPCT
+BT
+w-SVM
+s-SVM
+SB
+MARS
+RDA
+RF
+GAM
+w-kNN
+
+0.0410
+0.0335
+0.0355
+0.0355
+0.0800
+0.1015
+0.0350
+0.0370
+0.0360
+0.0590
+0.0340
+0.0315
+0.0370
+
+0.0039
+0.0036
+0.0037
+0.0037
+0.0053
+0.0060
+0.0036
+0.0038
+0.0037
+0.0045
+0.0036
+0.0035
+0.0037
+
+0.0380
+0.0365
+0.0355
+0.0345
+0.0815
+0.1015
+0.0325
+0.0335
+0.0320
+0.0380
+0.0315
+0.0345
+0.0325
+
+0.0038
+0.0037
+0.0037
+0.0036
+0.0055
+0.0059
+0.0035
+0.0036
+0.0035
+0.0038
+0.0035
+0.0036
+0.0035
+
+BT, boosted trees; DT, decision trees; F, F-measure; GAM, generalized additive model;
+MARS, multivariate adaptive regression splines; ME, maximum entropy; ML, machine
+learning; NB, naive Bayes; P, precision; R, recall; RPCT, recursive partitioning classification
+trees; SB, stochastic boosting; s-SVM, SVM for sparse data; RDA, regularized discriminant
+analysis; RF, random forests; w-kNN, weighted k-nearest neighbors; w-SVM, weighted
+support vector machines.
+
+636
+
+symptom text of the 15 reports and more details about their
+qualitative error analysis are included in online supplementary
+appendix 3.
+The feature analysis identiﬁed six lemmas (‘epinephrin,’
+‘swell,’ ‘tight,’ ‘throat,’ ‘anaphylaxi,’ ‘sob’) with very similar
+information gain results. The diagnosis of anaphylaxis and
+epinephrine were among the most predictive features too, when
+they were treated as low-level patterns, along with major and
+minor respiratory and major dermatologic criteria. Regarding
+high-level patterns all (‘pattern1,’ ‘pattern2’, and ‘pattern4’ that
+represented the diagnosis of anaphylaxis) were equivalent in
+terms of information gain, excluding ‘pattern3’. The latter
+should be attributed to the extremely low (1.12%) or zero
+frequency of ‘pattern3’ in the potentially positive and negative
+reports of the training set, respectively. In all the other cases, the
+frequency of the most important predictive features was
+remarkably higher in the subset of the potentially positive
+reports.
+
+DISCUSSION
+In this study, we examined the effectiveness of combining
+certain TM techniques with domain expert knowledge in the
+case of VAERS for TC purposes; to our knowledge, no previous
+efforts have been reported for TM and medical TC in VAERS or
+any other SRS, despite the fact that various methods have been
+applied before to other data sources showing the potential for
+AE identiﬁcation. For example, NLP methods have been applied
+to discharge hospital summaries17 and other data mining
+methods to structured EHR data.40e42 Our validated results
+showed that TM in any level could effectively support TC in
+VAERS. For example, rule-based, BT, and w-SVM classiﬁers
+appeared to perform well in terms of macro-R, still with some
+MER cost. A simple calculation over 10 000 reports for two
+classiﬁers (eg, w-SVM and NB for low-level patterns) with MERs
+of 0.10 and 0.04, respectively, would show an actual difference
+of 600 misclassiﬁed (either as potentially positive or as negative)
+reports between them. The actual cost in terms of extra
+workload would be those misclassiﬁed as potentially positive
+(based on our data that would be equal to 494 reports), but the
+actual cost in terms of safety surveillance would be those
+misclassiﬁed as negative (ie, 106 reports). Based on our error
+analysis, <7% (7 out of 103) of the true positive cases would be
+falsely classiﬁed as negative for our best performing classiﬁer,
+that is, the rule-based classiﬁer. We believe that this level of
+misclassiﬁcation, in the context of the extensive known limitations of SRS, is probably acceptable, although we hope to
+engage in future efforts to reﬁne our algorithm to reduce this
+even more. This further illustrates that one of the important
+properties of a classiﬁer that is used to identify rare adverse
+events is high sensitivity because it returns a smaller number of
+falsely negative reports.
+It could be argued that our approach lacks the automated
+feature extraction aspect, which has been previously reported
+as a strategy for TC.43 The issue of automatically extracting
+features that characterize the AE accurately requires care. The
+problem we are called to solve is the identiﬁcation of rare or
+very rare events from the data at hand. Because features need
+to be related not only statistically but also causally to the
+outcome, informative feature selection better serves our
+purposes. The basis for our claim has been the availability of
+solid standards (ie, Brighton case deﬁnitions) that are being used
+by physicians in their daily practice. Accordingly, the extraction
+of three feature representations supported the application of our
+multi-level approach. Thus, we treated the case reports not only
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+Research and applications
+as bag-of-lemmas looking for lemmas7 (the bag-of-words
+approach (stemmed or unstemmed) is rather limited13) but also
+as sources of patterns (low- and high-level); we extracted these
+patterns to examine their role in TC.
+Informative feature selection mandated not only the use of
+Brighton criteria but also MOs’ contributions since: (i) certain
+criteria were not met in the case reports and should be excluded
+from the feature space, for example, ‘capillary reﬁll time,’ (ii)
+non-medical words were often used by patients to describe
+a symptom and should be included, for example, the word
+‘funny’ within variations of the phrase ‘my throat felt funny’ to
+describe ‘itchy throat’ or ‘throat closure,’ and (iii) other words
+raised a concern for further investigation even though they were
+not listed in Brighton deﬁnitions, for example, ‘epinephrine’ or
+‘anaphylaxis.’
+Regarding our TM methods, the construction of a controlled
+dictionary and lexicon is considered laborious, demanding, and
+costly because it relies on the recruitment of human experts.44
+However, the informative development of a ﬂexible and
+relatively small controlled dictionary/lexicon appeared to be very
+effective in our study. The same applied to the use of the
+dedicated semantic tagger. A part-of-speech tagger would assign
+non-informative tags to a span of text (ie, symptom text in
+VAERS) that follows no common syntax; it would not support
+the grammar rules either. The grammar was also built in the
+same context: to better serve the extraction of the feature
+representations and facilitate both the rule-based classiﬁcation
+and the training of ML classiﬁers.
+Rule-based TC systems have been criticized for the lack of
+generalizability of their rules, a problem deﬁned as ‘knowledge
+acquisition bottleneck.’44 However, their value in handling
+speciﬁc conditions should not be ignored, such as in the Obesity
+NLP Challenge, where the top 10 solutions were rule-based.27
+ML methods are not as transparent as the rule-based systems
+but have been used extensively for TC.44 Our results showed
+that the rule-based classiﬁer performed slightly better, probably
+due to the informative feature selection. Either rule-based or ML
+techniques could be applied to SRS databases and allow better
+use of human resources by reducing MOs’ workload.
+It could be argued that ensembles or a cascade of classiﬁers or
+even a modiﬁed feature space would handle the classiﬁcation
+errors. Nevertheless, the principles of our study and the nature
+of VAERS would require the consideration of certain aspects
+prior to the application of such strategies. First, the construction
+of the feature space was based on the domain expert contribution; short of fully automated feature extraction, any alterations
+(use of new lemmas or introduction of new rules) based on this
+feature analysis would beneﬁt from consultation with clinical
+experts to increase the chance that any such modiﬁcations
+would lead to meaningful results. Second, a classiﬁcation error
+will be always introduced by the MOs who decide to acquire
+more information for a ‘suspicious’ report even if it does not
+meet all the criteria.
+The methodology that was described in this paper and the
+discussion of the related aspects raise the interesting question of
+generalizability, that is, the transfer of components to the
+identiﬁcation of other AEFIs. The development of a broader
+medical lexicon and a set of basic rules could be suggested to
+support the extraction of all symptoms related to the main
+AEFIs, such as GuillaineBarre syndrome and acute disseminated
+encephalomyelitis. Based on these key components, other
+advanced rules representing the speciﬁc criteria per AEFI (as
+stated in the Brighton deﬁnitions and described by MOs) could
+classify each report accordingly.
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+Our study lies partly in the ﬁeld of text ﬁltering since it
+investigated ways to automate the classiﬁcation of streams of
+reports submitted in an asynchronous way.45 Generally, MOs’
+intention is twofold: ﬁrst, to identify the potentially positive
+and block the negative reports (step 1); second, to further classify those that proved to be positive into more speciﬁc categories
+(step 2), for example, anaphylaxis case reports into levels of
+diagnostic certainty. This process is similar to the classiﬁcation
+of incoming emails as ‘spam’ or ‘non-spam’ and the subsequent
+categorization of the ‘non-spam’ emails.46e48 Here, any further
+categorization would require information gathering through the
+review of medical records that are provided in portable
+document format (pdf) only. The inherent difﬁculties related to
+the production of these ﬁles limit their usability and the
+possibility of utilizing this source remains to be investigated.
+
+CONCLUSION
+Our study demonstrated that it is possible to apply TM
+strategies on VAERS for TC purposes based on informative
+feature selection; rule-based and certain ML classiﬁers performed
+well in this context. We plan to extend our current work and to
+apply the same TM strategy regarding other AEs by incorporating experts’ input in a semi-automated feature extraction
+framework.
+Funding This project was supported in part by the appointment of Taxiarchis Botsis to
+the Research Participation Program at the Center for Biologics Evaluation and
+Research administered by the Oak Ridge Institute for Science and Education through
+an interagency agreement between the U.S. Department of Energy and the U.S. Food
+and Drug Administration. We thank all the staff members who participated on the
+VAERS 2009-H1N1 Influenza Response Team for assisting with the acquisition,
+review, and analysis of the adverse event report data.
+Competing interests None.
+Provenance and peer review Not commissioned; externally peer reviewed.
+
+REFERENCES
+1.
+2.
+3.
+4.
+5.
+6.
+7.
+8.
+9.
+10.
+11.
+12.
+13.
+14.
+15.
+
+Sinha A, Hripcsak G, Markatou M. Large datasets in biomedicine: a discussion of
+salient analytic issues. J Am Med Inform Assoc 2009;16:759e67.
+Singleton JA, Lloyd JC, Mootrey GT, et al. An overview of the vaccine adverse
+event reporting system (VAERS) as a surveillance system. Vaccine
+1999;17:2908e17.
+Ambert KH, Cohen AM. A system for classifying disease comorbidity status from
+medical discharge summaries using automated hotspot and negated concept
+detection. J Am Med Inform Assoc 2009;16:590e5.
+Cohen AM. Five-way smoking status classification using text hot-spot identification
+and error-correcting output codes. J Am Med Inform Assoc 2008;15:32e5.
+Conway M, Doan S, Kawazoe A, et al. Classifying disease outbreak reports using
+n-grams and semantic features. Int J Med Inform 2009;78:e47e58.
+Farkas R, Szarvas G, Hegeds I, et al. Semi-automated construction of decision rules
+to predict morbidities from clinical texts. J Am Med Inform Assoc 2009;16:601e5.
+Mishra NK, Cummo DM, Arnzen JJ, et al. A rule-based approach for identifying
+obesity and its comorbidities in medical discharge summaries. J Am Med Inform
+Assoc 2009;16:576e9.
+Ong MS, Magrabi F, Coiera E. Automated categorisation of clinical incident reports
+using statistical text classification. Qual Saf Health Care 2010;19:e55.
+Savova GK, Ogren PV, Duffy PH, et al. Mayo Clinic NLP system for patient smoking
+status identification. J Am Med Inform Assoc 2008;15:25e8.
+Solt I, Tikk D, Gal V, et al. Semantic classification of diseases in discharge
+summaries using a context-aware rule-based classifier. J Am Med Inform Assoc
+2009;16:580e4.
+DeShazo JP, Turner AM. An interactive and user-centered computer system to
+predict physician’s disease judgments in discharge summaries. J Biomed Inform
+2010;43:218e23.
+Yang H, Spasic I, Keane JA, et al. A text mining approach to the prediction of
+disease status from clinical discharge summaries. J Am Med Inform Assoc
+2009;16:596e600.
+Cohen AM, Hersh WR. A survey of current work in biomedical text mining. Brief
+Bioinform 2005;6:57e71.
+Hazlehurst B, Naleway A, Mullooly J. Detecting possible vaccine adverse events in
+clinical notes of the electronic medical record. Vaccine 2009;27:2077e83.
+Melton GB, Hripcsak G. Automated detection of adverse events using natural
+language processing of discharge summaries. J Am Med Inform Assoc
+2005;12:448e57.
+
+637
+
+Research and applications
+16.
+17.
+18.
+19.
+20.
+21.
+22.
+23.
+24.
+25.
+26.
+27.
+28.
+29.
+30.
+31.
+
+Murff HJ, Forster AJ, Peterson JF, et al. Electronically screening discharge
+summaries for adverse medical events. J Am Med Inform Assoc 2003;10:339e50.
+Wang X, Hripcsak G, Markatou M, et al. Active computerized pharmacovigilance
+using natural language processing, statistics, and electronic health records:
+a feasibility study. J Am Med Inform Assoc 2009;16:328e37.
+Varricchio F, Iskander J, Destefano F, et al. Understanding vaccine safety
+information from the vaccine adverse event reporting system. Pediatr Infect Dis J
+2004;23:287e94.
+Brown EG. Using MedDRA: implications for risk management. Drug Saf
+2004;27:591e602.
+Bousquet C, Lagier G, Lillo-Le Louet A, et al. Appraisal of the MedDRA conceptual
+structure for describing and grouping adverse drug reactions. Drug Saf
+2005;28:19e34.
+Bonhoeffer J, Kohl K, Chen R, et al. The Brighton Collaboration: addressing the need
+for standardized case definitions of adverse events following immunization (AEFI).
+Vaccine 2002;21:298e302.
+Ruggeberg JU, Gold MS, Bayas JM, et al. Anaphylaxis: case definition and
+guidelines for data collection, analysis, and presentation of immunization safety data.
+Vaccine 2007;25:5675e84.
+Ewan PW. ABC of allergies: anaphylaxis. BMJ 1998;316:1442.
+Vellozzi C, Broder KR, Haber P, et al. Adverse events following influenza A (H1N1)
+2009 monovalent vaccines reported to the vaccine adverse events reporting system,
+United States, October 1, 2009eJanuary 31, 2010. Vaccine 2010;28:7248e55.
+Quality Investigation of Combo Lot Number A80CA007A of ArepanrixÔ H1N1 (AS03Adjuvanted H1N1 Pandemic Influenza Vaccine). Canada: Canadian Ministry of Health,
+2010.
+Reblin T. AREPANRIXÔ H1N1 Vaccine Authorization for Sale and Post-Market
+Activities. Ontario, Canada: Canadian Ministry of Health, 2009.
+Uzuner O. Recognizing obesity and comorbidities in sparse data. J Am Med Inform
+Assoc 2009;16:561e70.
+Lewis DD, Ringuette M. A comparison of two learning algorithms for text
+categorization. Third Annual Symposium on Document Analysis and Information
+Retrieval 1994;33:81e93.
+Carreras X, Marquez L. Boosting trees for anti-spam email filtering. 4th International
+Conference on Recent Advances in Natural Language Processing, 2001.
+Platt J. Sequential Minimal Optimization: a Fast Algorithm for Training Support Vector
+Machines. Redmond, WA: Microsoft Research, 1998. Report No.: MST-TR-98e14.
+Hastie T, Tibshirani R, Friedman J. The Elements of Statistical Learning. 2nd edn.
+New York, NY: Springer, 2009.
+
+32.
+33.
+34.
+35.
+36.
+37.
+38.
+39.
+40.
+41.
+42.
+43.
+44.
+45.
+46.
+47.
+48.
+
+Stone CJ, Hansen MH, Kooperberg C, et al. Polynomial splines and their tensor
+products in extended linear modeling. Ann Stat 1997;25:1371e425.
+Friedman JH. Regularized discriminant analysis. J Am Stat Assoc 1989;84:165e75.
+Rios G, Zha H. Exploring support vector machines and random forests for spam
+detection. Proceedings of the First Conference on Email and Anti-Spam (CEAS), 2004.
+Han EH, Karypis G, Kumar V. Text categorization using weight adjusted k-nearest
+neighbor classification. Advances in Knowledge Discovery and Data Mining,
+2001:53e65.
+Chang CC, Lin CJ. LIBSVM: a Library for Support Vector Machines. Taipei, Taiwan:
+Department of Computer Science; National Taiwan University, 2001.
+Yang Y, Liu X. A re-examination of Text Categorization Methods. New York, NY:
+ACM, 1999:42e9.
+Friedman M. The use of ranks to avoid the assumption of normality implicit in the
+analysis of variance. J Am Stat Assoc 1937;32:675e701.
+Yang Y, Pedersen JO. A Comparative Study on Feature Selection in Text
+Categorization. University Park, PA: Citeseer, 1997:412e20.
+Hinrichsen VL, Kruskal B, O’Brien MA, et al. Using electronic medical records to
+enhance detection and reporting of vaccine adverse events. J Am Med Inform Assoc
+2007;14:731e5.
+Jha AK, Laguette J, Seger A, et al. Can surveillance systems identify and avert
+adverse drug events? A prospective evaluation of a commercial application.
+J Am Med Inform Assoc 2008;15:647e53.
+Linder JA, Haas JS, Iyer A, et al. Secondary use of electronic health record data:
+spontaneous triggered adverse drug event reporting. Pharmacoepidemiol Drug Saf
+2010;19:1211e15.
+Forman G. An extensive empirical study of feature selection metrics for text
+classification. J Mach Learn Res 2003;3:1289e305.
+Sebastiani F. Machine learning in automated text categorization. ACM Computing
+Surveys (CSUR) 2002;34:1e47.
+Belkin NJ, Croft WB. Information filtering and information retrieval: two sides of the
+same coin? Communications of the ACM 1992;35:29e38.
+Androutsopoulos I, Koutsias J, Chandrinos KV, et al. An Experimental Comparison
+of Naive Bayesian and Keyword-based Anti-spam Filtering With Personal E-mail
+Messages. New York, NY: ACM, 2000:160e7.
+Bekkerman R, McCallum A, Huang G. Automatic categorization of email into
+folders: benchmark experiments on Enron and SRI corpora. Center for Intelligent
+Information Retrieval, Technical Report IR, 2004:418.
+Drucker H, Wu D, Vapnik VN. Support vector machines for spam categorization.
+IEEE Trans Neural Netw 1999;10:1048e54.
+
+PAGE fraction trail=7.5
+
+638
+
+J Am Med Inform Assoc 2011;18:631e638. doi:10.1136/amiajnl-2010-000022
+
+

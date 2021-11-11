@@ -1,0 +1,1527 @@
+Leveraging digital media data for pharmacovigilance
+Hammad Farooq, Junaid Suhail Niaz, Saira Fakhar and Hammad Naveed‡
+Computational Biology Research Lab, Department of Computer Science
+National University of Computer and Emerging Sciences
+‡ Email: hammad.naveed@nu.edu.pk
+Abstract
+The development of novel drugs in response to changing clinical requirements is a complex and costly method
+with uncertain outcomes. Postmarket pharmacovigilance is essential as drugs often have under-reported side effects. This study intends to use the power of digital media to discover the under-reported side effects of marketed
+drugs. We have collected tweets for 11 different Drugs (Alprazolam, Adderall, Fluoxetine, Venlafaxine, Adalimumab,
+Lamotrigine, Quetiapine, Trazodone, Paroxetine, Metronidazole and Miconazole). We have compiled a vast adverse
+drug reactions (ADRs) lexicon that is used to filter health related data. We constructed machine learning models
+for automatically annotating the huge amount of publicly available Twitter data. Our results show that on average
+43 known ADRs are shared between Twitter and FAERS datasets. Moreover, we were able to recover on average
+7 known side effects from Twitter data that are not reported on FAERS. Our results on Twitter dataset show a high
+concordance with FAERS, Medeffect and Drugs.com. Moreover, we manually validated some of the under-reported
+side effect predicted by our model using literature search. Common known and under-reported side effects can be
+found at https://github.com/cbrl-nuces/Leveraging-digital-media-data-for-pharmacovigilance.
+
+1
+
+Introduction
+
+Pharmacovigilance is the practice of monitoring effects of FDA approved drugs. It is the science and activities related
+to detecting, assessing, understanding and preventing the adverse effects of drugs. The study of pharmacovigilance has
+been recently widened to deal with herbal, traditional and complimentary medicines, blood related products, medical
+devices and vaccines1 .
+Drugs are extensively studied (in vitro experiments, in vivo experiments and clinical trials) before they become available to the public for general use. However, it is evident that drugs in clinical trials are monitored for their side effects
+under controlled conditions e.g. ethnic diversity, patient age group, dosage and duration. The general and flexible
+use of these drugs, particularly in less regulated regions like Africa and South Asia is likely to produce previously
+unobserved side effects and introduce new risks. Post-market pharmacovigilance is required as clinical trials involve
+limited number of patients, making it difficult to cover broader patterns and trends of drugs. Patient groups such as
+pregnant women and children are often excluded from clinical trials due to concerns of teratogenicity and ethical issues
+yet these drugs are often prescribed to such patient groups once available in the market2, 3 . Moreover, these patient
+groups are also active web and social media users4 . Previous studies show that it is highly likely that FDA approved
+drugs will show adverse reactions due to several known and yet to be discovered off-targets5, 6 .
+Current pharmacovigilance efforts have room for improvement as numerous approved drugs have been withdrawn
+from the market due to their adverse events. One famous example is of Thalidomide, which was introduced in late
+1957 and was widely prescribed as a safe treatment for morning sickness and nausea. Children of pregnant women
+on Thalidomide prescription showed congenital abnormalities that caused severe birth defects7 . Thalidomide was
+removed from the market in most countries in 1965. Nevertheless, it continued to be used for the treatment of leprosy,
+and in more recent years, its indications have been extended to a much wider range of medical conditions8 . Despite
+being allowed only under strict supervision and specialist advice, between 1969 and 1995, 34 cases of thalidomide
+embryopathy were registered in leprosy endemic areas in South America by the Latin American Collaborative Study
+of Congenital Malformations9 .
+There is an emerging trend in people to use social media and websites to reach out to doctors and pharmaceutical companies10 . Similarly, health-care professionals and patients are discussing the adverse experiences related to medicinal
+products using the digital media platforms11 . Some studies have explored the use of social media data for pharmacovigilance12–14 . Nikfarjam et al. tagged mentions of drug side-effects in social media posts from Twitter and online
+health community DailyStrength15 . Similarly Cocos et al. developed a deep learning based method for labeling ADRs
+
+442
+
+in Twitter posts16 . These studies were helpful in identifying the mentions of ADRs, however, downstream analysis is
+required to perform qualitative analysis on these ADRs15, 16 . Freifeld et al. evaluated the level of concordance between
+drug side-effects from Twitter data and adverse events (AE) reported in the FAERS17 . They provided the correlation by
+system organ class between adverse event (AE) in Twitter and consumer report, but did not perform any quantitative
+analysis for actual AEs and do not provide any mechanism to control false positives. MacKinlay et al. investigated the
+ADR surveillance by analyzing tweets and evaluated their methodology against the reports in the FAERS database18 .
+Smith et al. presented a method to compare ADRs mentioned in social media with FAERS, drug information databases
+(DIDs), and systematic reviews19 . Even though some studies have started analysing social media data for augmenting
+pharmacovigilance efforts, but existing studies (i) do not account for unstructured nature of the data on the social
+media platforms appropriately, (ii) fail to quantify the quality of data from social media, and (iii) fail to control for the
+high noise in such data platforms.
+In this study, we try to overcome the above mentioned limitations by (i) compiling a large phrasal ADR lexicon
+that is specific for ADRs, descriptive in nature and wherein the phrases representing the same ADR are grouped
+together using semantic similarity based hierarchical clustering, ii) comparing the ADRs found from Twitter with three
+reporting systems: FDA’s AERS (FAERS)20 , MedEffect1 and Drugs.com2 ; iii) using a classification model followed
+by a statistical model to filter out possible noise and false positives.
+We used our lexicon to mine the ADRs reported on Twitter for 11 drugs (Alprazolam, Adderall, Fluoxetine, Venlafaxine, Adalimumab, Lamotrigine, Quetiapine, Trazodone,Paroxetine, Metronidazole and Miconazole). We were able
+to recover a significant number (approximately 50 on average) of known side effects of each drug from Twitter and
+predict the under-reported side effect of the 11 drugs in our dataset. Our results suggest that Twitter data shows a high
+concordance with FAERS (approximately 43 side effects on average) and other reporting systems and can be used as
+an additional source for enhancing pharmacovigilance practices. Our study will help the drug regulatory agencies and
+pharmaceutical companies in performing post-market pharmacovigilance using publicly available digital media data.
+2
+
+Methods and Techniques
+
+2.1
+
+Data Collection and preprocessing
+
+We shortlisted 11 drugs for which significant data was available on Twitter (Table 1). Drugs are marketed under
+different names (Fluoxetine is also marketed as Prozac, Prozac Weekly, and Sarafem), therefore we have used a list of
+all the alternate names by augmenting brand names from Drug.com in the list compiled by Sarkar A, et al.21 . Moreover,
+data from Twitter does not follow language rules and can have spelling and grammatical errors (Xanax can be written
+as xanaxx and xnaax). Therefore, all alternate names of the drugs and their common misspellings were used to collect
+the data from Twitter using tweepy3 and twitterscraper 4 APIs.
+Apart from Twitter data, we also used the reviews data available at Drugs.com, FAERS and MedEffect. For Drugs.com
+we used the data compiled by Graber et al.22 . For collecting FAERS’s data, we used the openFDA20 “drug adverse
+event” API to download all the available files of Drug Adverse Events data using a python scraper. Similarly we also
+collected the ADRs reported on MedEffect for these drugs. From both Twitter and online reviews datasets redundant
+records were removed, followed by the application of stemming and lemmatization. The number of unique tweets and
+reviews found for each drug can be seen in the Table 1.
+2.2
+
+Data Classification
+
+We only used tweets containing at least one drug name and an ADR. Due to the unstructured nature of the Twitter
+data, we need to define the context of the tweets. For example:
+(i) I had xanax and it caused me anxiety
+(ii) Can Xanax cause anxiety?
+1 https://www.canada.ca/en/health-canada/services/drugs-health-products/medeffect-canada/adverse-reaction-database.html
+2 https://www.drugs.com/
+3 http://www.tweepy.org/
+4 Available:
+
+http://www.tweepy.org/
+
+443
+
+Drug names
+Alprazolam
+Adderall
+Fluoxetine
+Venlafaxine
+Adalimumab
+Lamotrigine
+Quetiapine
+Trazodone
+Paroxetine
+Metronidazole
+Miconazole
+
+Tweets extracted
+on drug names
+290,212
+604,213
+342,010
+50,053
+70,253
+39,946
+77,596
+4,064
+106,139
+53,254
+33,115
+
+Twitter Data
+Tweets filtered
+on side effect
+95,683
+119,190
+93,537
+16,144
+26,433
+13,149
+22,929
+7,478
+34,539
+16,032
+8,226
+
+Tweets classified
+as ”Health”
+15,047
+31,266
+10,526
+4,836
+3,893
+3,932
+8,332
+3,414
+5,644
+1,923
+326
+
+MedEffect Data
+Reviews for
+each drug
+1,885
+1,018
+1,355
+4,661
+77,177
+3,435
+13,979
+3,141
+8,450
+5,084
+50
+
+Drugs.com Data
+Reviews for
+each drug
+1,373
+358
+1,500
+316
+697
+1,065
+1,454
+716
+1,347
+1,262
+1,255
+
+FAERS Data
+Reviews for
+each drug
+30,979
+6,423
+22,927
+5,856
+300,859
+37,067
+26,468
+1,147
+32,033
+9,450
+6,526
+
+Table 1: Shows the data collected from Twitter, MedEffect, Drugs.com and FAERS for 11 different drugs.
+
+In the first tweet it is being portrayed that the user had anxiety after having Xanax, we categorized such tweets as
+“Health”, whereas in the second tweet a question is being put. It might be possible that drug name and side effect may
+co-occur in the same tweet but in different context therefore we categorized such tweets as “Non-Health”. In order to
+reduce the false positives, we removed the tweets falling in the category of “Non-Health”. The manual classification
+of thousands of tweets is a tedious task, so we converted this into a classification problem. From the collected Twitter
+data set, 2, 500 random health related tweets were manually annotated as “Health” and 2, 500 non-health tweets were
+were manually annotated as “Non-Health”.
+For training the machine learning models on the manually annotated data, we extracted features that capture the
+semantics and contextual information. To accomplish this we used two pre-trained word2vec models. One from “Distributional Semantics Resources for Bio-medical Text Processing” by Pyysalo et al. (2013)23 , trained on Wikipedia,
+PubMed and PMC and the second by Godin et al. trained on over 400 million Twitter microposts24 . We also used Term
+Frequency Inverse Document Frequency (tf-idf) features, that is a term weighting scheme representing the important
+of a word is in a corpus25, 26 . We only used the data that is classified as “health” for further analysis (as shown in Table
+1).
+2.3
+
+Tanimoto Coefficient
+
+In order to infer the value of occurrence of a particular side effect in a drug, we calculated the tanimoto coefficient “σ”
+of a drug with each side-effect.
+σ=
+
+Di ∩ Sj
+Di ∪ Sj
+
+(1)
+
+Di ∪ Sj =f (Di ) + f (sj ) − (Di ∩ Sj )
+where Di represents the name of a drug and Sj represents the side effect. i is iterated over the 11 drugs in the dataset
+and j is iterated over the 21, 550 side effect groups. f (Di ) and f (Sj ) represent the number of tweets that contain drug
+Di and side effect Sj respectively. The tanimoto coefficient σ has a range between 0 and 1, where 0 represents lowest
+similarity and 1 represents highest similarity.
+3
+
+Results and Discussion
+
+3.1
+
+Lexicon Compilation
+
+In our previous study, we compiled a large phrasal ADR lexicon from FAERS (containing 20,285 phrases) and automatically clustered the phrases representing the same ADRs27 . In this study, we expanded this lexicon by adding
+additional phrasal ADRs from MedEffect5 and CHV6 . In order to compile a list of only ADRs, we filtered the CHV
+phrases by excluding the concepts with UMLS IDs that were not listed in SIDER28 (following the approach of Azadeh
+Nikfarjam et al.29 ). We grouped the ADRs together that had the same UMLS IDs to obtain 4, 101 phrasal ADR groups.
+5 https://www.canada.ca/en/health-canada/services/drugs-health-products/medeffect-canada/adverse-reaction-database.html
+6 http://consumerhealthvocab.chpc.utah.edu/CHVwiki/
+
+444
+
+We added these ADR groups and 11, 956 ADRs from MedEffect to the lexicon from FAERS. We had a total of 34, 392
+unique groups7 and our goal was to iteratively merge the groups representing similar ADRs.
+3.2
+
+Lexicon Clustering
+
+Results from our previous study showed that nine different algorithms can be used for the automatic clustering of the
+phrasal ADR lexicon27 . Here, we used Silhouette Coefficient to determine the number of clusters for our lexicon30 .
+Higher Silhouette Coefficient scores represent a model with better defined clusters. For all nine clustering algorithms,
+we computed Silhouette Coefficient for the values of k (number of clusters) ranging from 50 to 34, 300 with an
+increment of 50. All nine clustering algorithms have the highest Silhouette Coefficient around 21, 550 (Figure 1a), so
+we chose 21, 550 as the value of k (number of clutters).
+(a) Silhouette coefficient score
+
+(b) Cophenetic correlation coefficient
+
+0.7
+0.5
+
+Cophenetic correlation coefficient
+
+Silhouette coefficient score
+
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+
+0.4
+
+AWE cosine similarity Ward's
+AWE cosine similarity Complete
+AWE cosine similarity Weighted
+Average min distance Weighted
+AWE_tf_idf euclidean distance Ward's
+AWE euclidean distance Complete
+AWE euclidean distance Ward's
+Average min distance Ward's
+Average min distance Average
+
+0.3
+
+0.2
+
+0.1
+
+0.0
+0
+
+5000
+
+10000
+
+15000
+
+20000
+
+25000
+
+# Number of clusters
+
+30000
+
+35000
+
+0.0
+
+Different clustering algorithms
+
+Figure 1: (a) “silhouette coefficient score” of nine clustering algorithms. All clustering algorithms have the highest silhouette
+coefficient around 21, 550 (b) “cophenetic correlation coefficient” of nine clustering algorithms, “Average min distance Average”
+algorithm has highest score of 0.54. We selected “Average min distance Average” as a clustering algorithm with k=21, 550 (number
+of clusters).
+
+We used cophenetic correlation coefficient, a measure of how good a dendrogram preserves the pairwise distances
+between the original data points, to select the best performing clustering algorithm31 . A good clustering has cophenetic correlation close to 1. We computed cophenetic correlation for all nine clustering algorithms and “Average min
+distance Average” algorithm obtained the highest score of 0.54 (Figure 1b). Therefore, we selected “Average min distance Average” as an algorithm to cluster the phrases representing the same ADRs8 . This clustering scheme uses the
+average of min distance to compute the semantic similarity between two phrases and “average” as linkage criteria27 .
+3.3
+
+Annotation and Noise Removal
+
+In order to automate the annotation process, we constructed different models to classify the tweets/reviews into
+“health” or “non-health” classes based on our manually annotated dataset of 5, 000 tweets (see methods for details).
+We performed k-fold cross validation of different machine learning classifiers for selecting the best model using two
+different features: (1) tf-idf along with word2vec trained on twitter and (2) tf-idf along with word2vec trained on
+Wikipedia, PubMed and PMC. The MLPClassifier using tf-idf and word2vec trained on twitter outperformed other
+models (Table 2). Deep learning models were not used due to the limited annotated training data available in this
+study. Our results also suggest that as more data is fed to the classifiers, their performance increases significantly.
+7 https://github.com/cbrl-nuces/Leveraging-digital-media-data-for-pharmacovigilance/blob/master/Data/FDA-CHV-and-MedEffectsideeffectlist.csv
+8 https://github.com/cbrl-nuces/Leveraging-digital-media-data-for-pharmacovigilance/tree/master/Data/side-effect-clusters
+
+445
+
+Using tf-idf and word2vec trained on twitter
+3-fold
+
+5-fold
+
+Using tf-idf and word2vec trained Wikipedia, PubMed and PMC
+10-fold
+
+3-fold
+
+5-fold
+
+10-fold
+
+PPV
+
+Recall
+
+F1
+
+PPV
+
+TPR
+
+F1
+
+PPV
+
+TPR
+
+F1
+
+PPV
+
+TPR
+
+F1
+
+PPV
+
+TPR
+
+F1
+
+PPV
+
+TPR
+
+F1
+
+MLP
+
+0.62
+
+0.71
+
+0.66
+
+0.76
+
+0.75
+
+0.76
+
+0.80
+
+0.82
+
+0.80
+
+0.63
+
+0.71
+
+0.66
+
+0.74
+
+0.75
+
+0.75
+
+0.79
+
+0.81
+
+0.79
+
+XGB
+
+0.58
+
+0.68
+
+0.62
+
+0.71
+
+0.73
+
+0.72
+
+0.78
+
+0.81
+
+0.79
+
+0.58
+
+0.70
+
+0.63
+
+0.72
+
+0.73
+
+0.72
+
+0.78
+
+0.79
+
+0.78
+
+KNN
+
+0.59
+
+0.55
+
+0.57
+
+0.67
+
+0.59
+
+0.62
+
+0.70
+
+0.62
+
+0.66
+
+0.59
+
+0.66
+
+0.62
+
+0.65
+
+0.68
+
+0.66
+
+0.69
+
+0.71
+
+0.70
+
+RF
+
+0.62
+
+0.63
+
+0.62
+
+0.72
+
+0.64
+
+0.66
+
+0.74
+
+0.67
+
+0.70
+
+0.61
+
+0.62.
+
+0.63
+
+0.72
+
+0.63
+
+0.67
+
+0.74
+
+0.68
+
+0.69
+
+DT
+
+0.54
+
+0.64
+
+0.59
+
+0.64
+
+0.68
+
+0.65
+
+0.69
+
+0.70
+
+0.69
+
+0.56
+
+0.64
+
+0.60
+
+0.63
+
+0.66
+
+0.65
+
+0.67
+
+0.71
+
+0.68
+
+Table 2: K-fold cross validation of different machine learning classifiers: MLPClassifier (MLP), XGBClassifier (XGB), KNeighborsClassifier (KNN), RandomForestClassifier (RF), DecisionTreeClassifier (DT) using two different types of features (1) tf-idf
+and word2vec trained on twitter and (2) tf-idf and word2vec trained Wikipedia, PubMed and PMC. On the basis of reported precision or positive predictive value (PPV), recall or true positive rate (TPR) and F1 score (F1), MLPClassifier turned out to be the best
+performing classifier using tf-idf and word2vec trained on twitter.
+Drug name
+Quetiapine
+Fluoxetine
+Metronidazole
+Adalimumab
+Alprazolam
+Miconazole
+Paroxetine
+Adderall
+Trazodone
+Lamotrigine
+Venlafaxine
+Average
+
+# of
+known
+183
+169
+77
+255
+223
+13
+236
+127
+125
+219
+187
+165
+
+Twitter
+
+FAERS
+
+MedEffect
+
+Drugs.com
+
+Tw+FA
+
+Common
+
+59
+52
+26
+76
+64
+1
+62
+57
+32
+66
+54
+50
+
+86
+75
+37
+140
+79
+6
+110
+56
+30
+99
+65
+71
+
+47
+21
+18
+85
+26
+2
+61
+17
+17
+42
+37
+34
+
+47
+38
+33
+57
+45
+4
+59
+27
+30
+53
+32
+39
+
+53
+45
+19
+73
+51
+1
+55
+49
+20
+60
+44
+43
+
+27
+13
+9
+24
+13
+1
+24
+10
+12
+15
+16
+15
+
+RMSE
+Tw+FA
+0.017
+0.007
+0.013
+0.007
+0.010
+0.042
+0.023
+0.006
+0.006
+0.014
+0.009
+0.014
+
+RMSE
+Tw+Med
+0.011
+0.007
+0.012
+0.007
+0.013
+0.016
+0.022
+0.006
+0.004
+0.004
+0.011
+0.01
+
+RMSE
+Tw+Drugs
+0.027
+0.008
+0.029
+0.009
+0.009
+0.646
+0.013
+0.014
+0.012
+0.011
+0.009
+0.072
+
+Table 3: Shows the number of known ADRs found from twitter and other three reporting systems (FAERS, MedEffect and
+Drugs.com). “# of known” represents the total number known ADRs in our compiled lists of known side effects. “Twitter”,
+“FAERS”, “MedEffect”, and “Drugs.com” represent number of ADRs found from Twitter, FAERS, MedEffect and Drugs.com
+respectively that are also in the compiled lists of known side effects. “Tw+FA” represent number of common known ADRs found
+from Twitter and FAERS. “Common” represent number of common known ADRs found from Twitter, MedEffect, Drugs.com and
+FAERS. “RMSE Tw+FA”, “RMSE Tw+Med” and “RMSE Tw+Drugs” represents Root-Mean-Squared-Error (RMSE) between the
+tanimoto coefficient scores (σ) of Twitter-FAERS, Twitter-MedEffect and Twitter-Drugs.com respectively.
+
+3.4
+
+Analysis on Cleaned Data
+
+We compiled the lists of known side effects and indications of each drug from WebMD9 , Drugs.com10 and MedlinePlus11 . After filtering the “Health” tweets we calculated the tanimoto coefficient “σ” for each drug on the tweets
+and reviews dataset. Indications of each drug were removed from our results. While the remaining results are either
+known side effects, possible under reported ADRs or false positives. Table 3 shows the number of known ADRs found
+from twitter, FAERS, MedEffect and Drugs.com. On average 43 ADRs for each drug are shared between twitter and
+FAERS datasets. Root-Mean-Squared-Error (RMSE) between the tanimoto coefficient scores σ of all common ADRs
+between Twitter and FAERS datasets was 0.014, thus demonstrating a high level of agreement between the results
+from Twitter and FAERS. Similar results were found between Twitter and MedEffect dataset and between Twitter and
+Drugs.com dataset (Table 3). Moreover, Twitter was able to recover on average 7 known side effects that were not
+reported in FAERS. This supports the fact that digital media sites such as Twitter could be used to augment the current
+pharmacovigilance efforts.
+In order to show how good twitter results are in recovering the known side effect as compared to other reporting
+systems, we used the known side effect list to get the top ten known side effect for each drug on the basis of tanimoto
+9 https://www.webmd.com/
+10 https://www.drugs.com/
+11 https://medlineplus.gov/
+
+446
+
+coefficient. It can be seen from the Figure 2 and Table 4 that the top 10 known side effects found from Twitter are
+also reported on other reporting systems (FAERS, MedEffect and Drugs.com) with high tanimoto coefficient scores σ.
+This shows that the data from twitter is meaningful and it can be used along with the current ADR reporting systems.
+drugs.com
+1.6
+
+(a) Top 10 known side effects of "Alprazolam"
+
+MedEffect
+
+(b) Top 10 known side effects of "Adderall"
+
+3.0
+
+FAERS
+
+Twitter
+
+(c) Top 10 known side effects of "Venlafaxine"
+
+(d) Top 10 known side effects of "Adalimumab"
+
+6
+
+5
+
+2.5
+
+5
+
+4
+
+2.0
+
+4
+
+0.8
+
+3
+
+1.5
+
+3
+
+0.6
+
+2
+
+1.0
+
+2
+
+1
+
+0.5
+
+1
+
+0
+
+0.0
+
+0
+
+1
+
+0.5
+
+1
+
+1.2
+1.0
+
+0.4
+
+Malignant lymphoma
+Fever
+Chest pain
+Abdominal pain
+Facial swelling
+Back pain
+Night sweats
+Rash
+Headache
+Heart failure
+
+0.2
+
+Chest pain
+Irregular heartbeats
+Weight gain
+Depression
+Memory problems
+Dry mouth
+Changes in appetite
+Weight loss
+Mood changes
+Muscle cramp
+
+0.0
+
+Mood changes
+Suicidal thoughts
+Dry mouth
+Irregular heartbeat
+Chest pain
+High fever
+Ringing in the ears
+Eye pain
+Hallucinations
+Blurred vision
+
+0.2
+
+Dry mouth
+Mood canges
+Irregular heartbeat
+Chest pain
+Appetite loss
+Hallucination
+Depression
+Headache
+Teeth grinding
+Weight loss
+
+(Tanimoto coefficient scores)x100
+
+1.4
+
+6
+
+Figure 2: The tanimoto coefficient score (σ × 100) of the top 10 known side effects found from twitter that are also reported on
+other reporting systems (FAERS, MedEffect and Drugs.com) for four drugs (a) “Alprazolam”, (b) “Adderall”, (c) “Venlafaxine”
+and (d) “Adalimumab”
+
+3.5
+
+Comparison with previous studies
+
+Sarker et al14 assessed the possibility of utilizing social media as a resource for prescription medication abuse and
+they reported “weight loss” as a common abuse of “Adderall”. Our study finds similar results with σ of 0.0008 and
+0.0012 on Twitter and FAERS dataset respectively. Smith et al.19 developed a method to compare ADRs mentioned
+in social media with those in traditional sources and their results showed that “headache” was reported with relatively
+high index values on FAERS and Drug Information Databases. Our results also show that “headache” was reported
+on Twitter, FAERS and Drugs.com with σ of 0.0152, 0.0072 and 0.0012 respectively. Chavant et al32 showed that
+the occurrence of “memory disorders” reported for “Alprazolam” and “Fluoxetine” in the French PharmacoVigilance
+Database (FPVD) are 14 and 16 respectively. Our methodology also showed “memory disorders” ADR with high
+σ values for “Alprazolam” (Twitter = 0.0009, FAERS = 0.0109, MedEffect = 0.0087, Drugs.com = 0.0057) and
+“Fluoxetine” (Twitter = 0.0001, FAERS = 0.0006, Drugs.com = 0.0013).
+O'Connor et al13 evaluated the viability of Twitter as a source of ADR mentions and its potential value for pharmacovigilance. They reported a list of drugs with their most common adverse reactions and the most frequent adverse
+effects extracted from the Twitter data using their automated system. We also reported the tanimoto coefficient “σ”
+score of these ADRs. It can be seen in Table 5 that our method is able to recover most of the ADRs reported by their
+method with significantly high scores. Our analysis showed several under-reported side effects for the drugs in our
+dataset. Some of the unknown side effects predicted by our methodology and previously reported by case studies have
+been listed in Table 6 along with a sample tweet and/or online review from our datasets.
+For Prozac it has been an active debate for the past three decades whether it causes aggressive behaviour in subjects
+or not33 . Our results from the Twitter (σ = 0.0026), FAERS (σ = 0.0013) and Drugs.com (σ = 0.005) suggest that
+certain patients do experience increase in aggressiveness after taking Prozac. Another side effect for Prozac that had
+a relatively high tanimoto coefficient for both Twitter (σ = 0.0096) and Drugs.com (σ = 0.0164) is having unusual
+dreams. Several studies have previously reported this side-effect for Prozac34, 35 . Upset stomach had a σ of 0.004 for
+Twitter, 0.001 for FAERS and 0.008 for Drugs.com data. This side effect has been reported in a study on preschool
+and high school children36 .
+
+447
+
+Drug name
+
+Twitter score
+
+OpenFDA score
+
+MedEffect score
+
+Trazodone
+
+Headache (1.48), Serotonin
+syndrome (0.4), Apnea (0.4),
+Dry mouth (0.38), Chest
+pain (0.17), Suicidal thoughts
+(0.14), Blurred vision (0.09),
+Irregular heartbeat (0.08),
+Nasal congestion (0.06),
+Changes in weight (1.87)
+
+Headache (0.14), Serotonin
+syndrome (0.67), Apnea (0.23),
+Dry mouth (0.26), Chest pain
+(0.39), Suicidal thoughts (0.31),
+Blurred vision (0.32), Irregular
+heartbeat (0.13), Nasal
+congestion (0.1), Changes in
+weight (0.24)
+
+Serotonin syndrome (0.43),
+Apnea(0.03), Dry mouth
+(0.61), Chestpain (0.15),
+Suicidal thoughts (0.43),
+Blurred vision (0.18),
+Irregular heartbeat (0.15),
+Nasal congestion (0.47),
+Changes in weight (0.4)
+
+Paroxetine
+
+Weight loss/gain (15.1),
+Chest Pain (0.31), Suicidal
+thoughts (0.38), Chest pain
+(0.31), Hallucinations (0.2),
+Serotonin syndrome (0.19),
+Dry mouth (0.1), Restless
+legs syndrome (0.09),
+Peeling/Blistering of skin(0.04),
+Decreased appetite (0.03)
+
+Weight loss/gain (3.86), Chest
+Pain (0.93), Suicidal thoughts
+(5.11), Chest pain (0.91),
+Hallucinations (0.02), Serotonin
+syndrome (1.13), Dry mouth
+(0.73), Restless legs syndrome
+(0.24), Peeling/Blistering of
+skin (0.08), Decreased appetite
+(1.35)
+
+Weight loss/gain (0.99),
+Chest Pain (0.18), Suicidal
+thoughts (1.61), Chest
+pain (0.18), Hallucinations
+(0.01), Serotonin
+syndrome (0.63), Dry
+mouth (0.31), Restless
+legs syndrome (0.11),
+Peeling/Blistering of skin
+(0.04), Decreased appetite (0.67)
+
+Quetiapine
+
+Weight gain (7.94),
+Restlessness (1.35),
+Headache (0.96), Sleep
+apnea (0.45), Dry mouth
+(0.39), Suicidal thoughts
+(0.3), Increased hunger (0.3),
+weakness (0.24), Muscle
+spasms (0.18), Stuffy/runny
+nose (0.08)
+
+Weight gain (3.27),
+Restlessness (0.03), Headache
+(0.32), Sleep apnea (0.42), Dry
+mouth (0.85), Suicidal
+thoughts (2.28), Increased
+hunger (0.51), weakness (0.02),
+Muscle spasms (0.69),
+Stuffy/runnynose (0.26)
+
+Weight gain (1.15), Sleep apnea
+(0.02), Dry mouth (0.32), Suicidal
+thoughts (0.66), Increased hunger
+(0.19), Muscle spasms (0.26),
+Stuffy/runny nose (0.09)
+
+Miconazole
+
+Burning (4.31)
+
+Burning (8.96), Skin irritation
+(0.27), Erythema (0.43),
+Skin rash (0.05)
+
+Burning (3.61)
+
+Metronidazole
+
+Lamotrigine
+
+Fluoxetine
+
+Stuffy nose (0.1), Dry mouth
+(0.19), Stomach pain (4.72),
+Metallic taste (1.29),
+Decreased appetite (0.22),
+Joint pain (0.15), Stiff neck
+(0.1), Peeling/Blistering skin
+(0.05), Vomiting (2.84),
+Headache (0.1
+Memory loss (0.69), Sleep
+disorder (0.52), Suicidal
+thoughts (0.34), Dry mouth
+(0.27), Neck pain (0.15),
+Back pain (0.15), Chest pain
+(0.14), Skin problems (0.13),
+Decreased appetite (0.05),
+Blurred vision (0.03)
+Suicidal thoughts (0.86),
+Decreased appetite (0.09),
+Sleep disorder (0.07),
+Irregular heartbeat (0.07),
+Eye pain (0.04), Memory
+problems (0.01), weakness
+(0.41), Chest Pain (0.39),
+Dry mouth (0.39),
+Weight Loss (0.25)
+
+Stuffy nose (0.12), Dry mouth
+(0.71), Stomach pain (0.1),
+Joint pain (0.19), Stiff neck
+(0.08), Vomiting (0.06
+
+Memory loss (0.06), Sleep
+disorder (0.59), Suicidal
+thoughts (1.42), Dry mouth
+(0.47), Neck pain (0.28),
+Back pain (0.52), Chest
+pain (0.65), Skin problems
+(0.98), Decreased appetite
+(0.85), Blurred vision (1.37)
+Suicidal thoughts (3.51),
+Decreased appetite (1.25),
+Sleep disorder (0.19),
+Irregular heartbeat (0.69),
+Eye pain (0.29), Memory
+problems (1.15), weakness
+(0.04), Chest Pain (1.16),
+Dry mouth (0.83), Weight
+Loss (0.1)
+
+Stuffy nose (0.08),
+Dry mouth (0.3)
+
+Sleep disorder (0.14),
+Suicidal thoughts (0.55),
+Dry mouth (0.08), Neck
+pain (0.22), Back pain
+(0.05), Chest pain (0.11),
+Skin problems (0.17),
+Decreased appetite (0.24),
+Blurred vision (0.17)
+Suicidal thoughts (0.46),
+Decreased appetite (0.06),
+Sleep disorder (0.21),
+Irregular heartbeat (0.13),
+Eye pain (0.07), Memory
+problems (0.19)
+
+Drugs.com score
+Headache (5.05), Serotonin
+syndrome (0.14), Apnea
+(0.55), Dry mouth (4.43),
+Chest pain (0.13), Suicidal
+thoughts (0.11), Blurred
+vision (0.41), Irregular
+heartbeat (0.26), Nasal
+congestion (1.51), Changes
+in weight (0.6)
+Weight loss/gain (9.17),
+Chest Pain (0.43), Suicidal
+thoughts (1.66), Chest pain
+(0.43), Hallucinations (0.35),
+Serotonin syndrome (0.15),
+Dry mouth (2.08), Restless
+legs syndrome (0.15),
+Peeling/Blistering of skin
+(0.29), Decreased
+appetite (0.57)
+Weight gain (19.23),
+Restlessness (4.81),
+Headache (1.1), Sleep
+apnea (0.2), Dry mouth
+(1.2), Suicidal thoughts
+(2.0), Increased hunger
+2.14), weakness (0.65),
+Muscle spasms (0.27),
+Stuffy/runny nose (0.34)
+Burning (68.95), Skin
+irritation (0.16)
+Stuffy nose (0.7), Dry
+mouth (0.46), Stomach
+pain (4.0), Metallic taste
+(11.55), Decreased appetite
+(5.48), Joint pain (0.68),
+Stiff neck (0.55),
+Peeling/Blistering skin (0.16),
+Vomiting (5.7), Headache (0.08
+Memory loss (1.37), Sleep
+disorder (0.8), Suicidal
+thoughts (2.55), Dry mouth
+(1.73), Neck pain (0.19),
+Back pain (0.44), Chest
+pain (0.45), Skin problems
+(0.37), Decreased appetite
+(0.18), Blurred vision (0.47)
+Suicidal thoughts (4.41)
+Decreased appetite (1.18),
+Sleep disorder (0.26),
+Irregular heartbeat (0.71),
+Eye pain (0.07), Memory
+problems (0.13), weakness
+(0.63), Chest Pain (0.33),
+Dry mouth (1.77), Weight
+Loss (0.13)
+
+Table 4: The tanimoto coefficient score (σ × 100) of top known side effect found from twitter that are also reported on other
+reporting systems e.g FAERS, MedEffect and Drugs.com.
+
+448
+
+Drug Brand/
+Generic Name
+
+Adverse Effects Found in
+Tweets (Score)
+by our method
+
+Documented Adverse
+Effects (no order)
+reported by
+O'Connor et al
+
+Seroquel/
+Quetiapine
+
+weight gain (8.38), psychosis
+(1.82), dry mouth (0.40),
+increased appetite (0.30),
+restless leg syndrome (0.14),
+sleep paralysis (0.14),
+abnormal dreams (0.02)
+
+somnolence, dry mouth,
+headache, dizziness,
+asthenia,constipation,
+fatigue
+
+Effexor/
+venlafaxine
+
+insomnia (2.09), withdrawal
+syndrome (0.47), dry mouth
+(0.34)
+
+nausea, headache,
+somnolence, dry mouth,
+dizziness
+
+weight gain (14.03), feel sick
+(2.27), insomnia (1.96),
+depression (2.18), withdrawal
+syndrome (0.16)
+anxiety (3.14), feeling ill
+(2.21), insomnia (1.85),
+suicidal thoughts (0.86),
+abnormal dreams (0.0003),
+withdrawal syndrome (0.03)
+
+nausea, somnolence,
+abnormal ejaculation,
+asthenia,tremor, insomnia,
+sweating
+
+Paxil/
+Paroxetine
+
+Prozac/
+Fluoxetine
+
+Adverse Effects Found in Tweets
+(Frequency) reported by
+O'Connor et al
+somnolence (22.2%), abnormal dreams
+(9.6%), feel like a zombie (8.1%), weight
+gain (6.6%), restless leg syndrome (6.6%),
+increased appetite (5.9%), sleep paralysis
+(2.9%), dizziness (2.2%), psychosis (2.2%),
+tremors (2.2%)
+withdrawal syndrome (21.3%), insomnia
+(11.1%), headache (4.3%), malaise (4.3%),
+abnormal dreams (4.3%), nausea (3.4%),
+shaking (3.4%), fatigue (3.4%)
+withdrawal syndrome (27.7%), weight gain
+(12.8%), depression (8.5%), headache
+(6.4%), somnolence (6.4%), allergic
+(6.4%), feel sick (6.4 %), emotional (6.4%)
+
+nausea, headache, insomnia,
+nervousness, anxiety,
+somnolence
+
+somnolence (22.2%), withdrawal syndrome
+(8.9%), feeling ill (8.9%), abnormal dreams
+(6.7%), suicidal thoughts (6.7%), tremors
+(6.7%), allergic reaction (4.4%)
+insomnia (17.9%), rash (12.8%), lethargy
+(7.7%), joint pain (5.1%), feel like a zombie
+(5.1%), feel sick (5.1%)
+
+Lamictal/
+Lamotrigine
+
+insomnia (1.62), feel sick
+(1.49), back pain (0.15),
+joint pain (0.05)
+
+vomiting, coordination
+abnormality, dizziness,
+rhinitis, dyspepsia, nausea,
+headache, diplopia, ataxia,
+insomnia,fatigue, back pain
+
+Humira
+
+feel sick (1.83),
+joint pain (0.96)
+
+upper respiratory infection,
+rash, headache, sinusitis,
+accidental injury
+
+Trazodone
+
+insomnia (14.09), hangover
+effect (0.80), dry mouth
+(0.38), withdrawal syndrome
+(0.23)
+
+somnolence, headache, dry
+mouth, dizziness, nausea
+
+somnolence (24%), feel sick (8%),
+palpitations (8%), ache/pains (8%),
+joint pain (4%), headache (4%), rash
+(4%), respiratory disorder (4%)
+somnolence (24.3%), abnormal dreams
+(16.2%), hangover effect (8.1%), headache
+(5.4%), insomnia (5.4%), withdrawal
+syndrome (5.4%)
+
+Table 5: The tanimoto coefficient score (σ × 100) of ADRs found from twitter by our method that was previously reported by
+O'Connor et al13 .
+
+Predicted
+side-effect
+
+Drug
+
+Literature
+Support
+
+Prozac/
+Fluoxetine
+
+Aggressive
+Behavior
+
+PMID:
+8822529
+
+Prozac/
+Fluoxetine
+
+Bad Dreams
+
+PMID:
+17803018,
+28791566
+
+Prozac/
+Fluoxetine
+
+Upset Stomach
+
+PMID:
+24600324
+
+Xanax/
+Alprazolam
+
+Talkativeness
+
+PMID:
+27092285
+
+Adderall
+
+Memory Loss
+
+PMID:
+22717254
+
+Sample Tweet(s) / review(s)
+When I first started taking this medication I changed from Lovan, and for about 2 weeks I felt on top of the
+world! I was motivated, full of energy and was actually laughing after a long period of depression. It was all
+downhill from there... I reached the point where my brain just didn’t feel right, I was more depressed than ever,
+feeling desperate and looking for a way out of feeling so low. I stopped taking the medication, initially to piss off
+my husband, and it was then that I realized this medication was the cause of my depressive moods, anxiety and
+anger. I would not recommend this medication to anyone without close psychiatric monitoring.
+1. dammit my fluoxetine give me such bad vivid dream; 2. im having bad dream every night after i start taking
+fluoxetine 3. It’s great. I get songs in my head or find myself humming, and that hasn’t happened for a long time.
+More random positive thoughts too. And much less of the bad ones. I sometimes feel down, but it’s not often and
+I think unavoidable. The side affect I notice is phases of vivid bad dreams. More nightmares and more stand that
+are stressful and occupy my mind too much, which makes me feel less rested.
+1. the side effect can be kind of sudden but yes there is a wait for the effect i spent about two week with headache
+getting used to prozac till it settled into my system sometimes i still have upset stomach dont take them on an
+empty stomach either and drink more water; 2. urgh prozac had it many year ago gave me epic nightmare panic
+attack and a constant upset stomach gave up and stopped taking it after week if it disagrees with you ask if you
+can have high dose citalopram instead
+Xanax is a miracle for me. I can’t live without it. It is not addicting. I never experienced withdrawl symptoms
+either. I am usually tense, high strung and anxious. Xanax makes me happy, easy going, talkative, calm. It helps
+me sleep, I can’t sleep without it. I take zoloft and seroquel but without xanax nothing seems to work or help me.
+I love xanax and I take it daily or else I really just can’t get through the day. I have anger and a short fuse and
+bad temper and xanax calms my storms. Xanax is the only thing that works for me and makes me sane and able
+to face life head on.
+1. it quite obvious that adderall cause selective memory loss; 2. shit he looking so bad even the orange paint cant
+hide it adderall withdrawal symptom intense craving depression insomnia shortterm memory loss irritability and
+anger hunger pang panic attack anxietylethargyhallucination http ofsnortingadderall
+
+Table 6: Unknown side effects predicted by our methodology that have been previously reported by case studies.
+
+449
+
+For Xanax, we predicted heart burn as one of the under-reported side effects with σ of 0.002 for Twitter, and 0.0003
+for FAERS. A previous clinical trial reported heart burn in more than 30% of the patients37 . Similarly, we predicted
+talkativeness as another under-reported side effect for Xanax. A previous case study has reported increased talkativeness in an elderly patient with a history of anxiety, mood disorders, and hypothyroidism38 . Similarly, a previous study
+supports our results on Adderall induced memory loss (σ = 0.0008 for Twitter data and σ = 0.0002 for FAERS
+data)39 . A complete list of under-reported side effects that were found for the 11 drugs across all platforms can be
+found at https://github.com/cbrl-nuces/Leveraging-digital-media-data-for-pharmacovigilance.
+4
+
+Conclusion
+
+Conducting clinical trials of drugs is expensive and has its own restrictions on patient groups and drug usage. Moreover, manual annotation of the data is a tedious and time consuming task. Digital data (social media and online
+reviews) can help in reducing the cost of pharmacovigilance efforts and can help in gathering unknown side effects
+of drugs. This research work provides the groundwork for augmenting current pharmacovigilance efforts. We constructed several classifiers to automatically annotate health related tweets. We were able to recover several known side
+effects for the 11 drugs in our dataset using social media and online reporting system. Some of the predicted side
+effects have already been reported by previous studies, therefore lending validity to our findings.
+We filtered the tweets on a vast ADRs lexicon and then removed the possible false positives using a classifier. The data
+available on Twitter is without any specific medical focus and suffers from high false positives. Such false positives get
+very low tanimoto coefficient score due to large volume of tweets and can be removed by our methodology. Moreover,
+it is important to distinguish false positives from novel ADRs. This currently requires manual efforts. Our approach
+could highlight possible under-reported ADRs, however, subsequent manual examination by experts is required to
+confirm these ADRs.
+The unknown side effects found by our model are the possible under reported ADRs that were not present in the list
+of known ADRs and need further clinical validation. In future we plan to improve the quality and quantity of data
+annotation and use the similar pipeline to identify the indication/symptoms of infectious diseases such as COVID-19
+reported on digital media.
+5
+
+Acknowledgements
+
+This work was supported by funding from the Higher Education Commission of Pakistan for Establishing Precision
+Medicine Lab, National Center for Big Data and Cloud Computing.
+References
+1. W.H.O. The Importance of Pharmacovigilance - Safety Monitoring of Medicinal Products. World Health Organization, Geneva, Switzerland,
+2002.
+2. Mary C Blehar, Catherine Spong, Christine Grady, Sara F Goldkind, Leyla Sahin, and Janine A Clayton. Enrolling pregnant women: issues in
+clinical research. Women’s Health Issues, 23(1):e39–e45, 2013.
+3. Richard E Behrman, Marilyn J Field, et al. Ethical conduct of clinical research involving children. National Academies Press, 2004.
+4. Maeve Duggan, Nicole B Ellison, Cliff Lampe, Amanda Lenhart, and Mary Madden. Demographics of key social networking platforms. Pew
+Research Center, 9, 2015.
+5. Hammad Naveed, Xin Gao, Stefan T. Arold, Umar S. Hameed, Deborah Harrus, and William Bourguet. An integrated structure- and systembased framework to identify new targets of metabolites and known drugs. Bioinformatics, 31(24):3922–3929, 2015.
+6. Hammad Naveed, Corinna Reglin, Thomas Schubert, Xin Gao, Stefan T. Arold, and Michael L. Maitland. Identifying novel targets by using
+drug-binding site signature: A case study of kinase inhibitors. bioRxiv, 2019.
+7. J. E. Ridings. The thalidomide disaster, lessons from the past. Methods Mol. Biol., 947:575–586, 2013.
+8. N. Vargesson. Thalidomide-induced teratogenesis: history and mechanisms. Birth Defects Res. C Embryo Today, 105(2):140–156, 2015.
+9. W.H.O. Pharmacovigilance : ensuring the safe use of medicines. World Health Organization, Geneva, Switzerland, 2004.
+10. F. Gholami-Kordkheili, V. Wild, and D. Strech. The impact of social media on medical professionalism: a systematic qualitative review of
+challenges and opportunities. J. Med. Internet Res., 15(8):e184, 2013.
+11. R. Sloane, O. Osanlou, D. Lewis, D. Bollegala, S. Maskell, and M. Pirmohamed. Social media and pharmacovigilance: A review of the
+opportunities and challenges. Br J Clin Pharmacol, 80(4):910–920, 2015.
+
+450
+
+12. Abeed Sarker, Rachel Ginn, Azadeh Nikfarjam, Karen O’Connor, Karen Smith, Swetha Jayaraman, Tejaswi Upadhaya, and Graciela Gonzalez.
+Utilizing social media data for pharmacovigilance: a review. Journal of biomedical informatics, 54:202–212, 2015.
+13. Karen O’Connor, Pranoti Pimpalkhute, Azadeh Nikfarjam, Rachel Ginn, Karen L Smith, and Graciela Gonzalez. Pharmacovigilance on twitter?
+mining tweets for adverse drug reactions. In AMIA annual symposium proceedings, volume 2014, page 924. American Medical Informatics
+Association, 2014.
+14. Abeed Sarker, Karen O’Connor, Rachel Ginn, Matthew Scotch, Karen Smith, Dan Malone, and Graciela Gonzalez. Social media mining for
+toxicovigilance: automatic monitoring of prescription medication abuse from twitter. Drug safety, 39(3):231–240, 2016.
+15. A. Nikfarjam, A. Sarker, K. Oconnor, R. Ginn, and G. Gonzalez. Pharmacovigilance from social media: mining adverse drug reaction mentions
+using sequence labeling with word embedding cluster features. Journal of the American Medical Informatics Association, 2015.
+16. Anne Cocos, Alexander G Fiks, and Aaron J Masino. Deep learning for pharmacovigilance: recurrent neural network architectures for labeling
+adverse drug reactions in twitter posts. Journal of the American Medical Informatics Association, 24(4):813–821, 2017.
+17. Clark C Freifeld, John S Brownstein, Christopher M Menone, Wenjie Bao, Ross Filice, Taha Kass-Hout, et al. Digital drug safety surveillance:
+monitoring pharmaceutical products in twitter. Drug safety, 37(5):343–350, 2014.
+18. Andrew MacKinlay, Hafsah Aamer, and Antonio Jimeno Yepes. Detection of adverse drug reactions using medical named entities on twitter.
+In AMIA Annual Symposium Proceedings, volume 2017, page 1215. American Medical Informatics Association, 2017.
+19. Karen Smith, Su Golder, Abeed Sarker, Yoon Loke, Karen O’Connor, and Graciela Gonzalez-Hernandez. Methods to compare adverse events
+in twitter to faers, drug information databases, and systematic reviews: proof of concept with adalimumab. Drug safety, 41(12):1397–1410,
+2018.
+20. Taha A Kass-Hout, Zhiheng Xu, Matthew Mohebbi, Hans Nelsen, Adam Baker, Jonathan Levine, Elaine Johanson, and Roselie A Bright.
+Openfda: an innovative platform providing access to a wealth of fda’s publicly available data. Journal of the American Medical Informatics
+Association, 23(3):596–600, 2015.
+21. A. Sarker and G. Gonzalez. A corpus for mining drug-related knowledge from Twitter chatter: Language models and their utilities. Data Brief,
+10:122–131, 2017.
+22. Felix Grasser, Surya Kallumadi, Hagen Malberg, and Sebastian Zaunseder. Aspect-based sentiment analysis of drug reviews applying crossdomain and cross-data learning. In Proceedings of the 2018 International Conference on Digital Health, DH ’18, pages 121–125, New York,
+NY, USA, 2018. ACM.
+23. Hans Moen Tapio Salakoski Sampo Pyysalo, Filip Ginter and Sophia Ananiadou. Distributional Semantics Resources for Biomedical Text
+Processing. LBM, 2013.
+24. Fréderic Godin, Baptist Vandersmissen, Wesley De Neve, and Rik Van De Walle. Multimedia lab @ acl wnut ner shared task: Named entity
+recognition for twitter microposts using distributed word representations. Proceedings of the Workshop on Noisy User-generated Text, 2015.
+25. G Salton. Automatic information organization and retrieval. McGraw-Hill, New York, 1968.
+26. K. Spärck Jones. A statistical interpretation of term specificity and its application in retrieval. Journal of Documentation, vol. 28, pp. 11–21,
+1972.
+27. Hammad Farooq and Hammad Naveed. Gpadrlex: Grouped phrasal adverse drug reaction lexicon. In 2019 IEEE International Conference on
+Signal Processing, Communications and Computing (ICSPCC), pages 1–6. IEEE, 2019.
+28. Michael Kuhn, Ivica Letunic, Lars Juhl Jensen, and Peer Bork. The sider database of drugs and side effects. Nucleic acids research,
+44(D1):D1075–D1079, 2015.
+29. Azadeh Nikfarjam, Abeed Sarker, Karen O’Connor, Rachel Ginn, and Graciela Gonzalez. Pharmacovigilance from social media: mining
+adverse drug reaction mentions using sequence labeling with word embedding cluster features. Journal of the American Medical Informatics
+Association, 22(3):671–681, 2015.
+30. Peter J Rousseeuw. Silhouettes: a graphical aid to the interpretation and validation of cluster analysis. Journal of computational and applied
+mathematics, 20:53–65, 1987.
+31. Sinan Saraçli, Nurhan Doğan, and İsmet Doğan. Comparison of hierarchical cluster analysis methods by cophenetic correlation. Journal of
+Inequalities and Applications, 2013(1):203, 2013.
+32. Francois Chavant, Sylvie Favrelière, Claire Lafay-Chebassier, Caroline Plazanet, and Marie-Christine Pérault-Pochat. Memory disorders
+associated with consumption of drugs: updating through a case/noncase study in the french pharmacovigilance database. British journal of
+clinical pharmacology, 72(6):898–904, 2011.
+33. R. W. Fuller. The influence of fluoxetine on aggressive behavior. Neuropsychopharmacology, 14(2):77–81, 1996.
+34. A. Wichniak, A. Wierzbicka, M. Wal?cka, and W. Jernajczyk. Effects of Antidepressants on Sleep. Curr Psychiatry Rep, 19(9):63, 2017.
+35. J. M. Parish. Violent dreaming and antidepressant drugs: or how paroxetine made me dream that I was fighting Saddam Hussein. J Clin Sleep
+Med, 3(5):529–531, 2007.
+36. J. A. Barterian, E. Rappuhn, E. L. Seif, G. Watson, H. Ham, and J. S. Carlson. Current state of evidence for medication treatment of preschool
+internalizing disorders. ScientificWorldJournal, 2014:286085, 2014.
+37. S. Singh, R. T. Bailey, H. J. Stein, T. R. DeMeester, and J. E. Richter. Effect of alprazolam (Xanax) on esophageal motility and acid reflux.
+Am. J. Gastroenterol., 87(4):483–488, 1992.
+38. D. Kirkpatrick, T. Smith, M. Kerfeld, T. Ramsdell, H. Sadiq, and A. Sharma. Paradoxical Reaction to Alprazolam in an Elderly Woman with
+a History of Anxiety, Mood Disorders, and Hypothyroidism. Case Rep Psychiatry, 2016:6748947, 2016.
+39. L. Sanday, C. L. Patti, K. A. Zanin, S. Tufik, and R. Frussa-Filho. Amphetamine-induced memory impairment in a discriminative avoidance
+task is state-dependent in mice. Int. J. Neuropsychopharmacol., 16(3):583–592, 2013.
+
+451
+
+

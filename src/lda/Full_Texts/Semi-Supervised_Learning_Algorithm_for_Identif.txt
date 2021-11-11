@@ -1,0 +1,1119 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 24, NO. 1, JANUARY 2020
+
+57
+
+Semi-Supervised Learning Algorithm for
+Identifying High-Priority Drug–Drug Interactions
+Through Adverse Event Reports
+Ning Liu , Member, IEEE, Cheng-Bang Chen , Member, IEEE, and Soundar Kumara
+
+Abstract—Identifying drug-drug interactions (DDIs) is
+a critical enabler for reducing adverse drug events and
+improving patient safety. Generating proper DDI alerts during prescribing workflow has the potential to prevent DDIrelated adverse events. However, the implementation of DDI
+alerting system remains a challenge as users are experiencing alert overload which causes alert fatigue. One strategy to optimize the current system is to establish a list
+of high-priority DDIs for alerting purposes, though it is a
+resource-intensive task. In this study, we propose a machine learning framework to extract useful features from the
+FDA adverse event reports and then identify potential highpriority DDIs using an autoencoder-based semi-supervised
+learning algorithm. The experimental results demonstrate
+the effectiveness of using adverse event feature representations in differentiating high- and low-priority DDIs.
+Additionally, the proposed algorithm utilizes stacked autoencoders and weighted support vector machine for boosting classification performance, which outperforms other
+competing methods in terms of F-measure and AUC score.
+This framework integrates multiple information sources,
+leverages domain knowledge and clinical evidence, and provides a practical approach for pre-screening high-priority
+DDI candidates for medication alerts.
+Index Terms—Semi-supervised learning, stacked autoencoder, classification, drug-drug interactions, clinical decision support, adverse event reports.
+
+I. INTRODUCTION
+DVERSE drug events caused by drug-drug interactions
+(DDIs) pose a major threat to patient safety, leading to
+increased morbidity and mortality, prolonged hospitalizations
+and higher healthcare costs [1] [2]. In general, DDI-related adverse drug events are largely preventable provided that proper
+warnings and interventions are implemented during provider’s
+prescribing workflow [3]. To mitigate the risks of preventable
+DDIs, medication-related clinical decision support (CDS) is integrated into provider’s electronic health record (EHR) system,
+
+A
+
+Manuscript received December 31, 2018; revised May 17, 2019 and
+July 3, 2019; accepted July 25, 2019. Date of publication August 2,
+2019; date of current version January 6, 2020. This work was supported
+by Allen E. Pearce and Allen M. Pearce Professorship. (Corresponding
+author: Soundar Kumara.)
+The authors are with the Department of Industrial and Manufacturing Engineering, The Pennsylvania State University, University
+Park, PA 16802 USA (e-mail:, nul147@psu.edu; czc184@psu.edu;
+skumara@psu.edu).
+Digital Object Identifier 10.1109/JBHI.2019.2932740
+
+aiming to generate DDI alerts and reduce errors during medication order entry. However, evidence [4] shows that CDS systems
+have not successfully reduced the risks of DDI exposure due to
+high override rates (as many as 98% [5]) caused by alert fatigue. Currently, most DDI alerting systems in the U.S. rely on
+the clinical contents from knowledge base vendors; and they
+are prone to include all possible DDIs to reduce legal liability
+[6]. The overwhelming number of DDI alerts, inaccurate and
+dubious information, and improper display during provider’s
+workflow constitute the major reasons for poor acceptance of
+DDI alerts amongst clinicians [7], [8].
+Recent studies suggest that tiering DDI alerts by severity and
+optimizing DDI notification mechanism represents a potential
+strategy to mitigate alert fatigue and establish better usability [6], [9], [10]. After reducing the volume of unnecessary
+DDI alerts, clinicians are able to pay more attention to the remaining clinically significant alerts. In an attempt to address
+this issue, early investigations [11] have been carried out by
+Phansalkar et al. under the sponsorship of the U.S. Office of the
+National Coordinator (ONC) for Health Information Technology, with the purpose of establishing a high-priority DDI list
+for alerting purposes. Through expert panel review, a list of 15
+class-based DDIs were approved to be high-priority and should
+warrant interruptive alerting in CDS systems. In a later study
+[12], Phansalkar et al. approved a list of 33 class-based lowpriority DDIs that can be made non-interruptive. These lists
+serve as an excellent starter for tiering DDIs alerts, although
+they represent a small set. To assess additional high-priority
+DDIs is a resource-intensive task and requires endeavors from
+all healthcare stakeholders. Moreover, there is a substantial variation among various knowledge bases regarding the most severe
+DDIs [11], which makes it difficult to reach a consensus. Currently, there is no standardization on how to tier DDI alerts by
+severity, nor is there an implementation plan [5].
+To facilitate DDI alert tiering processes and improve the list of
+established high-priority DDIs, we propose an evidence-based
+machine learning framework to pre-screen high-priority DDI
+candidates using the clinical evidences discovered from the
+FDA’s Adverse Event Reporting System (FAERS). Inspired by
+the DDI evidence evaluation approaches [13], we focus on the
+adverse drug events and outcomes associated with the highand low-priority DDIs, aiming to identify useful features that
+help distinguish between these two DDI groups. High-priority
+DDIs exhibit different patterns in adverse events than that of
+
+2168-2194 © 2019 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+58
+
+Fig. 1.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 24, NO. 1, JANUARY 2020
+
+Overview of the proposed machine learning framework and the autoencoder-based semi-supervised learning algorithm.
+
+the low-priority DDIs. To exploit these latent patterns enables
+machine learning models to learn the characteristics of the two
+classes of DDIs and make data-driven recommendations on the
+uncategorized DDIs.
+Fig. 1 depicts the overview of the proposed machine learning framework. First, we perform a comprehensive analysis of
+FDA adverse event reports of the past three years and identify
+110,495 unique drug pairs as experimental candidates. Next,
+we calculate the confidence measure of each drug pair and the
+corresponding adverse events to create a feature vector and subsequently construct a feature matrix of all drug pairs. Then,
+we utilize the knowledge bases of ONC High-Priority and
+Non-Interruptive Datasets to assign class labels to drug pairs
+with “high-priority”, “low-priority”, and “unlabeled”. Last, we
+present an autoencoder-based semi-supervised learning algorithm that yields better classification performance by taking
+advantage of the unlabeled samples. The proposed algorithm
+exploits Stacked Autoencoders (SAE) [14] and Weighted Support Vector Machine (wSVM) [15] for performance boosting. In
+particular, a pair of stacked autoencoders are trained separately
+with the positive and negative labeled samples; the trained autoencoders serve as screening tools to identify reliable samples
+from unlabeled drug pairs via reconstruction errors; the reliable
+samples and their predicted class labels are added to original
+labeled samples to form an augmented training set for wSVM.
+Our contributions can be summarized as follows.
+r We present a machine learning framework that utilizes
+features extracted from adverse event reports to differentiate high-priority and low-priority DDIs. The feature
+engineering approach is shown to be effective for discovering clinical evidence from FDA adverse event reports or
+other similar case reports.
+r We present an autoencoder-based semi-supervised learning algorithm that improves classification performance
+by utilizing both labeled and unlabeled samples. The pro-
+
+posed algorithm is a useful alternative in performing semisupervised learning tasks.
+r The proposed framework integrates multiple data sources,
+leverages domain knowledge and clinical evidence, and
+serves as a data-driven approach to improving the DDI
+alerting systems. To the best of our knowledge, this is
+the first machine learning framework to pre-screen highpriority DDI candidates.
+The rest of the paper is organized as follows. After reviewing
+the related work in Section II, we introduce the methodology
+in Section III. Experimental design, results and discussion are
+presented in Section IV, followed by research limitations in
+Section V. We conclude the paper and discuss the future work
+in Section VI.
+
+II. RELATED WORK
+A. Drug-Drug Interactions Discovery
+The application of machine learning algorithms and the
+availability of multi-dimensional drug features present promising opportunities for discovering drug-drug interactions during
+pre- and post-marketing surveillance. Researchers have investigated a variety of information sources and non-conventional
+approaches to facilitate DDI discovery. Features used to predict
+DDIs can be summarized into two categories: drug property
+features and post-marketing surveillance features. The former
+feature group consists of the chemical, biological, physiological,
+and other features reflecting the intrinsic properties of drugs. The
+latter feature group represents drug information collected during post-marketing phase, including conventional information
+sources such as hospital EHR systems [16] and adverse event
+reports [17], and non-conventional information sources such as
+social media [18] and search engine log [19]. Previous work
+utilizing one or both feature groups to detect DDIs has varied
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+LIU et al.: SEMI-SUPERVISED LEARNING ALGORITHM FOR IDENTIFYING HIGH-PRIORITY DRUG–DRUG INTERACTIONS
+
+application from new drug development [20] to post-marketing
+surveillance [21].
+DDI discovery is viewed as a classification problem by most
+related literature. Tatonetti et al. [13] developed a signal detection algorithm based on logistic regression to identify novel
+DDIs from adverse event reports. Cheng et al. [22] constructed
+a DDI network and compared five supervised learning algorithms in DDI prediction using similarity-based features. An
+ensemble of machine learning algorithms [23] demonstrated an
+improved prediction performance. Besides, positive-unlabeled
+learning [24] can be utilized in making DDI inference provided
+that there is no gold standard for non-interacting DDIs. Other
+methods such as association rules [17] and network analysis
+[25] also demonstrated promising results. Despite a surprising
+amount of research efforts in DDI discovery, there has been little
+discussion on using machine learning to pre-screen high-priority
+DDIs for medication alerts.
+B. Semi-Supervised Learning Algorithms
+In healthcare and other real-world application of machine
+learning, it is always the case that good-quality labeled data are
+rare or very expensive to obtain, while there usually exist abundant unlabeled data. Assigning labels to unlabeled data requires
+lots of human efforts and domain knowledge. This study encounters the same issue. As mentioned earlier, the labeled highand low-priority DDIs were determined by expert panel review
+processes and only reflect a small portion (15 and 31 classbased DDIs respectively). As a consequence, semi-supervised
+learning algorithms that exploit unlabeled samples to improve
+prediction performance have attracted considerable attention.
+Following the taxonomy introduced by Zhu et al. [26], most
+semi-supervised learning algorithms can be categorized into
+four methodological groups: generative models, graph-based
+methods, semi-supervised support vector machine and selflabeled methods. Generative models such as Gaussian mixture
+models are based on the assumption that labeled and unlabeled
+data follows a particular form of mixture distribution. However,
+it is difficult to verify the correctness of the distribution assumption [26], especially for the DDI dataset where there exists lots
+of noisy and ambiguous samples. The graph-based methods [27]
+utilize graph representations where vertices denote labeled and
+unlabeled samples and edges reflect the similarity between samples, and then enforce label smoothness over the graph. Most
+graph-based methods do not produce confidence level for each
+label prediction [28], and low-confidence prediction may not
+be beneficial for boosting model performance. The same issue
+exists with the semi-supervised support vector machine [29],
+along with the computational complexity issue caused by vast
+amount of unlabeled samples in our study.
+Although the above-mentioned methods (i.e. generative models, graph-based methods, and semi-supervised SVM) have successful applications in various domains [30], the direct usage of
+them in this study may not be useful and may even be problematic. In view of the nature and sources of the DDI data, there exist
+many ambiguous samples in the unlabeled set that do not belong
+to either positive class or negative class. Augmenting training
+
+59
+
+data with ambiguous samples and their inferred labels imposes
+noises and errors and is less likely to improve model performance. Self-labeled methods [28] notably self-training [31], cotraining [32] and democratic co-learning [33] are better-suited
+tools to handle the DDI data. In general, self-labeled methods
+follow iterative procedures to enlarge the training set, through
+which the unlabeled samples with the most confident predictions
+are accepted into the training set incrementally. Stopping criteria
+are built-in mechanisms for most self-labeled algorithms which
+controls the self-labeling process and determines the amount of
+unlabeled samples added to the training set. The proposed algorithm is a subclass of self-labeled techniques and represents an
+effective alternative for tackling the DDI data of this study.
+
+III. METHODOLOGY
+A. Materials
+1) The FDA Adverse Event Reporting System (FAERS):
+
+FAERS [34] is a public database which contains quarterlyreleased adverse event reports submitted to the FDA. The quarterly data files include seven data tables and the corresponding
+descriptions and summaries. Among all seven data tables, four
+of them are of our interests: DEMO (demographic and administrative information), DRUG (drug information), REAC (reaction
+and adverse events information), OUTC (patient outcome information). All data tables are linked to each other by a primary
+key called “primaryid”. The adverse event reports are coded
+using “preferred term” (PT) in the Medical Dictionary for Regulatory Activities (MedDRA) terminology [35]. However, the
+drug names are allowed to be recorded by valid trade names, abbreviations or verbatim names. Therefore, it is necessary to map
+all drug names into generic drug concepts. The adverse event
+reports provide clinical evidence for identifying high-priority
+DDIs.
+2) ONC High-Priority and Non-Interruptive Datasets: The
+ONC high-priority drug-drug interactions dataset is a short list
+of high-severity and clinically significant DDIs for generating
+medication alerts in EHRs. The dataset contains 15 high-priority
+interactions at drug class level. The list was approved by a panel
+of experts and published in a JAMIA article [11]. Besides the
+high-priority dataset, the expert panel also derived and approved
+a list of 33 class-based low-priority DDIs [12] which can be
+safely made non-interruptive, namely requiring no immediate
+responses from users when alerts are generated. We obtained
+both datasets via a publicly accessible source - potential drug–
+drug interactions (PDDIs) knowledge bases [36]. Both datasets
+are manually curated by experts with domain knowledge, and
+provide the ground truth for tiering DDI alerts. Despite the small
+size, they are considered the gold standard for differentiating
+high- and low-priority DDIs.
+3) DrugBank: Drugbank [37] is an online database containing the biochemical and pharmacological information about
+drugs, of which the drug interaction information is one of the
+largest and most comprehensive DDI knowledge bases. DrugBank contains no severity levels for drug interactions, i.e.,
+the severity levels of DDIs are unknown/unlabeled. DrugBank
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+60
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 24, NO. 1, JANUARY 2020
+
+“life-threatening”, “hospitalization”, “disability”, “congenital
+anomaly” and “required intervention”. This study focuses on
+the interactions of drugs, thus the reports with exactly one drug
+listed are considered out of scope. A final list of 936,865 reports
+remains for further analysis.
+3) Drugs Selection and Drug Pairs Generation: To ensure a
+reasonable drug reporting frequency, drugs with less than 50
+reports in the FAERS database are excluded in the study. After
+codifying drug names with RxNorm, we obtained a list of 2,891
+unique generic drug concepts. Among all pairwise combination
+of 2,891 drugs, we focus on the drug pairs that had at least ten
+reports. After removing the drug pairs with less than ten reports,
+we obtained a final list of 110,495 drug pairs.
+C. Feature Engineering and DDI Dataset Preparation
+
+Fig. 2. Overview of the FAERS reports, drugs, drug pairs selection
+process.
+
+serves as the unlabeled DDI resource for developing novel highpriority DDIs.
+4) Drugs.com: Drugs.com (https://www.drugs.com/) is another publicly accessible pharmaceutical database. Different
+from DrugBank, Drugs.com contains severity levels for its drug
+interactions, which are classified as “Major”, “Moderate”, “Minor” and “Unknown”.
+B. Data Preprocessing
+A total of 10 quarterly data files between 2016 Q1 and 2018
+Q2 are downloaded from the FAERS database. An overview
+of data preprocessing is described in Fig. 2, and the following
+sections illustrate the details of each step.
+1) Duplicate Reports Removal and Drug Names Standardization: Duplicate reports in the FAERS database introduce bias
+
+on the proportional reporting ratio of drug usages and adverse
+events, thus negatively impact data quality. The reports in the
+FAERS database follow a case and version mapping relationship where the same case may have multiple versions. The
+“primairyid” of each report is generated by concatenating
+the “caseid” and “versionid”. Following the suggestion in the
+FAERS document [38], we removed the duplicate reports by
+only selecting the most up-to-date version of each report. As we
+have mentioned earlier, the drug names in the FAERS database
+are reported arbitrarily by drug trade names, abbreviations or
+verbatim names which do not follow a standardized coding system. To codify the free-text drug names, we utilize RxNorm API
+[39] to map each name to a generic drug concept denoted by a
+concept unique identifier (RXCUI). After removing the duplicates, a total of 3,282,868 adverse event reports is obtained for
+further processing.
+2) Adverse Event Reports Selection: We narrowed down
+the number of reports to 1,740,770 by only including those
+who have at least one serious outcome [38] such as “death”,
+
+The FAERS database provides a rich data source for investigating the relationships between drugs and adverse events. For
+the reports that contain harmful interacting drugs, the types and
+severity of the adverse events might reveal different patterns
+from others. These patterns contain critical information about
+DDIs and can be employed to detect potential high-priority DDIs
+retrospectively. Inspired by association rules learning [40], we
+consider the following three-itemset rules to investigate the relationship between drug pairs and adverse events
+{Drug1 ∪ Drug2 ⇒ AdverseEventj }
+or
+
+{D1 ∪ D2 ⇒ AEj },
+
+where the left-hand side of the arrow (“antecedent”) denotes a
+pair of drugs, and right-hand side (“consequent”) denotes the
+adverse event j. For example, {Acetaminophen ∪ Alcohol ⇒
+Hepatotoxicity} means taking Acetaminophen and Alcohol together might be associated with Hepatotoxicity. The “support”
+of the rule Supp(D1 ∪ D2 ⇒ AEj ) is the fraction of the observations in the union of the antecedent and consequent, which
+indicates the proportion of the reports where drug pairs Drug1
+and Drug2 , and AdverseEventj appear together. The “confidence” of the rules Conf (D1 ∪ D2 ⇒ AEj ) is the support of
+the rule divided by the support of the antecedent
+Conf (D1 ∪ D2 ⇒ AEj ) =
+
+Supp(D1 ∪ D2 ⇒ AEj )
+, (1)
+Supp(D1 ∪ D2 )
+
+which can be viewed as an estimate of the conditional probability P (AEj |D1 , D2 ) [41], the probability of finding the
+AdverseEventj in reports under the condition that these reports also contain drug pairs Drug1 and Drug2 .
+Among all selected reports, there exist 13,368 unique adverse
+events (in preferred terms), most of which have very low support
+(or reporting frequency). We selected a subset of adverse events
+with support greater than 0.1% and calculated the confidences
+of their three-itemset rules using Eq. 1. We constructed a confidence value matrix (Fig. 3) with drug pairs as rows and adverse
+events as columns (features). After removing highly correlated
+columns and the columns with very low variance, we obtained a
+matrix with 247 columns for all 110,495 drug pairs. Each drug
+pair is represented by a vector of non-negative values across all
+247 adverse events. For example, the drug pair - Ciprofloxacin
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+LIU et al.: SEMI-SUPERVISED LEARNING ALGORITHM FOR IDENTIFYING HIGH-PRIORITY DRUG–DRUG INTERACTIONS
+
+Fig. 3. Confidence value matrix - feature and class label matrix for all
+drug pairs. AE columns indicate features (confidence values) extracted
+from adverse event reports; and the last column indicates class label of
+each drug pair.
+
+and Fluconazole - is associated with more than 100 adverse
+events, of which the calculated confidence values are 0.058 for
+“Acute kidney injury”, 0.038 for “Atrial fibrillation”, and 0.055
+for “Diarrhea”, etc. It is worth noting certain cells in the confidence matrix remain zero if there is no adverse event associated
+with the corresponding drug pair. To utilize the confidence values as features is a crucial step for enabling the application of
+machine learning algorithms.
+The scope of this study is to identify a list of high-priority
+DDIs from the existing DDI candidates in order to reduce alert
+fatigue. For all 110,495 drug pairs, we are only interested in
+those pairs which are interacting with each other. Drug pairs
+which do not interact fall outside the scope. We looked up all
+110,495 drug pairs in DrugBank and selected those interacting
+drug pairs to form the DDI samples (N = 36, 632) for model
+development. Among all DDI samples, 288 are labeled “highpriority” by ONC High-Priority Dataset, 356 are labeled “lowpriority” by ONC Non-Interruptive Dataset, and the severity
+levels of the remaining 35,988 drug pairs are not determined,
+thus they are considered as unlabeled samples. As shown in
+Fig. 3, we assigned the class labels “Yes” (or “positive”), “No”
+(or “negative”) and “Unlabeled” to indicate whether or not the
+drug pair belongs to the high-priority DDI category. We refer
+to the drug pairs with either positive or negative labels as the
+“original labeled samples” to differentiate the term “inferred
+reliable samples” used in the following section.
+D. Autoencoder-Based Semi-Supervised Learning
+Algorithm
+The overview of autoencoder-based semi-supervised learning algorithm is described as follows. First, stacked autoencoders are carried out to perform representation learning using
+the original labeled samples. Second, a screening algorithm is
+presented to determine the set of inferred reliable samples using autoencoder reconstruction errors. Third, after augmenting
+the original labeled samples with the inferred reliable samples,
+a classification model is constructed using weighted support
+vector machine, where the original labeled samples and the inferred reliable samples are weighted differently by a scoring
+function.
+
+61
+
+Fig. 4. Structure of an autoencoder with one hidden layer. The input x
+is mapped to the internal representation (or “code”) h via an encoder f ;
+the code h is subsequently mapped to the output (or reconstruction) x̂
+via a decoder g. The objective is to have output x̂ to approximate input
+x as close as possible by minimizing the mean squared errors between
+x and x̂.
+
+1) Autoencoder Preliminaries: Autoencoder [42] is a type
+of feedforward neural network and can perform representation
+learning in an unsupervised manner. It is trained to reconstruct
+its own input, through which the hidden layers can capture
+the useful feature representations. Traditionally, autoencoder is
+well-known for dimension reduction of high-dimensional data
+[43]. Recently, it is recognized as an emerging technique for data
+denoising [14], anomaly detection [44] and nonlinear feature
+fusion [45].
+The general structure of an autoencoder includes an input
+layer, an output layer, and a hidden layer connecting them, in
+which the output layer has the same dimension as the input layer.
+Fig. 4 shows the simplest form of an autoencoder with one hidden layer. The input x is mapped to the internal representation
+(or “code”) h via an encoder, denoted as function f . The code h
+is subsequently mapped to the output (or reconstruction) x̂ via
+a decoder, denoted as function g. Let W (1) and W (2) denote
+the weight matrices, and b(1) and b(2) denote the bias vectors,
+then we have
+
+h = f (x) = σ1 (W (1) x + b(1) )
+
+(2)
+
+x̂ = g(h) = σ2 (W (2) h + b(2) )
+
+(3)
+
+where σ1 and σ2 denote the activation functions, e.g., hyperbolic
+tangent function (tanh) and rectified linear unit (ReLU).
+The aim of training an autoencoder is to have output x̂ to
+approximate input x as close as possible. We set up the objective
+function to minimize the average squared errors between x̂
+and x:
+J (W , b) =
+
+1 
+L(x, x̂) + Ω(W )
+|S|
+x∈S
+
+=
+
+1 
+||x − (g ◦ f )(x)||2 + Ω(W )
+|S|
+x∈S
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+(4)
+
+62
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 24, NO. 1, JANUARY 2020
+
+where L is a squared loss function, S is a training set, f and g are
+the encoding and decoding functions parameterized by W and b
+provided that the activation functions are determined. To prevent
+overfitting of the training data, a regularization term Ω(W ) is
+added to the objective function. Moreover, the regularization effects can be further strengthened by implementing the “dropout”
+techniques [46]. Autoencoder belongs to the feedforward neural
+network family. Some of the well-known optimization methods
+such as stochastic gradient descent (SGD) [47] and Adam [48]
+can directly come into play to optimize the weights and biases.
+Furthermore, backpropagation algorithm [41] can be applied to
+make efficient updates.
+2) Stacked Architecture: A simple autoencoder is usually
+trained with only one hidden layer. If the dimension of the hidden
+layer (code) is lower than the input layer, we refer to this type
+of autoencoder as undercomplete autoencoder [42], e.g., Fig. 4.
+In other words, undercomplete autoencoder uses a bottleneck
+layer to compress the input into a lower-dimensional code. By
+limiting the amount of information flowing through the network,
+autoencoder is trained to learn the knowledge representations of
+the data, rather than copying the input to the output.
+In this study, we do not limit the autoencoder structure to
+be exactly one layer, instead we use a stack of multiple hidden layers to form a stacked autoencoder. As illustrated in
+Fig. 5, a stacked autoencoder (SAE) consists of multiple simple
+autoencoders in which the resulting representation layer
+(“code”) of the first level autoencoder is used as the input layer
+of the second level autoencoder. Similar to other feedforward
+networks, proper depth in autoencoders reduces the amount of
+data needed for training internal functions, hence exponentially
+reduces the computational cost [42]. A general strategy to train
+a stacked autoencoder is to greedily pre-train a sequence of
+simple autoencoders starting from the layer of input data, then
+use the resulting “code” layer to train the successive layers, and
+finally apply backpropagation algorithm [41] on the stacked
+architecture to achieve fine-tuning [43].
+3) Building Stacked Autoencoders on the DDI Dataset: Let
+P denote the high-priority DDI drug pairs in the training set,
+i.e., positive samples; and N denote the low-priority DDI drug
+pairs in the training set, i.e., negative samples. For the drug
+pairs without a known label, we use U to denote the set of these
+unlabeled samples. All samples in P , N , or U have the same dimension (p = 247) - the number of adverse events determined in
+Section III-C. We build two separate stacked autoencoders using
+the labeled samples P and N . After training, the stacked autoencoder built on P is expected to reconstruct the positive samples
+very well, while failing to reconstruct the negative samples;
+thereby it generates higher reconstruction errors on the negative
+samples than the positives. On the contrary, the stacked autoencoder built on N should have higher reconstruction errors on
+the positive samples than the negative samples. Samples with
+high reconstruction errors are flagged as anomalies and most
+likely belong to a different class. To use reconstruction errors
+as measures represents a strategy to determine reliable samples
+from set U .
+4) Algorithm for Screening Reliable Samples: We develop
+a screening algorithm using autoencoder reconstruction errors
+to screen reliable positives (RP ) and negatives (RN ) from the
+
+Fig. 5. Structure of a stacked autoencoder with three hidden layers.
+The resulting representation layer (“code”) of the first level autoencoder
+is used as inputs to train the second level autoencoder.
+
+unlabeled samples set U . The details of the screening algorithm
+are described in Algorithm 1.
+After building autoencoders on sets P and N , we use the
+trained models (g ◦ f )P and (g ◦ f )N to reconstruct unlabeled
+samples in U , where (g ◦ f )P and (g ◦ f )N denote the stacked
+autoencoders built on labeled sample sets P and N . For each
+xi in U , we obtain two reconstruction errors from (g ◦ f )P
+and (g ◦ f )N respectively. Ideally, if xi is close to the positive
+class, it should have a small reconstruction error with (g ◦ f )P
+and a large reconstruction error with (g ◦ f )N , and vice versa.
+For the purpose of screening reliable samples, we are interested in the unlabeled samples with a big gap between these
+two reconstruction errors. Let erroriP and erroriN denote the
+reconstruction errors obtained via (g ◦ f )P and (g ◦ f )N and
+Δi = erroriP − erroriN denote the gap, then xi is selected as
+a reliable positive if Δi is within the threshold c1 or a reliable negative if Δi is beyond the threshold c2 . The values of
+both thresholds can be any values within [min(Δi ), max(Δi )]
+and should satisfy the condition of c1 < c2 . We denote the values of c1 and c2 using mth and nth percentiles of Δi , and set
+n = 100 − m to balance number of reliable positives and nega-
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+LIU et al.: SEMI-SUPERVISED LEARNING ALGORITHM FOR IDENTIFYING HIGH-PRIORITY DRUG–DRUG INTERACTIONS
+
+Algorithm 1: Algorithm for Screening Reliable Samples.
+1: Input:
+2:
+Stacked autoencoder built on P : (g ◦ f )P
+3:
+Stacked autoencoder built on N : (g ◦ f )N
+4:
+Set of unlabeled samples: U = {x1 , x2 , . . . , x|U | }
+5:
+Lower threshold: c1
+6:
+Upper threshold: c2
+7: Output:
+8:
+Set of reliable positives: RP
+9:
+Set of reliable negatives: RN
+10:
+Set of delta values: Δ
+11: function SCREEN ((g ◦ f )P , (g ◦ f )N , U, c1 , c2 )
+12:
+Initialization
+13:
+RP := ∅
+14:
+RN := ∅
+15:
+Δ := ∅
+16:
+for i := 1 to |U | do
+17:
+erroriP := ||xi − (g ◦ f )P (xi )||2
+18:
+erroriN := ||xi − (g ◦ f )N (xi )||2
+19:
+Δi := erroriP − erroriN
+20:
+if Δi ≤ c1 then
+21:
+RP := RP ∪ xi
+22:
+Δ := Δ ∪ Δi
+23:
+else if Δi ≥ c2 then
+24:
+RN := RN ∪ xi
+25:
+Δ := Δ ∪ Δi
+26:
+end if
+27:
+end for
+28:
+return RP, RN, Δ
+29: end function
+
+tives added to the training set. For example, using 1th percentile
+for c1 is equivalent to adding the top 1% most reliable positives
+to the training set; which also implies that the top 1% most reliable negatives (i.e., using 99th percentile for c2 ) are added to the
+training set due to the n = 100 − m class balance constraint.
+The choice of parameters c1 and c2 is data-driven and determined via sensitivity analysis.
+5) Weighted Support Vector Machine (wSVM): After combining the reliable samples with the original labeled samples, we
+build a classifier on the augmented training set using weighted
+support vector machine (wSVM) [15]. The basic idea of wSVM
+is to assign weights to data samples in the training set such that
+the decision boundary is determined according to the relative
+importance and trustworthiness of the data samples. Typically,
+the weights of the original labeled samples should be larger than
+the inferred reliable samples.
+Let xi be the ith sample in the original labeled set denoted
+as xi ∈ P ∪ N where the index i ∈ {1, 2, . . . , |P ∪ N |}, xj
+be the jth sample in the inferred reliable set denoted as xj ∈
+RP ∪ RN where the index j ∈ {1, 2, . . . , |RP ∪ RN |}, and
+αi , αj be the corresponding sample weights for xi , xj . We
+re-weight all training samples through the following weighing
+system. For the original labeled samples xi , their weights are
+fixed to 1 (i.e., αi = 1, ∀i); for the inferred reliable samples xj ,
+
+63
+
+Algorithm 2: Autoencoder-Based Semi-Supervised
+Learning.
+1: Input:
+2: Set of positive samples: P
+3: Set of negative samples: N
+4: Set of unlabeled samples: U
+5: Lower threshold: c1
+6: Upper threshold: c2
+7: Output:
+8: Trained model: Classif ier
+9: function SEMI-SUPERVISED LEARNING P, N, U, c1 , c2
+10:
+(g ◦ f )P := Autoencoder(P )
+11:
+(g ◦ f )N := Autoencoder(N )
+12:
+RP, RN, Δ := Screen((g ◦ f )P , (g ◦ f )N , U, c1 , c2 )
+13:
+αi := 1, ∀i ∈ {1, 2, . . . , |P ∪ N |}
+14:
+αj := sigmoid(|Δj |), ∀j ∈ {1, 2, . . . , |RP ∪ RN |}
+15:
+Classif ier := weightedSV M (P, N, RP, RN, α)
+16:
+return Classif ier
+17: end function
+
+their weights are calculated by the sigmoid function and varied
+between 0 and 1 according to their |Δj | values:
+αj =
+
+1
+1 + e−|Δ j |
+
+(5)
+
+where |Δj | is the absolute value of the difference between two
+reconstruction errors erroriP and erroriN , and 0 < αj < 1.
+Following the same indexing rule, let yi ∈ {1, −1} denote the
+class labels for xi ∈ P ∪ N , and yj ∈ {1, −1} denote the class
+labels for xj ∈ RP ∪ RN . The reliable positives are assigned
+label yj = 1, and the reliable negatives are assigned label yj =
+−1. The wSVM is formulated as:
+⎞
+⎛
+|P ∪N |
+|R P ∪R N |
+
+
+1
+(6)
+αi ξi +
+αj ξj ⎠
+min wT w + C ⎝
+w ,b 2
+i=1
+j =1
+s.t.
+(a)
+
+yi (wT φ(xi ) + b) ≥ 1 − ξi
+
+xi ∈ P ∪ N
+
+(b)
+
+yj (wT φ(xj ) + b) ≥ 1 − ξj
+
+xj ∈ RP ∪ RN
+
+(c)
+
+ξi ≥ 0
+
+∀i
+
+(d)
+
+ξj ≥ 0
+
+∀j
+
+(7)
+
+where the training samples xi and xj are mapped to a higher dimensional space through function φ. The regularization parameter C is a user-specified parameter which control the trade-off
+between margin and classification violation. Note that we assign
+the weights αi and αj to the corresponding data samples xi and
+xj in the formulation. We conclude the methodology section
+by presenting the autoencoder-based semi-supervised learning
+algorithm in Algorithm 2.
+IV. EXPERIMENTS AND RESULTS
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+64
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 24, NO. 1, JANUARY 2020
+
+TABLE I
+DATA PARTITION SUMMARY OF THE DDI DATASET
+
+A. Data Partition and Evaluation Metrics
+We conducted multiple experiments using the DDI samples
+obtained in Section III-C. For the training set, we randomly selected 80% of the original labeled DDI samples to form sets P
+and N , and used all unlabeled samples to form set U for screening the reliable samples. The remaining 20% of the original
+labeled samples serve as a holdout testing set. For performance
+metrics, we utilized the F-measure [49] and AUC score [49] to
+evaluate model classification performance. The F-measure is the
+harmonic mean of precision and recall, and AUC is the average
+area under the Receiver Operating Characteristic (ROC) curve.
+An overview of DDI training and testing sets is shown in
+Table I. The proposed semi-supervised learning algorithm utilized a subset of the unlabeled samples for performance boosting. Out of 35,988 unlabeled samples, 719 high-confidence
+reliable samples were selected by stacked autoencoders, which
+thereafter were added to the original labeled samples for training the weighted SVM. The remaining unlabeled samples are
+defined as ambiguous samples (i.e., low-confidence samples
+which cannot be classified as either positive or negative class by
+autoencoders) and are not utilized by the proposed algorithm.
+
+Fig. 6. Feature distributions for high-priority (positive class) and lowpriority (negative class) DDIs. The subset of features shown in the figure
+represents around 10% of the total features used for model training.
+
+Fig. 7. Learning curves of stacked autoencoders built with positive
+training samples P (lef t) and negative training samples N (right). Using
+Adam optimizer with learning rate = 0.001, decay = 1e-3, batch size =
+64, and dropout rate = 0.3 (lef t) and 0.4 (right).
+
+B. Descriptive Analysis of DDI Features
+Features extracted from the adverse event reports contain
+useful information for differentiating the two DDI classes. To
+visualize the feature distribution of positive and negative samples P and N , we normalized the feature values using percentile
+rank and plotted the results in Fig. 6. It can be observed from
+the plot that the feature distributions of positive samples are
+evidently different from the negative ones, which confirmed the
+assumption that high- and low-priority DDIs exhibit different
+patterns in adverse event reports. The feature patterns provide
+valuable information about DDIs, and thus can be utilized to
+build discriminative machine learning models.
+C. Autoencoder Training and Reconstruction
+Performance
+The autoencoder building and parameter tuning processes
+were implemented in TensorFlow [50] framework using Keras
+API [51]. Constrained by input dimension (p = 247) and undercomplete structure, we tested an array of architectures with
+different layer sizes (4, 8, . . . , 128) for both single hidden layer
+and stacked layers scenarios. The model of each scenario was
+trained using Adam optimizer [48] with normalized (min-max
+
+normalization) input data. For better results, we tuned the configuration of hyperparameters by varying the activation functions
+(ReLU, tanh, sigmoid), the learning rate (from 1e−5 to 0.1),
+and the dropout rate (from 10% to 50%). The best configuration
+of hyperparameters were selected to yield the best performance
+during validation (validation split = 0.2). The stacked autoencoder with three hidden layers of sizes {64, 32, 64} is the final
+chosen structure for training the positive set P and negative set
+N with tanh as the activation function.
+As shown in Fig. 7, both training and validation loss (measured by average squared errors per dimension) converged after 300 epochs. To evaluate the reconstruction performance,
+we reconstructed the testing samples with both autoencoders
+built on set P (denoted as (g ◦ f )P ) and set N (denoted as
+(g ◦ f )N ), and demonstrate the reconstruction performance in
+Fig. 8. In general, positive (or negative) testing samples tend
+to have small (or large) reconstruction errors via (g ◦ f )P and
+large (or small) reconstruction errors via (g ◦ f )N , which supports the idea that using the gap between two reconstruction
+errors (Δi = erroriP − erroriN ) can help determine the reliable samples of the two classes.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+LIU et al.: SEMI-SUPERVISED LEARNING ALGORITHM FOR IDENTIFYING HIGH-PRIORITY DRUG–DRUG INTERACTIONS
+
+65
+
+Fig. 9. The selection of lower threshold c1 and the corresponding upper
+threshold c2 . The x-axis denotes the value of c1 represented as the m t h
+percentile of Δ i ; the value of c2 is fixed to be the (100 − m)t h percentiles
+to maintain the balance between reliable positives and negatives added
+to the DDI training set.
+Fig. 8. Reconstruction performance for the testing set. The x-axis denotes the reconstruction errors via autoencoder built on positive set P ;
+while the y-axis denotes the reconstruction errors via autoencoder built
+on negative set N . The Δ value is the difference between these two
+reconstruction errors.
+
+D. Parameter Tuning for Weighted Support Vector
+Machine
+The input data for weighted support vector machine (wSVM)
+consists of two sources - the original labeled samples and
+the inferred reliable samples. Except the minor changes in
+sample weights, the training process of wSVM is no different from a traditional SVM. We trained a wSVM model
+with radial basis function kernel (RBF kernel), which is formally defined as k(x, x ) = exp(−σ||x − x ||2 ). For parameter tuning, we constructed a sequence of kernel parameter
+σ ∈ {0.001, 0.01, 0.1, 1, 10, 100} and a sequence of regularization parameter C ∈ {0.01, 0.1, 1, 10, 100, 1000} to form the
+grid search space. The best parameters (σ = 0.1, C = 10) were
+determined by 5-folded cross-validation [41] with AUC as the
+evaluation metric.
+E. Sensitivity Analysis on Screening Reliable Samples
+The lower and upper thresholds c1 and c2 are used to determine the number of reliable positives and negatives accepted to
+the training set. As mentioned before, we varied the values of c1
+using the mth percentile of Δi for parameter tuning. Once c1 is
+determined, c2 is also fixed (i.e., using (100 − m)th percentile
+for c2 ) in order to add the same amount of reliable negatives for
+maintaining class balance.
+As described in Fig. 9, when c1 is set at the 2th percentile of Δi
+(where c2 is set at the 98th percentile), the proposed algorithm
+achieved the best performance in both AUC and F-measure.
+After the peak, the model performance decreased gradually.
+The performance curve also suggests that adding ambiguous
+samples may deteriorate model’s discriminative performance as
+they bring noise and mislabeled data to the training set. For the
+proposed algorithm, we selected the 2th and 98th percentile of
+Δi as the best parameter values for c1 and c2 .
+
+F. Performance Comparison of the Proposed Algorithm
+With Other Methods on the DDI Dataset
+Following the discussion in Related Work (Section II), we utilized several other state-of-the-art self-labeled semi-supervised
+learning methods for performance comparison. In the experimental design, we first built a fully-supervised SVM as baseline
+with the original labeled samples (P and N only), and then
+added the unlabeled samples U to the training set for performing semi-supervised learning. Besides the proposed algorithm,
+methods used for semi-supervised learning include self-training
+[31], co-training [32] and democratic co-learning [33]. In the
+experimentation, we used radial SVM as the base classifier for
+both self-training and co-training algorithms, and the maximum
+iteration is set to 30 for both algorithms. For co-learning, the
+three base classifiers are radial SVM, k-NN [41] and C5.0 [41].
+All model parameters were properly tuned for the best performance. We repeated the data partitioning, training, and testing
+processes ten times for evaluating model performance of all
+methods.
+Table II shows the summarized results (mean ± standard
+deviation) of the experiments. All semi-supervised learning
+methods including the proposed algorithm outperformed the
+fully-supervised SVM in every performance metrics, which
+demonstrates that the unlabeled samples, when properly used
+in conjunction with the labeled samples, can produce considerable improvement in model’s generalization capability. The proposed method has the best evaluation performance in both AUC
+and F-measure metrics, which reflects the fact that stacked autoencoders are superior tools to screen the reliable samples from
+the high-dimensional DDI dataset. Meanwhile, self-training and
+co-training algorithms are computationally expensive due to the
+iterative nature of the algorithm; the proposed method is a
+reasonable choice provided there is a necessity to analyze an
+enormous amount of unlabeled samples. Moreover, co-training
+algorithm relies on the abundance of features as well as the
+assumption of two split views of features. As is demonstrated
+in the evaluation results, the assumption of split-view does not
+hold for the DDI dataset.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+66
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 24, NO. 1, JANUARY 2020
+
+TABLE II
+PERFORMANCE ASSESSMENT WITH THE DDI DATASET
+
+In general, the semi-supervised learning methods outperformed
+the SVM in terms of the average AUC score. As the percentage
+of visible labels increased from 10% to 90%, the performance
+improvement became smaller. It is also noted that the proposed
+algorithm outshines its competitors when the percentage of visible labels is located between 20% and 50%.
+H. Framework Application and Discussion
+
+Fig. 10. Performance (AUC) comparison using the proposed method
+and other methods on the benchmark dataset.
+
+G. Performance Comparison on a Benchmark Dataset
+To show the effectiveness and scalability of our approach, we extended the experiments using a high-dimensional
+benchmark dataset - Epilepsy EEG dataset [52] - from the UCI
+Machine Learning Repository [53]. The dataset consists of EEG
+recording information used for epileptic seizure detection. Each
+data point has 178-dimensional input vector representing the
+EEG signal values from brain electrical activity. The response
+variable has five classes representing different EEG signal categories. We transformed the dataset into a binary classification
+format by selecting two out of the five classes, namely the “eyes
+open” and “eyes closed” classes while removing data points of
+the other three classes.
+The remaining data was then split into an 80% training set
+and a 20% testing set. For assessing the performance of semisupervised learning methods, we assume that only a certain
+percentage of training samples (e.g. 10%) have class labels;
+while the rest do not, and their class labels were removed. After
+removing partial class labels, we obtained a mix of labeled and
+unlabeled samples for model training. As shown in Table III,
+we incrementally adjusted the percentage of the labeled samples from 10% to 90% to evaluate model performance under
+different scenarios. Similar to the experiments with the DDI
+samples, each scenario was repeated ten times for comparing
+the performance of all competing methods.
+The benchmark dataset has balanced class labels (50% v.s.
+50%); for this reason we evaluated the model performance using the AUC score. The comparison results of all competing
+methods are reported in Table III and also visualized in Fig. 10.
+
+The experimental results have demonstrated the effectiveness
+of using post-marketing surveillance features in pre-screening
+high-priority DDIs. Under the proposed framework, we trained
+a classifier using the original labeled samples and inferred reliable samples to flag potential high-priority DDIs. Depending
+on the adverse event feature input, the classifier outputs a numeric value indicating the probability of the unlabeled drug
+pair being a high-priority DDI. To further assess the discriminative capability of adverse event features, we utilized an independent knowledge base - Drugs.com to evaluate the inferred
+high-priority DDIs. It should be noted that the “major” and
+“Moderate” drug interactions listed in Drugs.com are not the
+confirmed high-priority DDIs for use in medication alerts, but
+can serve as external opinions on evaluating the predictive performance. The inferred high-priority DDIs are highly associated
+with the major and moderate drug interactions in Drugs.com.
+Among the top 100 potential high-priority DDIs flagged by the
+proposed framework, 20% are marked as “Major” interactions
+and 64% are marked as “Moderate” by Drugs.com; while only
+17% “Major” and 59% “Moderate” can be flagged without using the unlabeled samples. In Table IV, we listed some of the
+major DDIs flagged by the framework.
+Although the predictive results are satisfactory, the application of data-driven methods in predicting high-priority DDIs
+should always be considered as a complementary approach to
+supporting knowledge-based expert decisions. The established
+results are solely based on the utilization of post-marketing
+surveillance features. As we have discussed in Section II, drug
+property features are proven effective features in predicting
+DDIs and should be incorporated into the framework for producing more accurate and comprehensive results. The utilization of
+drug property features is not yet covered in this study and serves
+as one direction of future work.
+V. LIMITATIONS
+Despite the promising results, this study has a few limitations.
+First, the method utilizes post-marketing surveillance features
+- namely adverse events for model development, which is not
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+LIU et al.: SEMI-SUPERVISED LEARNING ALGORITHM FOR IDENTIFYING HIGH-PRIORITY DRUG–DRUG INTERACTIONS
+
+67
+
+TABLE III
+PERFORMANCE ASSESSMENT WITH THE BENCHMARK DATASET
+
+TABLE IV
+PARTIAL MAJOR DDIS PRE-SCREENED BY THE PROPOSED FRAMEWORK
+
+Several lines of research and investigations have been
+emerged for future work. Besides the post-marketing surveillance features, there is a need to incorporate the chemical, biological, and other drug property features for improving model
+performance. The proposed method employs the weighted SVM
+as the final classifier, which can be replaced by other classifiers
+such as random forest [41], gradient boosting method [41], or an
+ensemble of different classifiers. Furthermore, the list of highpriority DDIs and the mechanism to display DDI alerts can be
+continuously improved through analyzing the retrospective data
+collected from user responses.
+ACKNOWLEDGMENT
+
+applicable to new drugs or drugs with very few adverse event reports. Second, limited by the nature of the spontaneous reporting
+system, the confidence measures obtained from adverse event
+reports may be biased due to the confounding factors such as
+drug indications and variations in patient demographics. Third,
+this study only considers the adverse events collected from the
+FAERS database; other clinical sources like hospital’s EHRs are
+not included. Fourth, due to the scarcity of labeled training data
+and the limits of data-driven methods, the predictive results may
+not be comprehensive; more expert-confirmed labeled samples
+are desirable for producing better results.
+VI. CONCLUSION AND FUTURE WORK
+Identifying high-priority DDIs is a crucial step to optimize
+medication alerts in EHRs. Proper tiering and displaying DDI
+alerts by severity levels represents a proven approach to reduce
+alert fatigue and improve patient safety. In this paper, we introduce a machine learning framework and a semi-supervised
+learning algorithm to pre-screen high-priority DDI candidates
+utilizing clinical evidence from adverse event reports. The experimental results show that features derived from adverse
+events contain effective information about the severity levels
+of DDIs; also demonstrate the desirable performance of the
+proposed algorithm in predicting high-priority DDIs.
+
+The authors would like to thank Dr. Q. Hatim, U.S. Food and
+Drug Administration, and Dr. J. Mcilwaine, Geisinger Health
+System, for insightful domain discussions. The authors would
+also like to thank the anonymous reviewers and editors for providing helpful comments.
+REFERENCES
+[1] D. C. Classen, S. Phansalkar, and D. W. Bates, “Critical drug-drug interactions for use in electronic health records systems with computerized
+physician order entry: Review of leading approaches,” J. Patient Saf.,
+vol. 7, no. 2, pp. 61–65, 2011.
+[2] S. Phansalkar et al., “Criteria for assessing high-priority drug-drug interactions for clinical decision support in electronic health records,” BMC
+Med. Inform. Decis. Making, vol. 13, no. 1, 2013, Art. no. 65.
+[3] T. K. Nuckols et al., “The effectiveness of computerized order entry at
+reducing preventable adverse drug events and medication errors in hospital
+settings: A systematic review and meta-analysis,” Systematic Rev., vol. 3,
+no. 1, 2014, Art. no. 56.
+[4] S. P. Slight et al., “Are we heeding the warning signs? Examining
+providers’ overrides of computerized drug– drug interaction alerts in primary care,” PLoS One, vol. 8, no. 12, 2013, Art. no. e85071.
+[5] D. S. McEvoy et al., “Variation in high-priority drug– drug interaction
+alerts across institutions and electronic health records,” J. Am. Med. Inform. Assoc., vol. 24, no. 2, pp. 331–338, 2016.
+[6] R. T. Scheife et al., “Consensus recommendations for systematic evaluation of drug– drug interaction evidence for clinical decision support,”
+Drug Saf., vol. 38, no. 2, pp. 197–206, 2015.
+[7] A. Wong et al., “Prospective evaluation of medication-related clinical
+decision support over-rides in the intensive care unit,” BMJ Qual. Saf.,
+vol. 27, no. 9, pp. 718–724, 2018.
+[8] K. C. Nanji et al., “Overrides of medication-related clinical decision
+support alerts in outpatients,” J. Am. Med. Inform. Assoc., vol. 21, no. 3,
+pp. 487–491, 2014.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+68
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 24, NO. 1, JANUARY 2020
+
+[9] M. D. Paterno et al., “Tiering drug– drug interaction alerts by severity
+increases compliance rates,” J. Am. Med. Inform. Assoc., vol. 16, no. 1,
+pp. 40–46, 2009.
+[10] P. Cornu et al., “High-priority and low-priority drug– drug interactions
+in different international electronic health record systems: A comparative
+study,” Int. J. Med. Inform., vol. 111, pp. 165–171, 2018.
+[11] S. Phansalkar et al., “High-priority drug– drug interactions for use in
+electronic health records,” J. Am. Med. Inform. Assoc., vol. 19, no. 5,
+pp. 735–743, 2012.
+[12] S. Phansalkar et al., “Drug– drug interactions that should be noninterruptive in order to reduce alert fatigue in electronic health records,”
+J. Am. Med. Inform. Assoc., vol. 20, no. 3, pp. 489–493, 2012.
+[13] N. P. Tatonetti, G. H. Fernald, and R. B. Altman, “A novel signal detection
+algorithm for identifying hidden drug– drug interactions in adverse event
+reports,” J. Am. Med. Inform. Assoc., vol. 19, no. 1, pp. 79–85, 2011.
+[14] P. Vincent, H. Larochelle, I. Lajoie, Y. Bengio, and P.-A. Manzagol,
+“Stacked denoising autoencoders: Learning useful representations in a
+deep network with a local denoising criterion,” J. Mach. Learn. Res.,
+vol. 11, pp. 3371–3408, 2010.
+[15] X. Yang, Q. Song, and Y. Wang, “A weighted support vector machine for
+data classification,” Int. J. Pattern Recognit. Artif. Intell., vol. 21, no. 5,
+pp. 961–976, 2007.
+[16] S. V. Iyer, R. Harpaz, P. LePendu, A. Bauer-Mehren, and N. H. Shah,
+“Mining clinical text for signals of adverse drug– drug interactions,” J.
+Am. Med. Inform. Assoc., vol. 21, no. 2, pp. 353–362, 2013.
+[17] R. Cai et al., “Identification of adverse drug– drug interactions through
+causal association rule discovery from spontaneous adverse event reports,”
+Artif. Intell. Med., vol. 76, pp. 7–15, 2017.
+[18] S. Vilar, C. Friedman, and G. Hripcsak, “Detection of drug– drug interactions through data mining studies using clinical sources, scientific
+literature and social media,” Briefings Bioinform., vol. 19, no. 5, pp. 863–
+877, 2018.
+[19] R. W. White et al., “Early identification of adverse drug reactions from
+search log data,” J. Biomed. Inform., vol. 59, pp. 42–48, 2016.
+[20] L. Peng et al., “Screening drug– target interactions with positive-unlabeled
+learning,” Sci. Rep., vol. 7, no. 1, 2017, Art. no. 8087.
+[21] H. Ibrahim, A. Saad, A. Abdo, and A. S. Eldin, “Mining association
+patterns of drug-interactions using post marketing FDA’s spontaneous
+reporting data,” J. Biomed. Inform., vol. 60, pp. 294–308, 2016.
+[22] F. Cheng and Z. Zhao, “Machine learning-based prediction of drug–drug
+interactions by integrating drug phenotypic, therapeutic, chemical, and
+genomic properties,” J. Am. Med. Inform. Assoc., vol. 21, no. e2, pp. e278–
+e286, 2014.
+[23] W. Zhang, Y. Chen, F. Liu, F. Luo, G. Tian, and X. Li, “Predicting potential
+drug– drug interactions by integrating chemical, biological, phenotypic
+and network data,” BMC Bioinform., vol. 18, no. 1, 2017, Art. no. 18.
+[24] P. N. Hameed, K. Verspoor, S. Kusljic, and S. Halgamuge, “Positiveunlabeled learning for inferring drug interactions based on heterogeneous
+attributes,” BMC Bioinform., vol. 18, no. 1, 2017, Art. no. 140.
+[25] T. Takeda, M. Hao, T. Cheng, S. H. Bryant, and Y. Wang, “Predicting
+drug– drug interactions through drug structural similarities and interaction
+networks incorporating pharmacokinetics and pharmacodynamics knowledge,” J. Cheminform., vol. 9, no. 1, 2017, Art. no. 16.
+[26] X. Zhu and A. B. Goldberg, “Introduction to semi-supervised learning,”
+Synthesis Lectures Artif. Intell. Mach. Learn., vol. 3, no. 1, pp. 1–130,
+2009.
+[27] X. Zhu, “Semi-supervised learning literature survey,” Comput. Sci., Univ.
+Wisconsin-Madison, Rep. TR 1530, 2006.
+[28] I. Triguero, S. Garcı́a, and F. Herrera, “Self-labeled techniques for semisupervised learning: taxonomy, software and empirical study,” Knowl. Inf.
+Syst., vol. 42, no. 2, pp. 245–284, 2015.
+[29] K. P. Bennett and A. Demiriz, “Semi-supervised support vector machines,”
+in Proc. Adv. Neural Inf. Process. Syst., 1999, pp. 368–374.
+[30] O. Chapelle, B. Scholkopf, and A. Zien, “Semi-supervised learning
+(Chapelle, O. et al., Eds.; 2006) [Book reviews],” IEEE Trans. Neural
+Netw., vol. 20, no. 3, pp. 542–542, Mar. 2009.
+[31] Y. Li, C. Guan, H. Li, and Z. Chin, “A self-training semi-supervised SVM
+algorithm and its application in an EEG-based brain computer interface
+speller system,” Pattern Recognit. Lett., vol. 29, no. 9, pp. 1285–1294,
+2008.
+
+[32] A. Blum and T. Mitchell, “Combining labeled and unlabeled data with
+co-training,” in Proc. 11th Annu. Conf. Comput. Learn. Theory, 1998,
+pp. 92–100.
+[33] Y. Zhou and S. Goldman, “Democratic co-learning,” in Proc. 16th IEEE
+Int. Conf. Tools Artif. Intell., 2004, pp. 594–602.
+[34] E. M. Rodriguez, J. A. Staffa, and D. J. Graham, “The role of databases
+in drug postmarketing surveillance,” Pharmacoepidemiology Drug Saf.,
+vol. 10, no. 5, pp. 407–410, 2001.
+[35] E. G. Brown, L. Wood, and S. Wood, “The medical dictionary for regulatory activities (MedDRA),” Drug Saf., vol. 20, no. 2, pp. 109–117,
+1999.
+[36] S. Ayvaz et al., “Toward a complete dataset of drug– drug interaction
+information from publicly available sources,” J. Biomed. Inform., vol. 55,
+pp. 206–217, 2015.
+[37] D. S. Wishart et al., “Drugbank 5.0: A major update to the drugbank
+database for 2018,” Nucleic Acids Res., vol. 46, no. D1, pp. D1074–
+D1082, 2017.
+[38] “Questions and answers on FDA’s adverse event reporting system
+(FAERS),” 2018. [Online]. Avaialble: https://www.fda.gov/drugs/
+guidancecomplianceregulatoryinformation/surveillance/adversedrugeffe
+cts/default.Htm
+[39] RxNorm API. [Online]. Available: https://rxnav.nlm.nih.gov/RxNorm
+APIs.html
+[40] R. Agrawal, T. Imieliński, and A. Swami, “Mining association rules between sets of items in large databases,” ACM SIGMOD Rec., vol. 22, no. 2,
+pp. 207–216, 1993.
+[41] J. Friedman, T. Hastie, and R. Tibshirani, The Elements of Statistical
+Learning (Springer Series in Statistics). New York, NY, USA: SpringerVerlag, 2001.
+[42] I. Goodfellow, Y. Bengio, A. Courville, and Y. Bengio, Deep Learning.
+Cambridge, MA, USA: MIT Press, 2016.
+[43] G. E. Hinton and R. R. Salakhutdinov, “Reducing the dimensionality of
+data with neural networks,” Science, vol. 313, no. 5786, pp. 504–507,
+2006.
+[44] M. Sakurada and T. Yairi, “Anomaly detection using autoencoders with
+nonlinear dimensionality reduction,” in Proc. MLSDA 2nd Workshop
+Mach. Learn. Sensory Data Anal., 2014, p. 4.
+[45] D. Charte, F. Charte, S. Garcı́a, M. J. del Jesus, and F. Herrera, “A
+practical tutorial on autoencoders for nonlinear feature fusion: Taxonomy, models, software and guidelines,” Inf. Fusion, vol. 44, pp. 78–96,
+2018.
+[46] N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever, and R. Salakhutdinov, “Dropout: A simple way to prevent neural networks from overfitting,”
+J. Mach. Learn. Res., vol. 15, no. 1, pp. 1929–1958, 2014.
+[47] L. Bottou, “Large-scale machine learning with stochastic gradient descent,” in Proc. 19th Int. Conf. Comput. Statist., 2010, pp. 177–186.
+[48] D. P. Kingma and J. Ba, “Adam: A method for stochastic optimization,”
+2014, arXiv:1412.6980.
+[49] D. M. Powers, “Evaluation: From precision, recall and F-measure to
+ROC, informedness, markedness and correlation,”J. Mach. Learn. Technol., vol. 2, no. 1, pp. 37–63, 2011.
+[50] M. Abadi et al., “Tensorflow: A system for large-scale machine learning,”
+in Proc. Oper. Syst. Des. Implementation, 2016, vol. 16, pp. 265–283.
+[51] T. B. Arnold, “kerasR: R interface to the Keras deep learning library,”
+J. Open Source Softw., vol. 2, no. 14, p. 296, 2017.
+[52] R. G. Andrzejak, K. Lehnertz, F. Mormann, C. Rieke, P. David, and C.
+E. Elger, “Indications of nonlinear deterministic and finite-dimensional
+structures in time series of brain electrical activity: Dependence on
+recording region and brain state,” Phys. Rev. E, vol. 64, no. 6, 2001,
+Art. no. 061907.
+[53] A. Asuncion and D. Newman, “UCI machine learning repository,” School of Information and Computer Science, University
+of California, Irvine, CA, USA, 2007. [Online]. Available: http://
+www.ics.uci.edu/mlearn/MLRepository.html
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 17:15:42 UTC from IEEE Xplore. Restrictions apply.
+
+

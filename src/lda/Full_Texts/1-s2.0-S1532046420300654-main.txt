@@ -1,0 +1,1657 @@
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+Adverse drug reaction detection on social media with deep linguistic
+features
+
+T
+
+Ying Zhanga,b, , Shaoze Cuic, Huiying Gaoa,
+⁎
+
+⁎
+
+a
+
+School of Management and Economics, Beijing Institute of Technology, Beijing 100081, China
+School of Business, University of Jinan, Jinan 250022, China
+c
+School of Economics and Management, Dalian University of Technology, Dalian 116023, China
+b
+
+ARTICLE INFO
+
+ABSTRACT
+
+Keywords:
+Adverse drug reactions
+Deep linguistic features
+Social media
+Feature-based method
+Pharmacovigilance
+
+Adverse reactions caused by drugs are one of the most important public health problems. Social media has
+encouraged more patients to share their drug use experiences and has become a major source for the detection of
+professionally unreported adverse drug reactions (ADRs). Since a large number of user posts do not mention any
+ADR, accurate detection of the presence of ADRs in each user post is necessary before further research can be
+conducted. Previous feature-based methods focus on extracting more shallow linguistic features that are unable
+to capture deep and subtle information in the context, ultimately failing to provide satisfactory accuracy. To
+overcome the limitations of previous studies, this paper proposes a novel method that can extract deep linguistic
+features and then combine them with shallow linguistic features for ADR detection. We first extract predicateADR pairs under the guidance of extended syntactic dependencies and ADR lexicon. Then, we extract semantic
+and part-of-speech (POS) features for each pair and pool the features of different pairs to generate a holistic
+representation of deep linguistic features. Finally, we use the collection of deep features and several shallow
+features to train the predictive models. A series of experiments are performed on data sets collected from
+DailyStrength and Twitter. Our approach can achieve AUCs of 94.44% and 88.97% on the two data sets, respectively, outperforming other state-of-the-art methods. The results demonstrate the potential benefits of deep
+linguistic features for ADR detection on social data. This method can be applied to multiple other healthcare and
+text analysis tasks and can be used to support pharmacovigilance research.
+
+1. Introduction
+Adverse drug reactions (ADRs) are defined by the World Health
+Organization as any noxious, unintended, and undesired effects of a
+drug that occur at doses used for prevention, diagnosis, and treatment
+[1]. Due to the limitations on scale and time of clinical trials, a comprehensive evaluation of the results after the use of a certain drug is
+impossible to make before it is released to the market [2]. Current
+statistics show that ADRs cause irreversible healthcare damage for the
+public. In America alone, up to 5% of hospital admissions, 28% of
+emergency visits and 5% of hospital deaths are caused by ADRs annually [3–5]. In addition, the drug recall caused by ADRs incurs considerable financial losses to pharmaceutical companies, costing approximately $7.5 billion annually [4]. Fortunately, according to a metaanalysis, approximately 50% of ADRs can be prevented by strong surveillance [6]. Thus, supervising drug safety in a timely and accurate
+manner after they are marketed is of paramount significance.
+
+⁎
+
+At present, the detection of ADRs primarily depends on two
+methods: passive monitoring based on the spontaneous reporting
+system (SRS) and active surveillance based on electronic medical data
+mining, such as the mining of electronic health records (EHRs) [7–10],
+biomedical literature [11] and case reports [12–14]. The governmentbacked SRSs accept voluntary reports from consumers, healthcare
+professionals and pharmaceutical companies. Among these reports,
+consumer reports account for a large proportion of all reports [15].
+However, not all countries have established mechanisms for receiving
+consumer reports, especially for developing countries [16]. Moreover,
+due to time lag and untrained customers, SRSs suffer from problems
+such as heavy underestimation (< 10% of the total), the overreporting
+of known ones, incomplete data and duplicate reporting [17–19]. Unfortunately, as an alternative and complementary method, the secondary use of medical data is plagued by difficulties in the access of
+patient data and in avoiding legal and privacy issues [11]. Therefore,
+some additional data sources are necessary for pharmacovigilance.
+
+Corresponding authors at: School of Management and Economics, Beijing Institute of Technology, Beijing 100081, China.
+E-mail addresses: sm_zhangying@163.com (Y. Zhang), csz2016@mail.dlut.edu.cn (S. Cui), huiying@bit.edu.cn (H. Gao).
+
+https://doi.org/10.1016/j.jbi.2020.103437
+Received 16 November 2019; Received in revised form 2 April 2020; Accepted 26 April 2020
+Available online 29 April 2020
+1532-0464/ © 2020 Elsevier Inc. All rights reserved.
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+With the prosperity of social networks, people are more inclined to
+share their treatment experiences on social media, posting their use of
+prescription drugs and related side effects [19]. This behavior makes
+user posts on social media an important source for ADR detection. User
+posts discussing ADRs must be identified before further detection can
+occur because almost 90% of drug-related user posts are not associated
+with ADRs. Detecting the presence of an ADR in each user post is the
+objective of this study.
+User posts mentioning at least one adverse drug reaction can be
+classified as ADRs, while other user posts are classified as non-ADRs.
+Users often mention multiple symptoms throughout a post, for example,
+“Took for insomnia, did not make me groggy.” Two symptom words,
+“insomnia” and “groggy”, are mentioned in this post. Whether the
+symptom words “insomnia” and “groggy” indicate ADRs depends on the
+meaning of the corresponding predicates “took for” and “not”, “made”
+that appear in their context, respectively. When people judge whether
+an ADR is present in a post, they usually read the post comprehensively,
+analyze the meaning of each ADR word and its corresponding predicate, and then pass judgment. Deep features that can grasp the
+meaning of the ADR word and the semantics of the predicates, carry
+more discriminative information for ADR detection. However, previous
+feature-based methods focus mostly on extracting shallower linguistic
+features, such as lexical features and part-of-speech (POS) features.
+These shallow features are usually surface aspects of text and cannot
+capture the meaning of the sentence, thereby failing to assist in training
+an accurate predictive model. Moreover, heavy feature engineering can
+lead to high-dimensional and data sparsity problems, which have a
+negative impact on classification performance. Inevitable misspellings,
+colloquial expressions and creative phrases in social texts undoubtedly
+make ADR detection on social media more challenging.
+We develop a novel feature-based method to solve the challenges in
+ADR detection from social data. Our research is primarily inspired by
+the work in [37]. This paper explores the use of deep linguistic features
+for ADR detection and compares them to current approaches. Our
+contributions in this work are as follows:
+
+on, researchers were inclined to use unsupervised methods to derive
+statistics over large amounts of data [20–22]. These approaches are
+easy to implement but perform poorly.
+In recent years, a growing trend towards implementing ADR detection through supervised machine learning methods has emerged. For
+feature-based methods, researchers extract various features to represent
+the text according to their experience. Yang et al. [22] extracted syntactic, semantic and sentiment features for the classification of comments mentioning ADRs. After that, Patki et al. [23] extended the
+feature set to n-grams, synonym expansion, convert phrases and sentiment words. Yang et al. [24] found that the topics of ADR user posts
+were highly distributed compared to those of non-ADR user posts and
+developed a topic-feature-based method. Sarker and Gonzalez [25]
+further boosted the feature sets into eight sets and achieved the best Fmeasures (0.678 and 0.538) on two social data sets, respectively. All of
+the extracted features in the aforementioned methods are shallow linguistic features that cannot capture potential information in the context
+for classification. Due to the lack of discriminative features, current
+feature-based methods cannot achieve sufficient accuracy. For neural
+network-based methods, each word is embedded into a vector using a
+neural network. Huynh et al. [26] used word embedding, projecting
+each post into a matrix, and trained neural network models with different architectures as classifiers for ADR detection. In addition, other
+researchers have exploited ensemble classifiers to improve the performance of ADR detection [27,28]. Although neural network- and ensemble-based methods achieve better F-measures than do previous
+feature-based methods, they are still unable to provide satisfactory
+accuracy.
+The basic material for supervised methods, i.e., annotated data, is
+still a concern. To date, only three annotated data sets have been made
+publicly available [12,29,30]. Lee et al. [31] developed semi-supervised
+convolutional neural networks to mitigate excessive reliance on annotated corpora. Another challenge that has been constantly discussed in
+most of the above research is the evaluation metric under data imbalance. A number of related strategies have been proposed in previous
+studies, including the use of weighted features and multiple training
+corpora [23,25,32]. In addition, some researchers have adopted the
+area under the curve (AUC) of the receiver operating characteristics
+(ROC), which is immune to data imbalance, as the evaluation metric in
+their work [33].
+
+(1) We collect user posts from the DailyStrength website and annotate
+them, forming a new corpus for the ADR detection task. This process allows us to test models on multiple corpora rather than on a
+single public corpus, enabling us to evaluate the generality of
+models.
+(2) We present a method for extracting deep linguistic features for the
+ADR detection task that can capture the deep-level linguistic features of ADR words and their corresponding predicates from naturalistic data and aggregate them, addressing the issues raised by
+shallow linguistic features.
+(3) We propose a new method that combines novel deep linguistic
+features with several useful shallow linguistic features, comprehensively representing the text features and hence enhancing the
+performance of ADR detection from social media.
+(4) We provide a multifaceted evaluation to show the advantage of our
+proposed method.
+
+2.2. Applications of syntactic information in related work
+Previously, researchers tended to use the outputs of syntactic parsing, such as dependency trees or the shortest dependency path (SDP),
+directly in ADR-detection-related or other tasks. For example, Liu et al.
+[33] extracted syntax tree features and dependency features in their
+study of ADR relation extraction. Mou et al. [34] believed that using
+only the words along the shortest dependency path was sufficient to
+determine the relation between two entities and developed the SDPLSTM model for the relation extraction task accordingly. Nooralahzadeh et al. [35] continued this line of work and presented a
+convolutional neural network (CNN) model over the SDP for the extraction and classification of semantic relations in scientific papers.
+These superficial uses of syntactic information might eliminate some
+important information in a sentence.
+Researchers in other fields have already recognized the contribution
+of syntactic information to identifying the context of event-denoting
+words that are strictly necessary for understanding natural language
+and have explored the integration of syntactic parsing in text representation. One direction is to extract deep-level linguistic analysis
+features based on syntactic parsing. For example, Chen & Rambow [36]
+derived deeper syntax features such as passive and declarative features
+for the semantic role labeling task. Stanovsky et al. [37] derived target
+predicates from reordered dependency trees and then extracted more
+features for target predicates from the linguistic perspective, such as the
+
+The rest of this paper is organized as follows. Section 2 provides a
+brief overview of prior studies. Section 3 outlines our proposed method
+and interprets its major components in detail. Section 4 describes the
+experimental setup. Section 5 presents the experimental results and
+provides a discussion of our findings. Section 6 concludes this paper and
+outlines future directions.
+2. Related work
+2.1. ADR detection over social media
+Since recognizing the scientific value of social media to drug safety
+surveillance, researchers have begun exploring ADR detection. Earlier
+2
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+implication signature, negation and uncertainty, to perform factuality
+prediction. The other direction is to integrate syntactic parsing into the
+neural network model. Rudinger et al. [38] leveraged the dependency
+tree as the topology of a bidirectional LSTM for factuality prediction.
+Jiang & Marneffe [39] evaluated the two methods for factuality prediction in [37,38] and found that the deep linguistically informed
+model outperforms the LSTM-based model on naturalistic data.
+For ADR-detection-related tasks, the integration of syntactic information mainly occurs in the ADR relation extraction field. Li et al.
+[40] utilized the syntactic dependency tree as the input graph of a
+segment graph CNN for relation extraction on clinical notes. This
+method achieves a satisfactory F-measure in the i2b2 relation extraction task. However, it is not suitable for ADR detection since it focuses
+only on the context of two entities in one sentence.
+
+character to address the user name and remove the # character and
+URLs.
+3.2. Feature extraction
+For the research in this paper, each user post is represented as a
+feature set f1, f2, , fn . Our feature extraction framework is shown in
+Fig. 1. The final feature set consists of two feature sets: a shallow linguistic feature set and a deep linguistic feature set.
+3.2.1. Deep linguistic feature set
+Different from the commonly called “deep” features learned through
+deep neural networks, deep linguistic features in this paper is defined
+from the perspective of computational linguistics. Shallow linguistic
+features are usually surface descriptions of a specific aspect of text, such
+as POS tags and n-grams. Deep natural language processing approaches
+aim at grasping the entire meaning of sentences, rather than focusing
+on text portion alone [41]. Deep linguistic features refer to the features
+derived from deep natural language processing of sentences.
+Regarding the ADR detection task, the presence of ADR words is an
+important clue to the occurrence of adverse drug reactions. However,
+these ADR words may be characterized as adverse drug reactions, indications or other findings due to their direct predicates in context. In
+addition, the whole-sentence meaning is also affected by indirect predicates above the direct predicate, such as “not”. Besides, some ADR
+words are polysemous and sometimes express other meanings rather
+than adverse drug reactions. Deeper information that can disambiguate
+each ADR word and reflect the semantics of its corresponding predicates is critical for an entire understanding of the sentence [42]. Note
+that the number of ADR words in different user posts varies. To integrate this distributed deeper information into our classification framework, we develop a deep linguistic feature extraction framework
+(shown in Fig. 1), which consists of three main components: extracting
+predicate-ADR pairs, extracting the initial deep feature set and feature
+pooling [43].
+
+2.3. Research gaps
+Based on the previous literature review, we have determined several
+research gaps. On the one hand, the majority of the previous featurebased approaches attempt to boost the classification performance by
+extracting more shallow linguistic features. However, shallow linguistic
+features are now proven to be insufficient to provide more support for
+ADR detection due to their inability to capture discriminative information. Moreover, the high-dimensional and data sparsity problems
+brought by more features can also have a negative impact on classification performance. As alternatives, current neural network-based
+methods are still unable to provide satisfactory accuracy, and those
+neural network models that integrate syntactic information are not
+suitable for the ADR detection task. On the other hand, methods utilizing deep linguistically informed features have achieved better performances than those of neural network-based methods in other natural
+language processing tasks [37]. However, for the ADR detection task,
+no exploration of methods using deep linguistic features has occurred.
+Based on the above observations, our research aims to develop a
+novel method with deep linguistic features for ADR detection on social
+media.
+
+(1) Extracting predicate-ADR pairs
+
+3. Methods
+
+ADR lexicon. The ADR lexicon proposed by Sarker1 is utilized to
+detect ADR words from the text. The lexicon combines terms from
+MedDRA (19th edition), SIDER4.1 edition, Med Effect and the Consumer Health Vocabulary Initiative (CHV), struggling to capture cases
+where novel descriptions are used to express ADRs. In addition, to boost
+its performance, the lexicon is expanded by searching the well-known
+corpora UMLS2 for synonyms and is manually pruned by grouping
+terms with similar meanings (e.g., stopped and stopped helping). The
+final version of the lexicon preserves 16,324 ADR mentions in total.
+A lexicon string-matching method is exploited here to identify ADR
+words from the text. We directly search for and replace terms by referring to the ADR lexicon and select the longest one in multimatch
+cases. In particular, a wildcard matching mode is conducted here to suit
+the diversity of expression of ADR words on social media. As shown in
+Fig. 2, “weight too much gain” is recognized as an ADR word by
+comparison with “gain weight”, with a wildcard window of 2 (the
+maximum window size is set to 4). After that, adverse drug reaction
+mentions composed of multiple words are condensed into a single word
+to preserve useful semantic units for further processing [44]. For example, we convert the word “diabetes mellitus” into “diabetes_mellitus”
+to be processed as a unique word afterwards.
+Extended syntactic dependencies. In previous research, dependency trees were widely used for relation extraction between pairs
+
+This paper proposes a novel feature-based method for ADR detection on social media. Fig. 1 depicts an overview of our method. We
+collect data from Twitter and DailyStrength and invite two domain
+experts to annotate the DailyStrength data. For each user post, we extract predicate-ADR pairs under the guidance of extended syntactic
+dependencies and ADR lexicon and extract POS and semantic features
+for each pair by the extended FactNet knowledge base and other domain knowledge to form the initial deep feature set. Then, the initial
+deep linguistic features of different pairs are pooled to generate a holistic representation of deep linguistic features. Finally, we combine
+deep linguistic features with several shallow linguistic features to train
+the predictive model. The details of each component are discussed in
+subsequent sections. The blue boxes in Fig. 1 are our primary contributions in this paper.
+3.1. Data preprocessing
+A series of preprocessing steps are conducted before feature extraction so that we can focus on the important concepts of the user posts
+to enhance the semantic quality of the final feature vector. The first step
+consists of standard preprocessing, such as lowercasing all terms and
+lemmatization. Stop words are found to be beneficial to the extraction
+of predicate-ADR pairs, so we do not remove stop words. Afterwards,
+some steps especially applicable to social text are performed. We remove repetitive letters according to the WordNet dictionary, e.g.,
+‘‘greeeeat’’ – ‘‘great’’ in English, and check misspellings through a spell
+checker. In particular, we remove words beginning with the @
+
+1
+http://diego.asu.edu/Publications/ADRClassify.html Accessed on May 27,
+2017.
+2
+https://uts.nlm.nih.gov/home.html Accessed on May 20, 2017.
+
+3
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+user posts
+Shallow linguistic feature set
+Data
+preprocessing
+
+Data
+annotation
+
+... Work for
+
+Stanford
+Parser
+
+cc
+nmod
+case
+... Work for anxiety
+
+Uncertainty
+dictionary
+Uncertainty
+Sentiment
+polarity
+
+is
+
+addictive. ...
+
+conj
+cop
+, but is
+
+Negation
+
+ADR lexicon
+
+addictive. ...
+
+...
+(work for, anxiety)
+is, addictive
+...
+
+POS
+
+Polarity
+dictionary
+
+anxiety , but
+
+dependencies
+extending
+
+Predicate-ADR pairs
+
+classifier
+
+NegEx
+...
+
+Abstracting&
+bootstraping
+
+... Initial deep feature set
+
+FP: POS
+FN: Negation
+FS: Sentiment polarity
+FU: Uncertainty
+
+FactNet
+Knowledge base
+
+Feature pooling
+
+Deep linguistic feature set
+Fig. 1. An overview of our method. Red lines indicate the route of our method. (For interpretation of the references to color in this figure legend, the reader is
+referred to the web version of this article.)
+
+gain
+
+weight
+
+gain
+
+too
+
+weight
+much
+
+Parser3 is used for collapsed dependency parsing, which exploits syntax
+triples to represent the relations between words in a sentence. The
+Stanford Parser can output various analysis format for the input plain
+text, including part-of-speech tagged text and a typed dependency representation. Fig. 4 shows the collapsed dependencies (a) output by the
+Stanford Parser and their graphical representation (b) for the sentence
+“my doctor worry that it can cause allergy”. The syntax triple nmod:poss (doctor-2, my-1) indicates that the second word “doctor” in the
+sentence has an nmode:poss relation with the first word “my” in the
+sentence. To extract the predicates of an ADR word, we initially take
+the ADR word node in the dependency graph as the starting point and
+search along the incoming comp relation, the outgoing mod relation
+(including the neg relation) and the outgoing cop relation to obtain the
+corresponding node words as the predicates. Next, we take each newly
+obtained predicate as the starting point and then repeat the predicate
+search process until no new predicate appears.
+Fig. 4 (b) illustrates the predicate search process for the ADR word
+“allergy” in the example sentence. Specifically, in the first round, we
+take the ADR word “allergy” as the initial starting point and obtain the
+direct predicate “cause” of “allergy” along the incoming dobj relation.
+In the second round, starting from the newly obtained predicate
+“cause”, the indirect predicate “worry” of the ADR word “allergy” is
+extracted along the incoming ccomp relation (clause complement, one
+of the complement relations) of “cause”. Because the node “worry” no
+longer has a traceable relation, the predicate search process for the ADR
+word “allergy” ends here. Therefore, the predicate-ADR pair corresponding to the sentence shown in Fig. 4 is (worry/cause, allergy). Note
+that when expressed as predicate-ADR pairs, the prepositions embedded in the relation field in the collapsed representation should be
+restored. The proposed scheme masks noncore syntactic details and
+yields a trimmed representation of the original sentence, locating the
+exact objects for further deep linguistic feature extraction.
+
+weight
+weight
+
+Fig. 2. An example for the wildcard matching mode.
+
+predicates
+negation
+It does not
+
+sentiment
+
+ADR word
+
+work for
+
+my headache
+
+Fig. 3. Multiple predicates for the ADR word “headache” in the sentence “It
+does not work for my headache”. Text in the color-filled areas indicates the semantic types of the corresponding predicates.
+
+of named biomedical entities [343545]. However, the dependency
+parse tree contains a large number of less relevant noises for ADR detection, and directly reading out the predicates of each ADR word in a
+sentence is not easy. Inspired by [37], we abstract the syntactic dependencies for the classification task, by which we can provide a direct
+outputting of ADR words and their corresponding predicates for sentences with different central words and different structures. Notably,
+multiple predicates may co-occur in a sentence and interact with each
+other. As shown in Fig. 3, the ADR word “headache” has two predicates:
+“work for” and “not”. In the sentence, the direct predicate “work for”
+interacts with the indirect predicate “not”, and whether the ADR word
+“headache” expresses an adverse drug reaction is determined by both
+predicates. Therefore, we need to detect not only the direct predicates
+of ADR words but also the indirect predicates of ADR words, i.e., the
+predicates of the predicates.
+According to our investigation, direct predicates affecting the
+meaning of ADR words include mainly verb/prepositional predicates,
+modifiers and complements. Based on the above analysis, we design a
+scheme for extracting predicate-ADR pairs. In the scheme, the Stanford
+
+3
+
+4
+
+https://nlp.stanford.edu/software/lex-parser.html#Download
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+nmod:poss(doctor-2, my-1)
+nsubj(sorry-3, doctor-2)
+mark(cause-7, that-4)
+nsubJ(cause-7, it-5)
+aux(cause-7, can-6)
+ccomp(worry-3, cause-7)
+dobj(cause-7, allergy-8)
+
+ccomp
+nmod:poss
+my
+
+doctor
+
+nsubj
+worry
+nsubj
+
+(a)
+
+dobj
+
+that
+
+it
+
+aux
+
+(b)
+
+toxicity fields, respectively. Thus, a series of relation templates with
+polarity labels in the FactNet knowledge base exist, e.g., a negativelabeled relation template (subject, cause, NP). We find that the words in
+the second field of each relation template, such as “cause”, have strong
+power in distinguishing adverse drug reactions from indications.
+Therefore, referring to [47], we extract the relation templates with
+polarity labels and further streamline them into key verbs with polarity
+labels by retaining only the second field of each template. For the given
+example (subject, cause, NP), we obtain the verb “cause” with a negative label. In addition, considering the word diversity in social texts,
+we use these words as seeds and grow them through disease or medicine relations in WordNet to achieve a better polarity dictionary. Specifically, we add all the hypernyms, synonyms and entailment of each
+seed to the dictionary and assign them the same polarity label as their
+seeds. Fig. 5 shows the details of the bootstrap for the word “cure”
+through the disease or medicine relations in WordNet. Besides, we
+manually add prepositions such as “for”, “due to”, etc., and copulas
+such as “am”, “are”, etc., to the polarity dictionary and mark them as
+positive and negative, respectively.
+The FactNet knowledge base does not provide clue words indicating
+other findings nor is our goal to distinguish between adverse reactions,
+indications and other findings in detail. Our purpose in this section is to
+distinguish potential ADRs from non-ADRs. Therefore, we predefine the
+values of the sentiment polarity feature as adverse drug reactions, indications and unknown and use the obtained polarity dictionary to
+value this feature. A 3-dimensional one-hot vector is used to represent
+the value of the sentiment polarity feature of the predicates. We denote
+the set of positive-labeled words and the set of negative-labeled words
+in the polarity dictionary by S1 and S2 , respectively. The value of each
+dimension in the sentiment polarity feature vector is given by:
+
+For each predicate-ADR pair, we capture four types of features: the
+POS feature of the ADR word and three types of semantic features of the
+predicates, i.e., a negation feature, a sentiment polarity feature and an
+uncertainty feature.
+POS: The POS category refers to the POS tag of the ADR word. Some
+words in the ADR lexicon are polysemous and multi-parts-of-speech
+words, e.g., the word “back” sourced from the CHV. Generally, they are
+more likely to express adverse drug reactions when they are in certain
+parts-of-speech. Hence, the POS of an ADR word is helpful for its contribution to word disambiguation. We use the Stanford Parser to obtain
+the POS tag of the ADR word. According to the tagging scheme in the
+Stanford Parser, we predefine a list of POS tags, including phrase- and
+word-level POS tags in the Penn Treebank4 tag set, and map each tag to
+a 57-dimensional one-hot vector to represent the POS tag of the ADR
+word. Let (t1, t2 ,tn ) be the predefined set of n POS tags and w be the
+POS tag of an ADR word. The value of each dimension in the POS
+feature vector is given by:
+
+1ifw = ti
+,1
+0otherwise
+
+i
+
+57
+
+(1)
+
+Negation: This binary feature indicates whether an ADR word is
+negated in a sentence, e.g., “I have no side effect such as allergic”. This
+feature is valued by negation detection on the predicates. NegEx5 is
+utilized as the negation detection tool since it has been widely adopted
+in previous studies for annotating biomedical text. A 1-dimensional
+one-hot vector is used to represent the negation feature of the predicates. Let c be a concept and P be the set of predicates. The value of
+the negation feature is given by:
+
+f Neg
+
+1if c P
+= cisnegative
+0otherwise
+
+f1Sen =
+(2)
+
+5
+
+1if c P
+1if c P
+1if c P
+Sen
+Sen
+c S1 , f2 =
+c S2 , f3 = c (S1 S2)
+0otherwise
+0otherwise
+0otherwise
+
+(3)
+
+Uncertainty: This binary feature suggests whether the ADR word is
+modified by uncertainty. Uncertainty indicates that an event may
+happen, but it has not actually happened yet [48]. For example, “My
+doctor worries that it can destroy my system”. Several trigger words
+such as “afraid” and “worry”, modal verbs such as “may” and “might”,
+and words indicating future tense such as “will” and “would” are
+manually collected to indicate uncertainty. We value this feature according to the presence/absence of uncertainty words in the predicates
+and use a 1-dimensional one-hot vector to present the value of this
+feature. We denote the set of words in the uncertainty dictionary by U.
+The value of the uncertainty feature is given by:
+
+Sentiment polarity: This feature shows the sentiment polarity of
+the predicates. ADR words can be characterized as adverse drug reactions, drug indications or other findings by their predicates. Table 1
+presents the definitions of these three notions.
+Sentiment polarity has been proven to carry dominant predictive
+information for the identification of adverse drug reactions on social
+media [25]. However, most of the current sentiment analysis methods
+fail to evaluate the patients' sentiments towards a particular drug accurately due to their feebleness in identifying the implicit sentiments
+implied by drug indication, adverse drug reaction and other findings.
+To detect the sentiment polarity feature precisely, we utilize and extend
+the FactNet knowledge base mentioned in [47] due to its superiority in
+the sentiment identification of implicit experiences.
+In [47], they use the open drug data sources Drugbank, DailyMed,
+and SIDER as knowledge sources and extract positive and negative relation templates from the drug indication and drug warning and
+4
+
+allergy
+
+mark
+
+(2) Extracting the initial deep feature set
+
+fiPOS =
+
+cause
+
+can
+
+Fig. 4. The collapsed dependencies (a)
+and their graphical representation (b)
+for the sentence “My doctor worry that it
+can cause allergy”. Red lines in figure (b)
+indicate the route followed in tracing
+predicates for the ADR word “allergy”
+from the dependencies. (For interpretation of the references to color in
+this figure legend, the reader is referred
+to the web version of this article.)
+
+f Unc =
+
+1if c P
+c U
+0otherwise
+
+(4)
+
+As shown in Fig. 6, all the vectors are then concatenated together,
+and finally, we obtain a 62-dimensional vector as the representation of
+the deep linguistic features of each predicate-ADR pair. For the previously extracted predicate-ADR pair (worry/cause, allergy), the predicate “worry” is uncertain, the predicate “cause” is negative in
+
+https://www.cis.upenn.edu/~treebank/
+http://code.google.com/p/negex
+5
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+Table 1
+Definitions of adverse drug reaction, drug indication and other findings.
+Adverse drug reaction
+Drug indication
+Other findings
+
+Any noxious, unintended, and undesired effects of a drug that occur at doses used for prevention, diagnosis, and treatment [1].
+The diseases or disorders treated by the drug [33].
+A clinical finding that does not fit into the previous categories, such as the mention of a disease that is not the reason for the patient taking the drug [46].
+
+Mean pooling [49]. Calculate the mean of a feature value of different samples as the pooled value of the feature, i.e., the k th component
+n
+of H is hk = ( i = 1 fik )/ n , where n is the number of samples.
+Max pooling [50]. Select the maximum of a feature value of different samples as the pooled value of the feature, i.e., the k th component
+of H is hk = max (f1k , f2k , , fnk ) , where n is the number of samples.
+We define the size of the pooling window as 62 in practice and
+conduct mean pooling and max pooling operations on the initial deep
+linguistic feature vectors. For a post containing three predicate-ADR
+pairs (worry/cause, allergy), (is, addictive) and (not/work for, headache), its outputs of mean and max pooling should be represented as
+shown in Fig. 7. In the subsequent experiments, we take the output of
+each pooling operation as the representation of deep linguistic features
+of a post.
+
+Fig. 5. Bootstrap of word “cure” through the disease or medicine relations in
+WordNet.
+
+allergy
+
+worry
+
+...
+
+1
+
+3.2.2. Shallow linguistic feature set
+ADR lexicon-based features: ADR lexicon-based features are efficient features for ADR detection [25]. We extract two features based on
+the ADR lexicon for each user post. One is a binary feature that indicates the presence or absence of ADR terms in the user post; the other
+is the number of ADR terms appearing in the user post. For the identification of ADR terms, the same string-matching method mentioned in
+subsection 3.2.1 is used.
+Sentiment fluctuation features: Minimum sentiment has been
+proved to be an efficient feature for the identification of ADR mentions
+[51]. We extract a binary feature based on whether a sentiment fluctuation exists in the user post. Several trigger words are collected
+manually, such as “but” and “however”, to indicate sentiment fluctuation.
+
+predicates
+
+ADR word
+
+0
+
+POS
+
+0
+
+1
+
+negation
+
+cause
+
+0
+
+0
+
+1
+
+sentiment polarity uncertainty
+
+Fig. 6. An example of the representation vector of a predicate-ADR pair.
+
+sentiment polarity, and the ADR word is “NN”; thus, the deep linguistic
+feature vector corresponding to this pair should be represented as
+shown in Fig. 6.
+Furthermore, the initial deep linguistic feature vector of a user post
+containing n ADR words can be simply represented as:
+
+([F1P ,
+
+N
+F1 ,
+
+F1S ,
+
+F1U ],
+
+[F2P ,
+
+N
+F2 ,
+
+F2S ,
+
+F2U ],
+
+, [FnP,FnN ,
+
+FnS ,
+
+4. Experiments
+4.1. Experimental data set
+
+FnU ])
+
+In this subsection, we focus mainly on data collection and data
+annotation. Our data set consists of two parts. One is a publicly available corpus developed by the Diego laboratory6 for the detection of
+adverse drug reactions [12]. User posts in this data set are collected
+from Twitter. Each tweet in this data set is double-annotated with either
+the ADR or non-ADR label and spans of medical entities. Only 70% of
+the corpus has been made public. We utilize locomotive software7 to
+crawl all the original tweets mentioned in the public part. Because some
+users have deleted the related microblogs or microblog pages are not
+accessible, the final data set contains only 5076 instances. The data set
+is extremely imbalanced, with 539 (10.58%) ADR instances and 4539
+(89.42%) non-ADR instances. For the rest of this paper, we refer to this
+data set as TW.
+The other corpus is collected from the online health community
+DailyStrength8 and developed in-house. DailyStrength is a platform for
+patients to connect with each other, attracting an average of more than
+300,000 visitors per month. We also utilize locomotive software as our
+web crawler and extract specific fields, including the post ID, post
+content, page URL, client name and related disease, through a welldevised regular-expression-based parser. In the end, 3705 user posts are
+
+where FnP represents the POS feature vector of the nth ADR word and FnN ,
+FnS and FnU represent the negation feature vector, sentiment polarity
+feature vector and uncertainty feature vector of the predicates of the nth
+ADR word, respectively.
+(3) Feature pooling
+Since the number of ADR words mentioned in each user post is
+different, the size of the initial deep linguistic feature vector for each
+post is distinct. These arbitrarily sized feature vectors cannot be input
+into the classifier directly. We can use and improve the bag-of-words
+model to construct a consistent deep feature space for various user
+posts, i.e., representing a text as the bag of ADR words and replacing
+the tf-idf values with the four deep features of the predicate-ADR pair.
+Unfortunately, this process inevitably suffers from data sparsity and
+dimensional disaster. Pooling operations are usually used to obtain a
+holistic representation H for all local features in video processing. They
+can also be used to solve the different size problem for the input vectors. Since ADR detection is actually immune to concrete ADR words,
+the deep feature vectors of different predicate-ADR pairs can be pooled.
+Therefore, we perform pooling operations to condense the initial deep
+linguistic feature vectors of various user posts to the same size. Two
+pooling strategies exist for general pooling:
+
+6
+
+http://Diego.asu.edu/downloads/ Accessed on November 5,2017.
+http://www.locoy.com/ Accessed on November 16,2017.
+8
+http://www.dailystrength.org/
+7
+
+6
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+max pooling
+
+sentiment
+polarity
+
+negation
+
+POS
+
+uncertainty
+
+1
+
+...
+
+1
+
+1
+
+1
+
+1
+
+0
+
+1
+
+(worry/cause, allergy)
+
+1
+
+...
+
+0
+
+0
+
+1
+
+0
+
+0
+
+1
+
+(is, addictive)
+
+0
+
+...
+
+1
+
+0
+
+1
+
+0
+
+0
+
+0
+
+(not/work for, headache)
+
+1
+
+...
+
+0
+
+1
+
+0
+
+1
+
+0
+
+0
+
+mean pooling
+
+2/3
+
+...
+
+1/3
+
+1/3
+
+2/3
+
+1/3
+
+0
+
+1/3
+
+(b)
+
+(a)
+
+(c)
+
+Fig. 7. The initial deep feature vectors (a) of a post containing three predicate-ADR pairs and its outputs of max pooling (b) and mean pooling (c).
+
+pooling to express deep linguistic features. We investigated the sensitivity of our method over different pooling methods and identified an
+effective pooling operation for our method through this experiment.
+Experiment 2 investigated the influence of different feature sets on the
+predictive performance. We identified a subset of informative features
+and eliminated redundant features that carry little or no discriminative
+information through this experiment. Experiment 3 evaluated the effectiveness of the proposed method in comparison with that of the
+current state-of-the-art methods. To evaluate the generality of various
+methods, all experiments were performed on the DS and TW data sets.
+We implemented preprocessing by the NLKT module in Python. For
+the classifiers, we implemented them through the scikit-learn module in
+Python. Unless otherwise stated, the default parameters in Python were
+used in the experiments. In addition, this study adopted the ten-fold
+cross-validation method that is commonly used in machine learning to
+build and validate the models [53]. First, we divided all samples into
+ten sample subsets of equal size; traversed the ten subsets in turn, each
+time using the current subset as the test set and the rest as the training
+set, and then carried out the training and evaluation of the model; and
+finally took the average value of the ten evaluation metrics as the final
+evaluation metric value.
+
+Table 2
+Data statistics for the DS and TW data sets.
+Statistics
+average number of ADR words a
+Ratio (with ADR words/all)
+
+b
+
+Ratio (ADR words/ADR types)
+
+c
+
+Instances
+
+DS
+
+TW
+
+Remark
+
+ADR
+non-ADR
+ADR
+non-ADR
+10%
+
+1.45
+0.42
+0.901
+0.315
+2.5
+
+0.99
+0.064
+0.743
+0.063
+3.8
+
+For
+For
+For
+For
+For
+
+annotated
+annotated
+annotated
+annotated
+annotated
+
+data
+data
+data
+data
+data
+
+a
+
+Average number of ADR words in ADR or non-ADR instances.
+Ratio of ADR instances with ADR words to ADR instances, ratio of non-ADR
+instances with ADR words to non-ADR instances.
+c
+Ratio of ADR words to ADR types. Here, the ADR words refer to the original
+expression of ADR mentions in user posts, and ADR types represent their corresponding normalized concepts. We manually annotated the normalized concepts of ADR words for only 10% of the total instances in the DS and TW data
+sets; therefore, the instance item for this row is “10%”.
+b
+
+downloaded, containing a total of 8 drugs for chronic diseases and
+conditions, such as type 2 diabetes mellitus, depression, asthma,
+chronic obstructive pulmonary disease and rheumatic arthritis. Since
+DailyStrength provides a special review page for each drug, the crawled
+user posts do not need to be filtered. Subsequently, two domain experts
+are trained to perform binary annotation on the presence or absence of
+an ADR at the post level. Disagreements between the two annotators are
+resolved by a pharmaceutist. To measure the Inter Annotator Agreement (IAA), the pharmaceutist annotates 400 randomly chosen posts.
+We exploit the traditional Cohen’s Kappa to calculate the IAA, and the
+average value obtained is 0.84, which can be regarded as significant
+agreement among the annotators [52]. According to the annotation
+results, the corpus is also imbalanced, with 623 (16.81%) ADR instances and 3082 (83.18%) non-ADR instances. For the rest of this
+paper, we refer to this data set as DS.
+Some statistical information about the two data sets is shown in
+Table 2.
+
+4.3. Performance evaluation
+4.3.1. Performance metrics
+To evaluate the performance of our framework, we adopted the
+most widely used AUC as the evaluation metric to tackle the data imbalance problem in our experiments. The ROC curve defines the false
+positive rate (FPR) as the X axis and the true positive rate (TPR) as the Y
+axis. The definitions of the two indicators, FPR and TPR, are given in
+the confusion matrix shown in Table 3.
+The FPR is the proportion of actual negative examples that are
+falsely classified, i.e.,
+
+FPR = FP /(FP + TN )
+
+(5)
+
+The TPR is the proportion of actual positive examples that are
+correctly classified, i.e.,
+
+4.2. Experimental procedure
+
+TPR = TP /(TP + FN )
+
+In this paper, we conducted a series of experiments to evaluate the
+effectiveness of our proposed ADR detection approach. In the first experiment, the classifier was trained by different feature vectors using
+(1) an improved bag-of-words model, (2) max pooling and (3) mean
+
+(6)
+
+The AUC values ranged from 0.5 to 1. The higher the AUC value, the
+better the classification performance of the classifier was. The classifier
+was perfect when an AUC value of 1 was achieved.
+7
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+Table 3
+The confusion matrix.
+
+Table 5
+P-values for pairwise t-tests for mean pooling vectors versus max pooling/BOW
+vectors.
+
+Actual condition
+
+Test result
+
+Positive
+Negative
+
+Classifier
+
+Positive
+
+Negative
+
+True positive (TP)
+False negative (FN)
+
+False positive (FP)
+True negative (TN)
+
+SVM
+
+4.3.2. Baselines
+To compare our proposed method with several state-of-the-art approaches, the feature-based method in [25] (Sarker method) and the
+deep learning method in [26] (CNN) are taken as baselines. The reason
+why these two methods are chosen as comparison methods lies in the
+following: for the ADR detection task, the Sarker method achieves the
+best performance among the traditional feature-based methods, and the
+CNN provides the best results among the deep learning methods.
+
+Hypothesis
+
+p-value
+
+Mean pooling vectors > Max pooling
+vectors
+Mean pooling vectors > BOW vectors
+
+DS
+
+TW
+
+0.015*
+
+< 0.001**
+
+< 0.001**
+
+< 0.001**
+
+* p-value significant at alpha = 0.05.
+** p-value significant at alpha = 0.01.
+Table 6
+Leave-one-out classification results over the two data sets, showing how the
+AUC values are affected when one type of feature is removed from the full
+feature set.
+Classifier
+
+Features
+
+AUC (mean pooling)
+
+5. Results and discussion
+SVM
+
+In this section, we present and analyze the experimental results. The
+highest results in each experiment are presented in bold.
+5.1. Performance over different pooling strategies
+We represent deep features using (1) an improved bag-of-words
+model, (2) max pooling, and (3) mean pooling and refer to the corresponding full feature vectors as BOW feature vectors, max pooling
+feature vectors and mean pooling feature vectors, respectively, for
+convenience. The support vector machine (SVM) is utilized as the
+learning algorithm in this experiment for its predominant use in previous studies.
+The general performances of the three types of feature vectors are
+presented in Table 4. As shown in Table 4, the mean pooling feature
+vectors perform significantly better than the other two, with AUCs of
+94.44% and 88.97% on the DS and TW data sets, respectively. For
+further analysis, a paired t-test is conducted to compare the performance of mean pooling vectors against max pooling or BOW vectors. As
+shown in Table 5, the mean pooling feature vectors statistically outperform the other two feature vectors (with all p-values < 0.05) on
+two data sets. In the rest of this paper, we take the results over the mean
+pooling feature vectors as the results of our method. In addition, the
+results on the DS data set are generally better than the results on the TW
+data set.
+
+ADR lexicon-based features
+Sentiment fluctuation features
+POS tag
+Negation
+Sentiment polarity
+Uncertainty
+Deep linguistic feature set
+Full feature set
+
+DS
+
+TW
+
+91.72%
+90.78%
+92.91%
+93.41%
+89.24%
+94.16%
+83.62%
+94.44%
+
+86.72%
+86.32%
+86.26%
+87.36%
+87.31%
+87.29%
+87.09%
+88.97%
+
+Table 7
+Values for pairwise t-tests for the full feature set versus one-removal feature
+sets.
+Classifier
+
+Hypothesis
+
+p-value
+DS
+
+SVM
+
+Full feature set > full
+based features
+Full feature set > full
+fluctuation features
+Full feature set > full
+Full feature set > full
+Full feature set > full
+polarity
+Full feature set > full
+Full feature set > full
+feature set
+
+TW
+**
+
+< 0.001**
+
+set - ADR lexicon-
+
+0.003
+
+set - Sentiment
+
+0.034*
+
+< 0.001**
+
+set - POS tag
+set - Negation
+set - Sentiment
+
+0.004**
+0.031*
+< 0.001**
+
+< 0.001**
+< 0.001**
+0.001**
+
+set - Uncertainty
+set - deep linguistic
+
+0.008**
+< 0.001**
+
+< 0.001**
+< 0.001**
+
+* p-value significant at alpha = 0.05
+** p-value significant at alpha = 0.01.
+
+5.2. Contribution of features
+To investigate the contribution of different types of features to the
+classification performance, a leave-one-out strategy is adopted on the
+full feature set. In each run, one type of feature is removed from the full
+feature set to observe the performance changes. In addition, we also
+remove the deep linguistic feature set from the full feature set to
+evaluate its contribution to classification performance. The SVM is also
+utilized as the learning algorithm in this experiment. Table 6 presents
+
+the performance comparison results. As shown in Table 6, the full
+feature set is most effective for ADR detection and the AUC value drops
+with the removal of each type of feature.
+Table 7 shows the p-values of the pairwise t-tests conducted to
+compare the performance of the full feature set against feature sets with
+one type of feature removed. The results show that the full feature set
+outperforms all one-removal feature sets (with most p-values < 0.01).
+
+Table 4
+AUC of our method over different pooling strategies.
+
+5.3. Performance comparison with existing approaches
+
+Data set
+
+Classifier
+
+Different feature vectors
+
+AUC
+
+DS
+
+SVM
+
+BOW feature vectors
+Max pooling feature vectors
+Mean pooling feature vectors
+
+87.61%
+92.18%
+94.44%
+
+TW
+
+SVM
+
+BOW feature vectors
+Max pooling feature vectors
+Mean pooling feature vectors
+
+87.04%
+87.22%
+88.97%
+
+Although the authors provide various neural network architectures
+in [26], the CNN outperforms the other models on both testing data
+sets; hence, we report only the results of the CNN here. In addition, for
+our method and the Sarker method, to evaluate the generality of the
+engineered features, we run the experiments on multiple classifiers and
+then draw conclusions. Algorithms including the SVM, Naïve Bayes
+(NB), logistic regression (LR) and random forest (RF) are utilized as the
+classifiers. Due to the difference in data sets, we are unable to compare
+8
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+result is perhaps not surprising because we exploit a one-hot vector to
+represent the deep linguistic features. By averaging the values of each
+dimension feature of different pairs, the mean pooling strategy can
+better preserve the information of each predicate-ADR pair. In contrast,
+the max pooling strategy confuses the detailed information of different
+predicate-ADR pairs by maximizing the value of each dimension feature.
+The presence of ADR words is a prerequisite for extracting deep
+linguistic features. For the text containing few ADR words, our method
+has limited improvement in classification performance because we
+cannot extract any deep linguistic features to assist prediction.
+Therefore, the characteristics of the text have a crucial impact on the
+performance of our method. The data statistics of the two data sets in
+Table 2 show that tweets mention fewer ADR words, 0.99 and 0.064 on
+average in the positive and negative instances, respectively. In addition,
+a higher ratio of ADR words to ADR types indicates that tweets contain
+more sentences with poor grammar and diverse expressions, making
+accurate feature extraction more challenging. To some extent, the poor
+performance on the TW data set is attributed to these points.
+A more detailed investigation of social media text is also included in
+this subsection, where class-by-class error analysis is performed. We
+find that the proposed method fails to cope with the following conditions: (i) ambiguous texts that are difficult to classify even for humans;
+sometimes, users do not explicitly express their intentions in a post; (ii)
+objective descriptions of ADRs, such as drug instructions or advertisement of a special drug that does not represent personal experience; (iii)
+implicative factuality entailed in some fixed set of predicates; for example, “just couldn't kick the depression that it made me feel”; (iv) other
+findings, for example, “I use to take elavil several years ago but was
+taken off it when I had a heart attack.”; and (v) explanatory descriptions
+of ADRs, such as “keep my eyes open all night”.
+
+Table 8
+The AUC values of different methods over two data sets on multiple classifiers.
+Methods
+
+Sarker method
+
+CNN
+Our method (mean pooling)
+
+Classifier
+
+SVM
+RF
+LR
+NB
+CNN
+SVM
+RF
+LR
+NB
+
+AUC
+DS
+
+TW
+
+88.58%
+87.8%
+88.36%
+86.4%
+91.81%
+94.44%
+92.93%
+93.57%
+90.39%
+
+82.87%
+82.16%
+82.70%
+81.38%
+87.54%
+88.97%
+87.82%
+88.24%
+87.49%
+
+our results with previously reported baselines. Therefore, we reimplement the compared two methods according to their descriptions and
+calculate their AUC values on the two data sets in Table 8.
+As shown in Table 8, our method achieves state-of-the-art performance on both data sets compared with that of the other methods. In
+addition, compared with the Sarker method, our method achieves
+better AUC values over all classifiers.
+5.4. Discussion
+The experimental results reveal the improvements in AUC values of
+our proposed method over those of other approaches on multidata sets
+and multiclassifiers, suggesting that our method is a robust tool for ADR
+detection from social media. Compared with deep neural networkbased methods, feature-based methods have advantages in terms of
+interpretability and application stability. In addition to several shallow
+features, our method also extracts and aggregates deep linguistic features in the post, including the POS feature of each ADR word and the
+semantic features of the corresponding predicates. These deep features
+of a predicate-ADR pair are features derived by further semantic mining
+of units with specific syntactic dependencies, which can well indicate
+whether the ADR word is a true adverse reaction. Through mean
+pooling operation, this discriminative information of different pairs is
+perfectly preserved; thus, the final deep linguistic features have a
+stronger capability to detect the presence of ADRs, while other methods
+are unable to capture this subtle and discriminative information. This
+may be the reason why our method performs better than other methods.
+With respect to the effectiveness of individual features, features in
+the shallow linguist feature set, including the ADR lexicon-based feature and sentiment fluctuation feature, are useful as expected. We see a
+decrease in the AUC value for both the DS data set and TW data set, due
+to the removal of each deep linguistic feature. The results indicate that
+all the features in the deep linguistic feature set contribute to the
+classification performance. The semantic features of the predicates can
+capture the semantics that may cause the meaning of ADR words to
+change. The negation and uncertainty features can help to identify logically negated ADRs and unhappened ADRs, respectively, and the
+sentiment polarity feature can help to identify indications. The negation
+and uncertainty features are particularly designed for social data since
+users on social networking sites tend to use more expressions to describe their attitudes towards a certain drug. The experimental results
+further illustrate the benefits of linguistic knowledge on naturalistic
+data. Due to its potential capability on word disambiguation, the POS
+tag of the ADR word further reduces the possibility of ADR words such
+as “ever” and “back” being recognized as adverse reactions indiscriminately. Clearly, features in the deep linguistic feature set are
+complementary for identifying true ADRs and, hence, have a crucial
+impact on the performance of ADR detection over social media.
+The sensitivity evaluation of our method under different pooling
+methods implies that the mean pooling operation can dramatically
+improve the performance of ADR detection over other methods. This
+
+6. Conclusions and future directions
+In this paper, we focused on the problem of ADR detection on social
+media. In particular, we investigated whether the details of each ADR
+word and its corresponding predicates could help to improve the classification performance. To this end, we developed a new method to
+extract deep linguistic features. Then, a feature set that combined
+carefully selected shallow linguistic features and deep linguistic features was extracted. A series of experiments were conducted to evaluate
+the effectiveness of our proposed method. The results showed that our
+method outperforms state-of-the-art approaches and that adding deep
+linguistic features can significantly improve the classification accuracy.
+This study has implications for practical applications. It provides a
+high-performance ADR detection method, which makes pharmacovigilance on social media more efficient and further provides support for
+clinical decision making and drug management. It is also meaningful
+for other research works. First, the way we extract deep linguistic
+features and the discriminative features we detect may be used for other
+relative tasks, such as ADR relation extraction on social media.
+Moreover, the idea of combining deep linguistic features with shallow
+linguistic features is suitable for related natural language processing
+tasks in other fields, such as web page classification problems.
+Clearly, language offers numerous and various possibilities for ADR
+user posts that obviously do not assume any fixed set of discrete values.
+Therefore, our approach cannot eliminate the weakness inherent in
+lexicon-based feature extraction. All the errors enlighten us on how to
+improve our approach in the future. On the one hand, we plan to extract
+more features from the natural language understanding aspects, such as
+holder identification and implicit semantic recognition. On the other
+hand, we note that deep neural network techniques have shown promise in automatic identification from noisy text. Therefore, we intend
+to integrate domain knowledge and syntactic dependencies into the
+word embedding process to enhance the ADR detection capabilities. In
+addition, we observe that some errors are caused by the poor quality of
+9
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+
+user posts. To this end, we plan to filter out unqualified user posts
+before use.
+
+Work. Knowl. Discov. Heal. Care Med., 2011.
+[15] K. van Grootheest, L. de Jong-van den Berg, F. van Hunsel, A. Passier, J. de Langen,
+Adverse Drug Reaction Reporting by Patients in the Netherlands, Drug Saf. 31
+(2008) 515–524. Doi: 10.2165/00002018-200831060-00006.
+[16] R.B.M. Fernandopulle, K. Weerasuriya, What Can Consumer Adverse Drug Reaction
+Reporting Add to Existing Health Professional-Based Systems? Drug Saf. 26 (2003)
+219–225, https://doi.org/10.2165/00002018-200326040-00002.
+[17] H.G. Leufkens, J. Urquhart, Prescriber profile and postmarketing surveillance,
+Lancet (London, England). 342 (1993) 658–661, https://doi.org/10.1016/01406736(93)91763-C.
+[18] C. Yang, L. Jiang, H. Yang, X. Tang, Detecting signals of adverse drug reactions from
+health consumer contributed content in social media, in: Proc. ACM SIGKDD Work.
+Heal. Informatics, 2012.
+[19] A. Benton, L. Ungar, S. Hill, S. Hennessy, J. Mao, A. Chung, C.E. Leonard,
+J.H. Holmes, Identifying potential adverse effects using the web: A new approach to
+medical hypothesis generation, J. Biomed. Inform. 44 (2011) 989–996, https://doi.
+org/10.1016/j.jbi.2011.07.005.
+[20] B.W. Chee, R. Berlin, B. Schatz, Predicting adverse drug events from personal health
+messages, AMIA Annu. Symp. Proc. (2011) 217–226.
+[21] Y. Jiang, Bian; Umit Topaloglu; Fan, Towards large-scale twitter mining for drugrelated adverse events, in: Proc. 2012 Int. Work. Smart Heal. Wellbeing, 2012. Doi:
+10.1145/2389707.2389713.
+[22] M. Yang, X. Wang, M. Kiang, Identification of consumer adverse drug reaction
+messages on social media, in: PACIS 2013 Proc., 2013: pp. 193–202.
+[23] A. Patki, A. Sarker, P. Pimpalkhute, A. Nikfarjam, R. Ginn, O. Connor, K. Smith, G.
+Gonzalez, Mining Adverse Drug Reaction Signals from Social Media : Going Beyond
+Extraction Drug name Identification, in: Intell. Syst. Mol. Biol. (ISMB Rank A),
+2014.
+[24] M. Yang, M. Kiang, W. Shang, Filtering big data from social media - Building an
+early warning system for adverse drug reactions, J. Biomed. Inform. 54 (2015)
+230–240, https://doi.org/10.1016/j.jbi.2015.01.011.
+[25] A. Sarker, G. Gonzalez, Portable automatic text classification for adverse drug reaction detection via multi-corpus training, J. Biomed. Inform. 53 (2015) 196–207,
+https://doi.org/10.1016/j.jbi.2014.11.002.
+[26] T. Huynh, Y. He, A. Willis, S. Uger, Adverse Drug Reaction Classification With Deep
+Neural Networks, in: Proc. COLING 2016 Tech. Pap. COLING, 2016: pp. 877–887.
+[27] M. Rastegar-mojarad, R.K. Elayavilli, Y. Yu, H. Liu, Detecting signals in noisy data can ensemble classifiers help identify adverse drug reaction in tweets ? Proc. Soc.
+Media Min. Shar. Task Work. Pacific Symp. Biocomput. (2016).
+[28] Z. Zhang, J. Nie, An ensemble method for binary classification of adverse drug
+reactions from social media, in: Proc. Soc. Media Min. Shar. Task Work. Pacific
+Symp. Biocomput., 2016.
+[29] R. Ginn, P. Pimpalkhute, A. Nikfarjam, A. Patki, K. O’connor, A. Sarker, K. Smith, G.
+Gonzalez, Mining Twitter for Adverse Drug Reaction Mentions: A Corpus and
+Classification Benchmark, in: Proc. Fourth Work. Build. Eval. Resour. Heal. Biomed.
+Text Process., 2014.
+[30] S. Karimi, A. Metke-Jimenez, M. Kemp, C. Wang, Cadec: A corpus of adverse drug
+event annotations, J. Biomed. Inform. 55 (2015) 73–81, https://doi.org/10.1016/j.
+jbi.2015.03.010.
+[31] L. Kathy, P. Aaditya, F. Oladimeji, D. Vivek, Q. Ashequl, J. Liu, S.A. Hasan, Adverse
+Drug Event Detection in Tweets with Semi-Supervised Convolutional Neural
+Networks, in: Proc. 26th Int. Conf. World Wide Web, 2017: pp. 705–714. Doi: 10.
+1145/3038912.3052671.
+[32] T. Munkhdalai, O.E. Namsrai, K.H. Ryu, Self-training in significance space of support vectors for imbalanced biomedical event data, BMC Bioinformatics. 16 (2015)
+1–8, https://doi.org/10.1186/1471-2105-16-S7-S6.
+[33] J. Liu, S. Zhao, G. Wang, SSEL-ADE: A semi-supervised ensemble learning framework for extracting adverse drug events from social media, Artif. Intell. Med. 84
+(2018) 34–49, https://doi.org/10.1016/j.artmed.2017.10.003.
+[34] L. Mou, G. Li, Y. Chen, H. Peng, Classifying Relations via Long Short Term Memory
+Networks along Shortest Dependency Path, Comput. Sci. 42 (2015) 56–61, https://
+doi.org/10.18653/v1/D15-1206.
+[35] F. Nooralahzadeh, L. Øvrelid, J.T. Lønning, Convolutional Neural Networks with
+Shortest Dependency Paths for Semantic Relation Extraction and Classification in
+Scientific Papers, in: Proc. Ofthe 12th Int. Work. Semant. Eval., 2018: pp. 805–810.
+[36] J. Chen, O. Rambow, Use of deep linguistic features for the recognition and labeling
+of semantic arguments, in: 2003: pp. 41–48. Doi: 10.3115/1119355.1119361.
+[37] G. Stanovsky, J. Eckle-kohler, Y. Puzikov, I. Dagan, I. Gurevych, Integrating Deep
+Linguistic Features in Factuality Prediction over Unified Datasets, in: Proc. Ofthe
+55th Annu. Meet. Ofthe Assoc. Comput. Linguist., 2017: pp. 352–357. Doi: 10.
+18653/v1/P17-2056.
+[38] R. Rudinger, A.S. White, B. Van Durme, Neural models of factuality, in: NAACL,
+2018. Doi: 10.18653/v1/N18-1067.
+[39] N. Jiang, M. De Marneffe, Do you know that Florence is packed with visitors ?
+Evaluating state-of-the-art models of speaker commitment, in: Proc. 57th Annu.
+Meet. Assoc. Comput. Linguist., 2019: pp. 4208–4213.
+[40] L. Yifu, J. Ran, L. Yuan, Classifying relations in clinical narratives using segment
+graph convolutional and recurrent neural networks, J. Am. Med. Informatics Assoc.
+26 (2019) 262–268, https://doi.org/10.1093/jamia/ocy157.
+[41] A. Zouaq, Shallow and Deep N atural L anguage P rocessing for Ontology Learning :
+Learning : a Quick Overview, in: Ontol. Learn. Knowl. Discov. Using Web
+Challenges Recent Adv., 2010: pp. 57–98.
+[42] Q. Xia, Z. Sui, B. Chang, W. Zhang, Y. Ke, Chinese deep semantic representation
+with concept and logic (in Chinese), J. Chinese Inf. Process. 38 (2019) 1–11.
+[43] T. Wang, C. Liu, L. Wang, Neurocomputing Action recognition by Latent Duration
+Model, Neurocomputing. 273 (2018) 111–119, https://doi.org/10.1016/j.neucom.
+
+CRediT authorship contribution statement
+Ying Zhang: Conceptualization, Methodology, Data curation,
+Writing - original draft, Visualization, Investigation. Shaoze Cui:
+Software, Validation. Huiying Gao: Supervision, Writing - review &
+editing.
+Declaration of Competing Interest
+The authors declare that they have no known competing financial
+interests or personal relationships that could have appeared to influence the work reported in this paper.
+Acknowledgments
+The manuscript was approved by all authors for publication. We
+would like to thank all the anonymous reviewers for their valuable
+comments and suggestions, which improved this paper. We would also
+thank the Editors and the Editorial Office for their professional work.
+Funding
+This work was supported by the Social Science Foundation of
+Shandong Province (Grant No. 18CGLJ40), National Natural Science
+Foundation of China (Grant Nos. 71533001, 71874020, 71974025).
+References
+[1] S.M. Rebecca, Epidemiology of Drug Allergy, in: Drug Allergy Test., 2018: pp. 1–9.
+Doi: 10.1016/B978-0-323-48551-7.00001-8.
+[2] R. Harpaz, W. Dumouchel, N.H. Shah, D. Madigan, P. Ryan, C. Friedman, Novel
+data-mining methodologies for adverse drug event discovery and analysis, Clin.
+Pharmacol. Ther. 91 (2012) 1010–1021, https://doi.org/10.1038/clpt.2012.50.
+[3] S.R. Ahmad, Adverse Drug Event Monitoring at the Food and Drug Administration,
+J. Gen. Intern. Med. 18 (2003) 57–60.
+[4] R. Xu, Q. Wang, Large-scale combining signals from both biomedical literature and
+the FDA Adverse Event Reporting System (FAERS) to improve post-marketing drug
+safety signal detection, BMC Bioinformatics 15 (2014) 17, https://doi.org/10.
+1186/1471-2105-15-17.
+[5] C. Kongkaew, P.R. Noyce, D.M. Ashcroft, Hospital admissions associated with adverse drug reactions: A systematic review of prospective observational studies, Ann.
+Pharmacother. 42 (2008) 1017–1025, https://doi.org/10.1345/aph.1L037.
+[6] K.M. Hakkarainen, K. Hedna, M. Petzold, S. Hägg, Percentage of patients with
+preventable adverse drug reactions and preventability of adverse drug reactions - a
+meta-analysis, PLoS One. 7 (2012), https://doi.org/10.1371/journal.pone.
+0033236.
+[7] X. Wang, G. Hripcsak, M. Markatou, C. Friedman, Active Computerized
+Pharmacovigilance Using Natural Language Processing, Statistics, and Electronic
+Health Records: A Feasibility Study, J. Am. Med. Informatics Assoc. 16 (2009)
+328–337, https://doi.org/10.1197/jamia.M3028.
+[8] C. Friedman, Discovering novel adverse drug events using natural language processing and mining of the electronic health record, in: Proc. 12th Conf. Artif. Intell.
+Med., 2009.
+[9] E. Aramaki, Y. Miura, M. Tonoike, T. Ohkuma, H. Masuichi, K. Waki, K. Ohe,
+Extraction of adverse drug effects from clinical records, Stud. Health Technol.
+Inform. 160 (2010) 739–743, https://doi.org/10.3233/978-1-60750-588-4-739.
+[10] A. Henriksson, M. Kvist, H. Dalianis, M. Duneld, Identifying adverse drug event
+information in clinical notes with distributional semantic representations of context, J. Biomed. Inform. 57 (2015) 333–349, https://doi.org/10.1016/j.jbi.2015.08.
+013.
+[11] A. Nieto, L.I. Furlong, G. Trifiro, J.A. Kors, A. Fourrier-Reglat, D. Gurwitz,
+M. Molokhia, E.M. van Mulligen, The EU-ADR corpus: Annotated drugs, diseases,
+targets, and their relationships, J. Biomed. Inform. 45 (2012) 879–884, https://doi.
+org/10.1016/j.jbi.2012.04.004.
+[12] H. Gurulingappa, A.M. Rajput, A. Roberts, J. Fluck, M. Hofmann-Apitius, L. Toldo,
+Development of a benchmark corpus to support the automatic extraction of drugrelated adverse effects from medical case reports, J. Biomed. Inform. 45 (2012)
+885–892, https://doi.org/10.1016/j.jbi.2012.04.008.
+[13] H. Gurulingappa, A. Mateen-Rajput, L. Toldo, Extraction of Adverse Drug Effects
+from Medical Case Reports, J. Biomed. Semantics. 3 (2012), https://doi.org/10.
+1186/2041-1480-3-15.
+[14] H. Gurulingappa, J. Fluck, M. Hofmann-Apitius, L. Toldo, Identification of adverse
+drug event assertive sentences in medical case reports, in: Proc. ECML PKDD 2-11
+
+10
+
+Journal of Biomedical Informatics 106 (2020) 103437
+
+Y. Zhang, et al.
+2017.07.057.
+[44] G. Manish, H. Jiawei, Applications of pattern discovery using sequential data
+mining, in: Pattern Discov. Using Seq. Data Min. Appl. Stud., 2012: pp. 1–23.
+[45] L. Li, J. Zheng, J. Wan, D. Huang, X. Lin, Biomedical Event Extraction via Long
+Short Term Memory Networks along Dynamic Extended Tree, in: 2016 IEEE Int.
+Conf. Bioinforma. Biomed., 2016: pp. 739–742.
+[46] A. Metke-jimenez, S. Karimi, Concept Extraction to Identify Adverse Drug Reactions
+in Medical Forums : A Comparison of Algorithms, Comput. Sci. (2015).
+[47] S. Noferesti, M. Shamsfard, Using Linked Data for polarity classification of patients’
+experiences, J. Biomed. Inform. 57 (2015) 6–19, https://doi.org/10.1016/j.jbi.
+2015.06.017.
+[48] A. Lotan, A. Stern, I. Dagan, TruthTeller : Annotating Predicate Truth, in: Proc.
+OfNAACL-HLT 2013, 2013: pp. 752–757.
+[49] Z. Sun, R. Chiong, Z. Hu, Neurocomputing An extended dictionary representation
+
+[50]
+[51]
+
+[52]
+[53]
+
+11
+
+approach with deep subspace learning for facial expression recognition,
+Neurocomputing. 316 (2018) 1–9, https://doi.org/10.1016/j.neucom.2018.07.045.
+J. Yang, K. Yu, Y. Gong, T. Huang, Linear spatial pyramid matching using sparse
+coding for image classification, in: Comput. Vis. Pattern Recognit., n.d.
+I. Korkontzelos, A. Nikfarjam, M. Shardlow, A. Sarker, S. Ananiadou, Analysis of the
+effect of sentiment analysis on extracting adverse drug reactions from tweets and
+forum posts Analysis of the effect of sentiment analysis on extracting adverse drug
+reactions from tweets and forum posts, J. Biomed. Inform. 62 (2017) 148–158,
+https://doi.org/10.1016/j.jbi.2016.06.007.
+A. Viera, J. Garrett, Understanding interobserver agreement: the kappa statistic,
+Fam Med. 37 (2005) 360–363.
+S. Cui, D. Wang, Y. Wang, P.-W. Yu, Y. Jin, An improved support vector machinebased diabetic readmission prediction, Comput. Methods Programs Biomed. 166
+(2018) 123–135, https://doi.org/10.1016/j.cmpb.2018.10.012.
+
+

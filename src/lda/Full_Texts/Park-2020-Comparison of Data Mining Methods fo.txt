@@ -1,0 +1,5253 @@
+life
+Article
+
+Comparison of Data Mining Methods for the Signal
+Detection of Adverse Drug Events with a Hierarchical
+Structure in Postmarketing Surveillance
+Goeun Park † , Heesun Jung † , Seok-Jae Heo †
+
+and Inkyung Jung *
+
+Division of Biostatistics, Department of Biomedical Systems Informatics, Yonsei University College of Medicine,
+50-1 Yonsei-ro, Seodaemun-gu, Seoul 03722, Korea; gogoeun@yuhs.ac (G.P.); 6549209@naver.com (H.J.);
+sjheo@yuhs.ac (S.J.H.)
+* Correspondence: ijung@yuhs.ac; Tel.: +82-2-2228-2494; Fax: +82-2-2227-8308
+† These authors contributed equally to this work.
+Received: 29 May 2020; Accepted: 4 August 2020; Published: 5 August 2020
+
+
+
+
+Abstract: There are several different proposed data mining methods for the postmarketing surveillance
+of drug safety. Adverse events are often classified into a hierarchical structure. Our objective was to
+compare the performance of several of these different data mining methods for adverse drug events
+data with a hierarchical structure. We generated datasets based on the World Health Organization’s
+Adverse Reaction Terminology (WHO-ART) hierarchical structure. We evaluated different data
+mining methods for signal detection, including several frequentist methods such as reporting odds
+ratio (ROR), proportional reporting ratio (PRR), information component (IC), the likelihood ratio
+test-based method (LRT), and Bayesian methods such as gamma Poisson shrinker (GPS), Bayesian
+confidence propagating neural network (BCPNN), the new IC method, and the simplified Bayesian
+method (sB), as well as the tree-based scan statistic through an extensive simulation study. We also
+applied the methods to real data on two diabetes drugs, voglibose and acarbose, from the Korea
+Adverse event reporting system. Only the tree-based scan statistic method maintained the type I
+error rate at the desired level. Likelihood ratio test-based methods and Bayesian methods tended
+to be more conservative than other methods in the simulation study and detected fewer signals in
+the real data example. No method was superior to the others in terms of the statistical power and
+sensitivity of detecting true signals. It is recommended that those conducting drug-adverse event
+surveillance use not just one method, but make a decision based on several methods.
+Keywords: disproportionate reporting rate; drug safety surveillance; pharmacoepidemiology;
+spontaneous reporting system; tree-based scan statistic
+
+1. Introduction
+It is critical to detect signals of adverse drug reactions from real-world data early enough to protect
+public health. From the real-world data, we could identify new effects of drugs that had not been
+identified during premarketing clinical trials. Adverse event (AE) information after drug marketing is
+often collected via a spontaneous reporting system to identify any long-term adverse drug reactions.
+In Korea, for example, the Korea Institute of Drug Safety and Risk Management (www.drugsafe.or.kr)
+collects the information through a spontaneous reporting system.
+Through this system, anyone, for example, a patient who has taken the drug, a doctor, or the
+manufacturer, can report an AE. They report information such as the symptoms of the AE, the date of
+onset, the name of the drug, the frequency and duration of the dose, patient information, and causality
+assessment information. As the causality can only be reported by medical experts, the information
+
+Life 2020, 10, 138; doi:10.3390/life10080138
+
+www.mdpi.com/journal/life
+
+Life 2020, 10, 138
+
+2 of 21
+
+reported by the patients does not confirm that an AE has been caused by a particular drug. In addition,
+there could be issues related to data quality and under-reporting. The total number of people who
+received the drug and the number of AEs are not precisely known. It is difficult to determine a causal
+relationship between drugs and adverse effects from a spontaneous reporting system database. We can
+only identify signals of adverse drug reactions, so additional in-depth studies are needed [1].
+Statistical analysis is performed to detect whether any particular AEs have occurred more frequently
+or whether there are any unexpected AEs. Among the various data mining tools, disproportionality
+methods are widely used for AE signal detection. Different disproportionality methods exist based on
+different measures such as the reporting odds ratio (ROR) [2], proportional reporting ratio (PRR) [3],
+information component (IC), likelihood ratio test-based method (LRT) [4], gamma Poisson shrinker
+(GPS) [5], Bayesian confidence propagating neural network (BCPNN) [6], new IC method [7,8], and the
+simplified Bayesian method (sB) [9]. ROR, PRR, IC, and LRT are frequentist methods, while GPS,
+BCPNN, the new IC method, and sB are Bayesian methods [10]. Some studies suggest that Bayesian
+methods, such as multi-item gamma Poisson shrinker (MGPS) and BCPNN, outperform frequentist
+methods such as PRR [2,3,6,7,11]. Other studies showed that the sB method performed better than
+BCPNN and PRR [9,11]. Unlike other methods, the GPS method needs to estimate hyperparameters
+of the prior distribution using the whole data. Because of this process, the GPS method requires
+more computation time. Thus, most pharmaceutical companies and national and international
+pharmacovigilance organizations use other methods more often than the GPS method [12].
+Another type of data mining method for signal detection is the tree-based scan statistic (TreeScan)
+proposed by Kulldorff et al. [13]. This method simultaneously searches for signals at any level (or
+layer) of AE in a hierarchical structure, adjusting for the multiple testing problem. It has been applied
+to drug safety surveillance as well as occupational disease surveillance [13,14].
+Both LRT and TreeScan methods were developed based on a likelihood ratio test with the test
+statistic as the maximum likelihood ratio. Moreover, both methods use the Monte Carlo method to
+obtain the empirical distribution for statistical inference. The LRT method can handle AEs such as
+system-organ classes (SOC), preferred terms (PT), or included terms (IT) (only one layer, not all the
+layers together). If the AE is coded as PT, the LRT method detects the signal of single PT. The TreeScan
+method for detecting AE signals for a fixed drug in data with multiple layers may consider all the
+layers, and search for signals of PT and SOC (or other layers) together. The LRT method is more general
+and covers different aspects of safety signal detection. The TreeScan method is for detecting AE or
+certain prespecified AE groups as signals for a fixed drug, which is a special case of the LRT method.
+Clinical information related to adverse drug reactions is generally coded using medical dictionaries
+such as the World Health Organization Adverse Reaction Terminology (WHO-ART) and the Medical
+Dictionary for Regulatory Activities (MedDRA), which have a hierarchical structure. There are several
+studies comparing the performance of disproportionality methods in a usual database format with
+AEs and drug combination data [2,3,6,7,9,11,12,15]. However, it is not clear which method performs
+better than the others when AEs are classified into a hierarchical structure. There is a study comparing
+the application of the GPS and TreeScan methods to real cohort data by Brown et al. [15]. They showed
+that the signaled regions were similar. However, in some cases, the TreeScan method detected signals
+that were not detected by the GPS. We do not know which results are more reliable.
+The purpose of this study was to compare the performance of several different data mining
+methods for signal detection in adverse drug event data grouped into hierarchical structures. Through
+an extensive simulation study, we evaluated the performance of ROR, PRR, IC, LRT, GPS, BCPNN,
+sB, and TreeScan on datasets generated based on the WHO-ART’s hierarchical structure. Originally,
+the methods except TreeScan were not developed for hierarchically structured data. We evaluated
+all the methods by considering all layers, instead of limiting to a single layer, to better reflect the
+hierarchical data structure and make fair comparisons. We used the type I error rate, power, sensitivity,
+and positive predictive value as performance measures. We also compared the application results of
+the methods to a real dataset from the Korea adverse event reporting system (KAERS).
+
+Life 2020, 10, 138
+
+3 of 21
+
+2. Signal Detection Method
+Several different data mining methods have been developed to detect unusually high
+disproportionate reporting rates from the large drug safety databases. In this paper, we considered
+ROR, PRR, IC, LRT, GPS, BCPNN, new IC, sB, and TreeScan, which have been relatively widely used.
+We mainly referred to Huang et al. [10] for a review of the methods apart from TreeScan.
+From a large drug safety database, the number of AEs by drugs can be presented in matrix form
+with I rows of AEs and J columns of drugs. For a particular AE (ith AE) at a particular drug (jth drug),
+the data can be summarized in a 2 × 2 table, as shown in Table 1.
+Table 1. Adverse events count for the ith adverse event and the jth drug.
+AE
+
+jth Drug
+
+All Other Drugs
+
+Total
+
+ith adverse event
+All other adverse events
+
+ni j
+n. j − ni j
+
+ni. − ni j
+n.. − ni. − n. j + ni j
+
+ni.
+n.. − ni.
+
+Total
+
+n. j
+
+n.. − n. j
+
+n..
+
+2.1. Frequentist Methods
+2.1.1. Reporting Odds Ratio (ROR)
+The ROR is the odds ratio that a particular AE is reported in patients who take a specific drug
+compared to patients who take other drugs [2]. The ROR for the ith AE and the jth drug (RORij ) is
+estimated as
+
+
+
+
+nij / ni. − nij
+nij n.. − ni. − n.j + nij
+ 
+ = 
+
+
+RÔRij = 
+n. j − nij / n.. − ni. − n.j + nij
+ni. − nij n.j − nij
+
+ 
+
+and if either ni. − nij or n.j − nij is equal to 0, then RÔRij is not defined. The log-transformed RÔRij
+can be approximated to a normal distribution as follows:
+ 
+
+
+ .
+
+log RÔRij ∼ N log RORij , σ2ROR ,
+ij
+
+σ̂2ROR ≈
+ij
+
+1
+1
+1
+1
++
++
+.
++
+nij
+ni. − nij
+n.j − nij
+n.. − ni. − n.j + nij
+
+We can obtain an approximate 100(1 − α)% confidence interval (CI) for RORij as:
+ 
+
+q
+
+CIRORij ,100(1−α)% = exp log RÔRij ± z1−α/2 σ̂2ROR ,
+ij
+
+where z1−α/2 = Φ(1 − α/2) and Φ is the standard normal distribution’s cumulative
+distribution function.
+The null and the alternative hypotheses to test whether the ith AE for the jth drug is a signal or
+not are expressed as:
+H0 : RORij = 1 vs. Ha : RORij > 1.
+As Evans et al. [3] suggested, the lower bound of CIRORij ,100(1−α)% > 2, so we reject the null
+hypothesis and conclude that the ith AE can be interpreted as a signal of the disproportionate rate
+(SDR) for the jth drug.
+
+Life 2020, 10, 138
+
+4 of 21
+
+2.1.2. Proportional Reporting Ratio (PRR)
+The PRR is the ratio of the proportion of patients who reported a particular AE after taking a
+specific drug to the proportion of patients who have taken other drugs that reported the same AE [3].
+We estimate the PRR for the ith AE and the jth drug (PRRij ) as:
+PR̂Rij = 
+
+nij /ni.
+nij (n.. − ni. )
+.
+
+= 
+ni. n.j − nij
+n.j − nij /(n.. − ni. )
+
+
+
+
+
+If ni. − nij ≈ ni. and n.. − ni. − n.j + nij ≈ (n.. − ni. ), then RÔRij ≈ PR̂Rij . We use the normal
+
+
+approximation for the distribution of log PR̂Rij for inference as follows:
+ 
+
+
+
+
+log PR̂Rij ∼ N log PRRij , σ2PRR ,
+ij
+
+σ̂2PRR ≈
+ij
+
+1
+1
+1
+1
+−
+−
++
+.
+nij ni.
+(n.. − ni. )
+n.j − nij
+
+Therefore, an approximate 100(1 − α)% CI for PRRij is expressed as follows:
+
+ 
+q
+
+CIPRRij ,100(1−α)% = exp log PR̂Rij ± z1−α/2 σ̂2PRR .
+ij
+
+The null hypothesis of H0 : PRRij = 1 is rejected if the lower bound of CIPRRij ,100(1−α)% > 2,
+as for PRR.
+2.1.3. Information Component (IC)
+The IC is based on the relative reporting rate RRij , which indicates how many particular events
+were reported in excess for a specific drug over the expected number of reported counts under the null
+nij
+hypothesis that a drug and AE are independent. The relative reporting rate is estimated by E , where
+ij
+
+ni· n·j
+
+Eij = n·· is the expected number of reports for the ith AE and the jth drug under the null hypothesis.
+The IC for the ith AE and the jth drug is defined as follows:
+
+ICij = log2 RRij =
+
+
+
+log RRij
+log 2
+
+.
+
+nij
+
+ˆ ij = log
+The ICij is estimated as IC
+2 Eij for nij > 0, ni· > 0, and n·j > 0. The estimated variance of
+
+
+1
+1
+1
+1
+ˆ ij is given by σ̂2 ;
+IC
++
++
+. An approximate 100(1 − α)% CI for ICij is expressed
+2
+n
+n
+n
+ˆ
+ICij
+
+(log 2)
+
+ij
+
+i·
+
+as follows:
+CI100(1−α)%
+
+·j
+
+
+
+r
+
+ 
+
+2
+
+ˆ
+= explog ICij ± z1− α2 σ̂ ˆ .
+ICij
+
+If the lower bound of CI100(1−α)% > 1, the ith AE can be interpreted as a signal.
+2.1.4. Likelihood Ratio Test-Based Method (LRT)
+Huang et al. [4] proposed the likelihood ratio test statistic, which controls the type I error and
+false discovery rates by using Monte Carlo hypothesis testing. The null and alternative hypotheses to
+test whether the ith AE for a specific drug ( j∗ ) is a signal or not are expressed as follows:
+H0 : pi = qi vs. Ha : pi > qi ,
+
+Life 2020, 10, 138
+
+5 of 21
+
+where pi and qi are defined as the reporting rates of ith AE and other AEs for a specific drug, respectively.
+The maximum likelihood ratio (MLR) is expressed as follows:
+  n ∗ nij  n ∗ −n ∗ n j∗ . −nij∗ 
+.j
+ij
+ ij
+
+ ni.
+
+n.. −ni.
+
+ × I (p̂i > q̂i ),
+MLR = max
+ n.j∗ n.j∗ −nij∗
+
+i 
+n..
+
+
+
+where I() is the indicator function, p̂i = nij∗ /ni. , and q̂i = n.j∗ − nij∗ /(n.. − ni. ). As the distribution of
+MLR under the null hypothesis is unknown, the Monte Carlo hypothesis testing is used to calculate
+p-values. For details, see Section 2.3.
+2.2. Bayesian Method
+2.2.1. Gamma Poisson Shrinker (GPS)
+DuMouchel [5] suggested the GPS method, which is an empirical Bayes signal detection method.
+The GPS method uses the relative report rate, defined as follows:
+λij =
+
+nij
+Eij
+
+, where Eij =
+
+ni. × n.j
+n..
+
+.
+
+This indicates the actual frequency compared to the expected frequency. Eij is calculated under
+the null hypothesis that there is no association between the drug-AE pairs. The null and alternative
+hypotheses are expressed as follows:
+H0 : λij = 1 vs. Ha : λij > 1.
+The GPS method assumes that the model and prior distributions are as follows:
+ 
+model : nij λij ∼iid Poisson µij ,
+prior : λij ∼ w × Gamma(α1 , β1 ) + (1 − w) × Gamma(α2 , β2 ),
+where the observed report count nij follows the Poisson distribution with unknown mean µij = Eij × λij .
+The relative report rate follows the mixture gamma distribution where Gamma(α, β) is a gamma
+distribution with mean α/β and variance α/β2 and 0 < w < 1 is the prior probability that λij came
+from the first gamma distribution of mixture. The hyperparameters (α1 , β1 , α2 , β2 , w) are estimated
+by the empirical Bayes method, which is also known as the maximum marginal likelihood.
+As gamma distribution is a conjugate prior for Poisson distribution, the posterior distribution of
+λij can be obtained in a closed form as follows:
+
+
+posterior : λij nij ∼ w∗ij × Gamma α1 + nij , β1 + Eij +
+
+
+
+
+
+1 − w∗ij × Gamma α2 + nij , β2 + Eij ,
+
+where w∗ij is the posterior probability that λij came from the first gamma distribution of the mixture.
+This is expressed as follows:
+w∗ij
+
+
+
+w × f nij α1 , β1 , Eij
+
+
+,
+
+=
+w × f nij α1 , β1 , Eij + (1 − w) × f nij α2 , β2 , Eij
+
+Life 2020, 10, 138
+
+6 of 21
+
+
+
+where f nij α, β, Eij is the marginal distribution. This marginal distribution follows the negative
+binomial distribution as follows:
+!
+Eij
+nij |α, β, Eij ∼ NB α,
+,
+Eij + β
+!
+r+x−1 x
+p (1 − p)r .
+x
+The 5th percentile of the posterior distribution of λij (EB05) is used for decision making. EB05 can
+be obtained by solving the equation as follows:
+
+where NB(x|r, p) =
+
+EB05(λij )
+
+Z
+0.05 =
+
+
+
+f λij nij dλij .
+
+0
+
+This integral can be solved easily using iterative techniques such as Newton’s method. If EB05(λij )
+is greater than 2, this drug-adverse effect pair is considered a signal of disproportionate rates (SDR).
+2.2.2. Bayesian Confidence Propagation Neural Network (BCPNN)
+Bate et al. [6] proposed the BCPNN method based on the IC measure. In the BCPNN method,
+the IC measure was defined as follows:
+!
+θij
+ICij = log2
+.
+θi. × θ.j
+The observed reporting counts and marginal counts are assumed to follow a binomial distribution
+with a beta distribution for priors as follows:
+
+
+
+
+nij θij ∼ Bin n.. , θij with θij ∼ Beta αij , βij ,
+ni. |θi. ∼ Bin(n.. , θi. ) with θi. ∼ Beta(αi. , βi. ),
+
+
+
+
+n.j θ.j ∼ Bin n.. , θ.j with θ.j ∼ Beta α.j , β. j ,
+where αij = αi. = βi. = α.j = β. j = 1 and βij =
+
+1
+E(ni. |θi. )E(n.j θ.j )
+
+− 1.
+
+Using the delta method, the posterior mean and variance of ICij can be obtained as follows:
+
+nij + 1 (n.. + 1)2
+
+,
+(n.. + γ)(ni. + 1) n.j + 1
+
+
+
+
+E ICij data = log2
+
+
+
+Var ICij data =
+where γ = β̂ij + 1 =
+
+1
+log2
+
+
+!2 
+n.. − n.j + 1 
+ n.. − nij + γ − 1
+n
+−
+n
++
+1
+..
+i.
+ 
+,
+
+
++
++
+
+
+nij + 1 (1 + n.. + γ) (ni. + 1)(n.. + 3)
+n.j + 1 (n.. + 3) 
+
+(n.. +2)2
+.
+(ni. +1)(n.j +1)
+
+The lower limit of the 95% credible interval for ICij is calculated by:
+q
+
+
+
+
+ICα/2 = E ICij data − z1−α/2 Var ICij data ,
+and if sBα,ij is greater than 2, this drug-AE pair is a possible signal with a higher reporting rate.
+
+Life 2020, 10, 138
+
+7 of 21
+
+2.2.3. New IC Method
+The new IC is an improved method for posterior inference in IC analysis, including an accurate
+estimate for the mode and significantly improved
+credibility
+interval estimates. This method also
+
+
+iid
+assumes the number of reports nij ∼ Poisson λij Eij , where λij denotes the relative reporting rate.
+The prior of parameters λij is given by λij ∼iid Gamma(0.5, 0.5), and the posterior distribution of λij is
+
+
+given by λij data ∼iid Gamma nij + 0.5, Eij + 0.5 . Then, the New ICij is the posterior mean of log2 λij ,
+which is E(log2 λij data) ; log2
+
+nij +0.5
+Eij +0.5
+
+.
+
+The 95% credible interval limits (λ0.025 , λ0.975 ) are obtained by:
+Z
+
+λα
+
+
+
+Gamma y nij + 0.5, Eij + 0.5 dy = α
+
+0
+
+for α = 0.025 and α = 0.975. If the lower limit λ0.025 > 0, the ith AE can be interpreted as a signal.
+2.2.4. Simplified Bayesian
+For small datasets, the GPS method is usually not recommended because of instability in the
+estimation of the hyperparameters. Thus, Huang et al. [9] suggested the simplified Bayesian (sB)
+method, which assumes a weaker assumption on prior distribution than the GPS method. The sB
+method uses a single gamma distribution as a prior as follows:
+prior : λij ∼ Gamma(α, α),
+with mean 1 and variance 1/α. Huang et al. [9] proposed using three values (0.5, 0.01, and 0.0001) for
+α. They also called the prior distribution with α = 0.5 a less noninformative prior. The other prior
+distributions were called noninformative priors. The posterior distribution is also a single gamma
+distribution as follows:
+
+
+posterior : λij nij ∼ Gamma α + nij , α + Eij .
+The lower bound of the 95% credible interval for λij (sBα, ij ) is used for detecting signals of SDR.
+sBα, ij is expressed as follows:
+
+
+α + nij
+E λij nij =
+α + Eij
+
+sBα, ij
+
+
+
+α + nij
+Var λij nij = 
+2
+α + Eij
+q
+
+
+
+
+= E λij nij − 1.645 Var λij nij .
+
+If sBα,ij is greater than 2, this drug-AE pair is a possible signal with a higher reporting rate. With
+α = 0.5, the sB method is identical to the new IC method [10]. Hence, we only included the sB method
+in the simulation.
+2.3. Tree-Based Scan Statistic
+In a medical dictionary, all AEs are categorized into a hierarchical tree structure. Kulldorff
+et al. [13,14] proposed the tree-based scan statistic, which simultaneously searches for signals at any
+level (or layer) of AEs in a hierarchical structure. We call the last cell of the tree a leaf and the rest
+a node. That is, the higher level of leaves is the node. A higher-level node is defined as the parent
+node; the lower level node is defined as the child node. ci is the observed number of AEs for each leaf
+P
+P
+I and C = i ci = i nij is the total observed number of AEs reported in patients who have taken a
+P
+P
+specific drug j and X = i xi = i ni. is the total number of AEs reported in patients who have taken
+any drugs.
+
+Life 2020, 10, 138
+
+8 of 21
+
+When the branches of a tree are cut, the sum of the observed and total number of AEs in the leaves
+P
+P
+of each cut, G, cG = i∈G ci and xG = i∈G xi , respectively, are obtained. G includes both the child
+nodes and parent nodes as a unit of AE. For each cut G, we can calculate the log likelihood ratio and
+test statistic:
+!
+!
+c
+C − cG
+LR(G) = cG log G + (C − cG ) log
+.
+xG
+X − xG
+!!
+cG
+C − cG
+T = maxLR(G) × I
+>
+,
+xG
+X − xG
+G
+where I() is the indicator function. The cut G that maximizes LR(G) is the most likely cut of related
+AEs. The null hypothesis implies that the group defined by cut G has the same ratio of observed to
+expected AEs as the rest of the tree. In inference, Monte Carlo hypothesis testing is used, calculating
+the most likely cut in each random dataset. Firstly, the likelihood of the most likely cut in a real dataset
+is calculated. Secondly, 9999 random datasets are generated under the null hypothesis and the test
+statistic for each random dataset calculated. Then, the p-value is calculated as R/(9999 + 1), where R is
+the rank of the test statistic of real dataset compared with random datasets.
+The LRT and TreeScan methods basically use the same test statistic. Because the TreeScan considers
+the hierarchical structure in nature, the distribution of the test statistic is also obtained by comparing all
+possible cuts in the hierarchical structure. Even if the two methods detected the same signal, p-values
+could be different.
+3. Simulation Study
+3.1. Data Generation and Evaluation Measures
+We generated datasets that reflect WHO-ART’s hierarchical structure, which can be expressed
+as system-organ classes (SOC), preferred terms (PT), and included terms (IT) for AEs [16]. In the
+simulation study, we included only SOC and PT levels. To reduce the computation time, we only
+considered 500 drugs and 300 AEs, which were randomly selected from a total of 2161 PT levels.
+We followed the approach in the study by Huang et al. [4] to generate our simulation data.
+First, we generated marginal counts of AEs n1. , . . . , nI. (I = 300) and drugs n.1 , . . . , n.J (J = 500)
+as follows:
+ 
+
+(n1. , . . . , nI. )|n.. ∼ Multinomial n.. , PIu1 , . . . , PIuI
+i = 1 ui
+i=1 ui !!
+
+
+u
+u1
+n.j , . . . , n.J |n.. ∼ Multinomial n.. , PJ
+, . . . , PJ J
+,
+j=1
+
+uj
+
+j=1
+
+uj
+
+P
+where u ∼ Uni f orm(0, 1) with n.. = Ii=1 ni. .
+Next, we generated the number of cases reported for a specified drug ( j∗ ), n1 j∗ , . . . , nI j∗ using
+
+
+
+
+
+n1 j∗ , . . . , nI j∗ n.j∗ ∼ Multinomial n.j∗ , prr ,
+
+
+
+n
+n
+where prr = rr1 j∗ × r0 × n1... , . . . , rrI j∗ × r0 × nI... is a vector of probabilities with rr1 j∗ , . . . , rrI j∗ as the
+relative reporting rates. When r0 is considered as the baseline risk, prr has the constraints that
+P
+n
+n
+0 ≤ rrij∗ × r0 × ni... ≤ 1, i = 1, . . . , I, and Ii=1 rrij∗ × r0 × ni... = 1. Note that the number of reported cases
+was generated for a specific drug, and hence the true signals are signals for each drug. This means
+that the relative reporting rate for the AE with a true signal is higher than those for all the other AEs
+for one fixed drug. If an AE is a true signal, the relative reporting rate is greater than 1, while the
+relative reporting rate is equal to 1 when the AE is a false signal [11]. The cells for the true signals
+were randomly selected first depending on the assumed proportion of true signals. The relative
+reporting rate for each of the selected cells as true signals was generated from Uni f orm(1.2, 10) and
+Uni f orm(1.2, 4).
+
+Life 2020, 10, 138
+
+9 of 21
+
+While the TreeScan method detected signals simultaneously for both SOC and PT levels, all the
+other methods detected signals from SOC and PT levels separately. To evaluate the performances of
+the methods considering the hierarchical data structure, we merged two separate results from each
+level for all methods except the TreeScan method.
+We generated 1000 datasets for each of nine different settings with three different total sample
+sizes (300,000, 500,000, 1,000,000) and three different percentages of true signals (3%, 5%, 10%). We used
+five different cutoffs, which are the criteria for signal detection for each method. Different criteria have
+been used depending on the organization for different methods [17]. In practice, one may change the
+criteria based on experience. We used the same criterion of the lower bound of the 95% CI for fair
+comparison in our simulation.
+To compare the performance, we calculated the type I error rate, sensitivity, positive predicted
+value (PPV), and power for specific drugs. Under the null hypothesis, the type I error is estimated
+as follows:
+# of times detecting at least one false − positive signal
+Type I error =
+.
+total # of simulated datasets
+The sensitivity, PPV, and power are estimated as:
+S
+
+Sensitivity =
+
+1 X # of true − positive signals in sth simulated dataset
+S
+# of true signals in the sth simulated dataset
+s=1
+
+S
+
+1 X # of true − positive signals in sth simulated dataset
+PPV =
+S
+# of detected signals in the sth simulated dataset
+s=1
+
+Power =
+
+# of times detecting at least one signal
+,
+total # of simulated datasets
+
+where S is the total number of simulated datasets with at least one signal detected. We used R software
+3.5.2 version (Vienna, Austria) for all simulations and data analyses.
+3.2. Results
+3.2.1. Comparison of Type I Error Rate
+To compare the type I error rate of each method and cutoff, all relative reporting rates were set
+to 1 for each total sample size (Table 2). The type I error rates of the ROR, PRR, and IC methods
+were relatively high for the standard cutoff and for all total sample sizes, which means that spurious
+detection could frequently occur even when there are no actual signals. The type I error rates of the
+GPS and sB methods were close to 0 for the standard cutoff and all total sample sizes. The type I error
+rates of the ROR, PRR, IC, GPS, BCPNN, and sB methods varied depending on how the cutoff was set.
+On the other hand, the type I error rates of the LRT and TreeScan methods were close to the prespecified
+significance level in most cases, although the LRT method had slightly higher type I error rates.
+Table 2. Comparison of type I error rates at various cutoff points when rr = 1.
+Total Sample Size
+Method
+
+Cutoff *
+
+ROR
+
+1
+1.5
+2
+2.5
+3
+
+300,000
+
+500,000
+
+1,000,000
+
+Type I Error
+1.000
+1.000
+0.999
+0.978
+0.939
+
+1.000
+0.999
+0.979
+0.931
+0.861
+
+0.999
+0.991
+0.914
+0.790
+0.679
+
+Life 2020, 10, 138
+
+10 of 21
+
+Table 2. Cont.
+Total Sample Size
+
+300,000
+
+500,000
+
+1,000,000
+
+Method
+
+Cutoff *
+
+Type I Error
+
+PRR
+
+1
+1.5
+2
+2.5
+3
+
+1.000
+1.000
+0.999
+0.974
+0.934
+
+1.000
+0.998
+0.978
+0.929
+0.860
+
+0.999
+0.991
+0.910
+0.786
+0.676
+
+IC
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.995
+0.992
+0.828
+0.607
+0.284
+
+0.998
+0.994
+0.717
+0.499
+0.212
+
+1.000
+0.993
+0.546
+0.335
+0.121
+
+LRT
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.241
+0.124
+0.068
+0.044
+0.031
+
+0.215
+0.107
+0.063
+0.039
+0.012
+
+0.207
+0.117
+0.053
+0.029
+0.020
+
+GPS
+
+1
+1.5
+2
+2.5
+3
+
+0.567
+0.009
+0.000
+0.000
+0.000
+
+0.615
+0.010
+0.000
+0.000
+0.000
+
+0.656
+0.005
+0.000
+0.000
+0.000
+
+BCPNN
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.371
+0.024
+0.000
+0.000
+0.000
+
+0.949
+0.113
+0.003
+0.000
+0.000
+
+0.959
+0.078
+0.003
+0.001
+0.000
+
+sB
+
+1
+1.5
+2
+2.5
+3
+
+0.741
+0.088
+0.009
+0.000
+0.000
+
+0.842
+0.090
+0.005
+0.000
+0.000
+
+0.917
+0.079
+0.004
+0.000
+0.000
+
+TreeScan
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.194
+0.103
+0.052
+0.025
+0.008
+
+0.240
+0.124
+0.050
+0.029
+0.010
+
+0.219
+0.097
+0.047
+0.029
+0.009
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic; * Cutoff values for the lower bound of the 95% CI for ROR, PRR, IC,
+BCPNN, and sB, for EB05 for GPS, and for the p-value for LRT and TreeScan.
+
+3.2.2. Comparison of Sensitivity, PPV, and Power
+Tables 3 and 4 present the results for sensitivity, PPV, and power of each method when the total
+sample size is equal to 300,000. The other results are presented in Appendix A. For all simulation
+settings and the standard cutoff for each method, the ROR, PRR, and IC methods had relatively higher
+sensitivity and power than the other methods. However, the LRT, GPS, BCPNN, sB, and TreeScan
+methods had relatively higher PPV than the other methods. This means that the ROR, PRR, and IC
+methods may detect too many signals regardless of whether they are actually true, so these methods
+could detect many false signals as well as true ones. On the contrary, the LRT, GPS, BCPNN, sB,
+and TreeScan methods detected much fewer signals, but more true signals than false ones.
+
+Life 2020, 10, 138
+
+11 of 21
+
+Table 3. Summary of performance for each method at various cutoff points when the total sample size
+= 300,000 and rr ∼ U (1.2, 10).
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+ROR
+
+1
+1.5
+2
+2.5
+3
+
+0.996
+0.996
+0.996
+0.996
+0.996
+
+0.753
+0.704
+0.655
+0.608
+0.559
+
+0.251
+0.388
+0.503
+0.587
+0.646
+
+0.997
+0.997
+0.997
+0.997
+0.997
+
+0.728
+0.678
+0.624
+0.569
+0.519
+
+0.394
+0.534
+0.628
+0.692
+0.737
+
+0.999
+0.999
+0.999
+0.999
+0.999
+
+0.680
+0.621
+0.561
+0.498
+0.438
+
+0.649
+0.744
+0.800
+0.833
+0.854
+
+PRR
+
+1
+1.5
+2
+2.5
+3
+
+0.996
+0.996
+0.996
+0.996
+0.996
+
+0.753
+0.704
+0.654
+0.607
+0.557
+
+0.251
+0.389
+0.504
+0.588
+0.647
+
+0.997
+0.997
+0.997
+0.997
+0.997
+
+0.728
+0.678
+0.623
+0.568
+0.516
+
+0.394
+0.535
+0.629
+0.693
+0.738
+
+0.999
+0.999
+0.999
+0.999
+0.999
+
+0.680
+0.621
+0.560
+0.497
+0.436
+
+0.649
+0.744
+0.800
+0.833
+0.855
+
+IC
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.991
+0.986
+0.980
+0.976
+0.963
+
+0.687
+0.612
+0.541
+0.500
+0.413
+
+0.309
+0.614
+0.825
+0.877
+0.938
+
+0.995
+0.991
+0.984
+0.982
+0.977
+
+0.660
+0.579
+0.507
+0.467
+0.375
+
+0.479
+0.757
+0.881
+0.917
+0.956
+
+0.995
+0.992
+0.990
+0.989
+0.986
+
+0.613
+0.526
+0.448
+0.405
+0.311
+
+0.748
+0.904
+0.951
+0.963
+0.978
+
+LRT
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.939
+0.929
+0.915
+0.901
+0.881
+
+0.462
+0.432
+0.409
+0.387
+0.359
+
+0.962
+0.981
+0.990
+0.994
+0.997
+
+0.956
+0.945
+0.930
+0.922
+0.908
+
+0.417
+0.388
+0.365
+0.341
+0.314
+
+0.983
+0.990
+0.992
+0.995
+0.999
+
+0.973
+0.969
+0.961
+0.947
+0.932
+
+0.338
+0.312
+0.289
+0.267
+0.240
+
+0.990
+0.995
+0.996
+1.000
+1.000
+
+GPS
+
+1
+1.5
+2
+2.5
+3
+
+0.891
+0.888
+0.888
+0.888
+0.886
+
+0.417
+0.415
+0.414
+0.406
+0.369
+
+0.997
+0.998
+0.998
+0.998
+0.999
+
+0.926
+0.925
+0.925
+0.924
+0.911
+
+0.395
+0.393
+0.391
+0.373
+0.315
+
+0.998
+0.998
+0.998
+0.998
+0.999
+
+0.951
+0.951
+0.950
+0.945
+0.913
+
+0.378
+0.378
+0.369
+0.312
+0.204
+
+0.997
+0.997
+0.998
+1.000
+1.000
+
+BCPNN
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.948
+0.914
+0.867
+0.808
+0.719
+
+0.578
+0.443
+0.335
+0.246
+0.174
+
+0.731
+0.984
+0.998
+1.000
+1.000
+
+0.951
+0.924
+0.893
+0.831
+0.753
+
+0.539
+0.398
+0.291
+0.204
+0.138
+
+0.857
+0.992
+0.999
+1.000
+1.000
+
+0.972
+0.950
+0.911
+0.837
+0.754
+
+0.474
+0.323
+0.216
+0.139
+0.081
+
+0.957
+0.998
+1.000
+1.000
+1.000
+
+sB
+
+1
+1.5
+2
+2.5
+3
+
+0.934
+0.921
+0.900
+0.864
+0.807
+
+0.488
+0.414
+0.347
+0.288
+0.241
+
+0.866
+0.992
+1.000
+1.000
+1.000
+
+0.942
+0.932
+0.908
+0.875
+0.826
+
+0.448
+0.363
+0.292
+0.231
+0.180
+
+0.939
+0.996
+1.000
+1.000
+1.000
+
+0.939
+0.919
+0.894
+0.856
+0.797
+
+0.387
+0.293
+0.217
+0.156
+0.110
+
+0.988
+0.999
+1.000
+1.000
+1.000
+
+TreeScan
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.942
+0.930
+0.917
+0.904
+0.887
+
+0.477
+0.457
+0.437
+0.422
+0.400
+
+0.964
+0.983
+0.990
+0.994
+0.997
+
+0.954
+0.949
+0.942
+0.935
+0.914
+
+0.444
+0.417
+0.393
+0.373
+0.352
+
+0.981
+0.991
+0.997
+0.999
+0.999
+
+0.975
+0.968
+0.955
+0.948
+0.924
+
+0.369
+0.343
+0.322
+0.301
+0.280
+
+0.992
+0.996
+0.998
+1.000
+1.000
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic; * Cutoff values for the lower bound of the 95% CI for ROR, PRR, IC,
+BCPNN, and sB, for EB05 for GPS, and for the p-value for LRT and TreeScan.
+
+When the relative reporting rates were low (Table 4), all the methods had lower performance
+compared to when the relative reporting rates were high (Table 3). The GPS, BCPNN, and sB methods
+had a significant decrease in power and sensitivity, especially the GPS method.
+As the percentage of true signals increased for all settings of total sample size, the sensitivity
+decreased but the PPV and power increased for all methods. As the total sample size increased for all
+settings of the percentage of true signals, the sensitivity, PPV, and power increased for all methods.
+However, depending on the cutoff of each method, the sensitivity, PPV, and power varied. No single
+method was superior to the others overall for all settings.
+
+Life 2020, 10, 138
+
+12 of 21
+
+Table 4. Summary of performance for each method at various cutoff points when the total sample size
+= 300,000 and rr ∼ U (1.2, 4).
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+ROR
+
+1
+1.5
+2
+2.5
+3
+
+0.987
+0.984
+0.971
+0.934
+0.864
+
+0.518
+0.419
+0.323
+0.243
+0.177
+
+0.164
+0.250
+0.316
+0.348
+0.353
+
+0.997
+0.997
+0.996
+0.984
+0.943
+
+0.510
+0.408
+0.313
+0.231
+0.163
+
+0.262
+0.364
+0.437
+0.468
+0.467
+
+0.995
+0.995
+0.995
+0.994
+0.984
+
+0.464
+0.362
+0.268
+0.190
+0.133
+
+0.437
+0.531
+0.581
+0.597
+0.591
+
+PRR
+
+1
+1.5
+2
+2.5
+3
+
+0.987
+0.984
+0.971
+0.933
+0.861
+
+0.518
+0.419
+0.322
+0.241
+0.175
+
+0.164
+0.250
+0.317
+0.349
+0.354
+
+0.997
+0.997
+0.996
+0.984
+0.940
+
+0.510
+0.408
+0.312
+0.229
+0.162
+
+0.262
+0.364
+0.437
+0.469
+0.467
+
+0.995
+0.995
+0.995
+0.994
+0.983
+
+0.464
+0.361
+0.267
+0.189
+0.132
+
+0.437
+0.532
+0.582
+0.597
+0.591
+
+IC
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.944
+0.901
+0.835
+0.782
+0.569
+
+0.472
+0.334
+0.222
+0.175
+0.087
+
+0.182
+0.378
+0.582
+0.662
+0.744
+
+0.984
+0.969
+0.942
+0.905
+0.716
+
+0.469
+0.331
+0.217
+0.165
+0.077
+
+0.290
+0.527
+0.696
+0.759
+0.820
+
+0.984
+0.976
+0.965
+0.946
+0.828
+
+0.413
+0.284
+0.179
+0.129
+0.056
+
+0.486
+0.702
+0.811
+0.850
+0.882
+
+LRT
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.673
+0.602
+0.554
+0.509
+0.444
+
+0.149
+0.122
+0.104
+0.088
+0.071
+
+0.867
+0.911
+0.939
+0.966
+0.977
+
+0.785
+0.725
+0.670
+0.609
+0.534
+
+0.136
+0.111
+0.091
+0.077
+0.060
+
+0.917
+0.948
+0.975
+0.984
+0.987
+
+0.859
+0.815
+0.748
+0.679
+0.612
+
+0.111
+0.089
+0.071
+0.057
+0.044
+
+0.955
+0.981
+0.988
+0.992
+0.999
+
+GPS
+
+1
+1.5
+2
+2.5
+3
+
+0.430
+0.051
+0.028
+0.015
+0.003
+
+0.079
+0.008
+0.005
+0.002
+0.000
+
+0.983
+1.000
+1.000
+1.000
+1.000
+
+0.611
+0.250
+0.165
+0.065
+0.008
+
+0.095
+0.026
+0.017
+0.005
+0.001
+
+0.989
+0.996
+1.000
+1.000
+1.000
+
+0.704
+0.561
+0.465
+0.057
+0.003
+
+0.090
+0.047
+0.034
+0.002
+0.000
+
+0.992
+0.999
+0.999
+1.000
+1.000
+
+BCPNN
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.864
+0.640
+0.339
+0.113
+0.022
+
+0.306
+0.135
+0.048
+0.013
+0.003
+
+0.477
+0.915
+0.984
+1.000
+1.000
+
+0.914
+0.745
+0.426
+0.140
+0.026
+
+0.292
+0.121
+0.040
+0.010
+0.002
+
+0.624
+0.937
+0.996
+1.000
+1.000
+
+0.943
+0.824
+0.507
+0.166
+0.025
+
+0.259
+0.098
+0.028
+0.006
+0.001
+
+0.802
+0.976
+1.000
+1.000
+1.000
+
+sB
+
+1
+1.5
+2
+2.5
+3
+
+0.669
+0.472
+0.247
+0.084
+0.016
+
+0.171
+0.080
+0.031
+0.009
+0.002
+
+0.860
+0.991
+0.996
+1.000
+1.000
+
+0.743
+0.569
+0.294
+0.094
+0.021
+
+0.161
+0.072
+0.024
+0.006
+0.001
+
+0.927
+0.995
+1.000
+1.000
+1.000
+
+0.778
+0.628
+0.345
+0.098
+0.018
+
+0.133
+0.052
+0.015
+0.003
+0.001
+
+0.969
+0.997
+1.000
+1.000
+1.000
+
+TreeScan
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.671
+0.619
+0.573
+0.520
+0.452
+
+0.148
+0.125
+0.107
+0.092
+0.074
+
+0.866
+0.930
+0.961
+0.970
+0.985
+
+0.772
+0.726
+0.671
+0.614
+0.550
+
+0.137
+0.114
+0.096
+0.082
+0.065
+
+0.919
+0.965
+0.982
+0.990
+0.993
+
+0.843
+0.792
+0.729
+0.685
+0.609
+
+0.110
+0.088
+0.073
+0.061
+0.048
+
+0.945
+0.964
+0.983
+0.991
+0.995
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic; * Cutoff values for the lower bound of the 95% CI for ROR, PRR, IC,
+BCPNN, and sB, for EB05 for GPS, and for the p-value for LRT and TreeScan.
+
+4. Example
+4.1. Korea Adverse Event Reporting System (KAERS)
+The KAERS is a spontaneous reporting system that receives and manages adverse drug events
+reported by patients, manufacturers, or medicine experts, provided by Korea Institute of Drug Safety and
+Risk Management. It consists of drugs, AEs, basic demographic, and causality assessment information.
+When reported, a drug and an AE should be reported together in a pair. These can be reported several
+times depending on the dose and time. If the same drugs and AEs were reported in duplicate, depending
+on dose or time, only the first report was counted. Therefore, drugs and AEs are paired only one time.
+Causality was assessed at six levels: certain, probable, possible, unlikely, unclassified, and unassessable.
+The assessment criteria are shown in Table 5. We used all drug-AE pairs except for ones with an unassessable
+level. Not only the reported information on a possible causal relationship between an AE and a drug,
+
+Life 2020, 10, 138
+
+13 of 21
+
+but also previously unknown or incompletely documented relationships can be a signal. The causality
+assessment was performed by a reporter, such as a medical institution, expert, manufacturer, pharmacy, or
+public health center.
+Table 5. Causality assessment criteria.
+Criterion
+
+Level
+
+The context of administration and use of medicines is reasonable.
+It is not described as another medication, chemical, or accompanying illness.
+In case of administration interruption, there is a clinically reasonable response.
+In case of readministration, there is a pharmacologically conclusive response.
+It could be described as another medication, chemical, or accompanying illness.
+It is a temporary condition, not related to the administration and use of medicines.
+It requires more information to assess or it is under examination.
+It is not assessable and cannot be supplemented.
+
+Certain, Probable, Possible
+Certain, Probable
+Certain, Probable
+Certain
+Possible, Unlikely
+Unlikely
+Unclassified
+Unassessable
+
+In KAERS, AEs were organized under the WHO-ART’s hierarchical structure [16]. This consists
+of four hierarchical levels: system-organ class (SOC), high-level terms (HLT), preferred terms (PT),
+and included terms (IT). SOC is the highest level. IT represents various expressions about the same AE
+in the PT level. HLT is a set of PTs related to each other or having some similar symptoms. HLT may or
+may not exist and therefore are excluded from the analysis. A small subset of the hierarchical structure
+is listed in Table 6. However, in the KAERS database, more than half of the reports were reported up
+to the PT level. Thus, we used the PT level as the lowest level of AEs. In the following illustration,
+we used the SOC and PT levels in the WHO-ART’s hierarchical structure.
+Table 6. Subset of WHO-ART’s hierarchical structure of adverse events.
+Code
+
+Level
+
+Adverse Event
+
+100
+100.0001.001
+100.0001.003
+100.0001.004
+100.0001.005
+100.0001.006
+100.0001.007
+100.0001.008
+100.0002.001
+100.0002.003
+100.0002.004
+100.0002.005
+100.0002.006
+100.0002.007
+100.0002.008
+100.0002.009
+100.0002.010
+100.0002.011
+100.0002.012
+100.0002.013
+100.0002.014
+100.0002.015
+
+SOC
+PT
+IT
+IT
+IT
+IT
+IT
+IT
+PT
+IT
+IT
+IT
+IT
+IT
+IT
+IT
+IT
+IT
+IT
+IT
+IT
+IT
+
+Skin and appendages disorders
+ACNE
+ACNEIFORM DERMATITIS
+RASH ACNEIFORM
+ACNE CYSTIC
+ACNE PUSTULAR
+ACNE AGGRAVATED
+ACNE CONGLOBATA
+ALOPECIA
+HAIR THINNING
+ALOPECIA AREATA
+ATRICHIA
+BALDNESS
+HAIR LOSS
+ATRICHOSIS
+LOSS OF EYELASHES
+ALOPECIA TOTALIS
+ALOPECIA SCARRING
+ALOPECIA UNIVERSALIS
+DEFLUVIUM
+LOSS OF EYEBROWS
+AGGRAVATED HAIR LOSS
+
+4.2. Data
+We used drug-adverse effects pair data from KAERS between 2012 and 2016. Between 2012
+and 2016, there were approximately 3.1 million drug-AE pairs with 1615 kinds of PT-level AEs and
+1950 kinds of drugs. Restricting the causality assessment information to certain, probable, possible,
+unlikely, or unclassified levels, approximately 2.5 million drug-AE pairs with 1484 kinds of PT level
+AEs and 1716 kinds of drugs were left. These data contained 32 SOC levels, 1484 PT levels, and 3557 IT
+levels. Analyses were done with these drug-AE pairs.
+
+Life 2020, 10, 138
+
+14 of 21
+
+4.3. Analysis
+We selected two diabetes drugs, voglibose and acarbose, to compare specific results. Both are
+hypoglycemic agents that are used for type 2 diabetes, along with diet and exercise. These two drugs
+were selected because of their substantial exposure and comparable characteristics. Voglibose has a
+simple structure relative to acarbose. Moreover, it is known to be more economical and safer because
+its absolute administration dose is 1000 times lower than that of acarbose. However, some severe
+AEs tend to be more reported in voglibose [17,18]. Therefore, we found specific AEs in acarbose and
+voglibose using KAERS data by the signal detection methods previously described.
+First, we compared the number of signals detected by each method from all drug-adverse effect
+pairs with 1484 kinds of PT level AEs and 1716 kinds of drugs. Second, the specific signals detected by
+each method were compared for the two diabetes drugs mentioned above. The detection criteria for
+each method are shown in Table 7 and the TreeScan method was performed with a simple cut.
+Table 7. Signal detection criterion for each method.
+Method
+
+Detection Criterion
+
+ROR, PRR
+IC, BCPNN
+GPS
+BCPNN
+sB
+LRT, TreeScan
+
+95% CI lower bound > 2
+95% CI lower bound > log2(2)
+EB05 > 2
+95% CI lower bound > log2(2)
+95% CI lower bound > 2
+p-value < 0.05
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic.
+
+4.4. Results
+Table 8 provides the overall signal detection results of all methods. We used the signal detection
+criteria presented in Table 7. We summarized the number of detected signals separately for PT and SOC
+levels. The GPS, BCPNN, and sB methods detected relatively fewer signals than the other methods.
+The ROR and PRR detected the most signals.
+The results of applying all methods to two drugs, voglibose and acarbose, are summarized in
+Table 9. We report only the AEs that were detected by more than two of the signal detection methods.
+Voglibose had a higher reported count of all AEs than acarbose. The number of AEs detected by
+at least one method was higher for voglibose (36 AEs) than for acarbose (31 AEs). For both drugs,
+the common AEs detected were diarrhea, flatulence, and hypoglycemia at the PT level, and metabolic
+and nutritional disorders at the SOC level. There was only one common AE detected by all methods
+in acarbose and voglibose: flatulence at the PT level. Both drugs signaled strongly for flatulence,
+which is an AE commonly observed in patients with type 2 diabetes [19,20]. In addition, the common
+AEs detected by all methods were dyspepsia and hypoglycemia at the PT level, and metabolic and
+nutritional disorders at the SOC level in voglibose.
+Table 8. Overall detection: the number of signals detected by each method in the 2012–2016 Korea
+adverse event reporting system (KAERS) database contained 1615 kinds of adverse events and 1716
+kinds of drugs.
+Method (# of Pairs)
+
+ROR & PRR
+
+IC
+
+LRT
+
+GPS
+
+BCPNN
+
+sB
+
+TreeScan
+
+PT levels (2,546,544)
+SOC levels (54,912)
+Total (2,601,456)
+
+43,960
+4142
+48,102
+
+25,714
+2147
+27,861
+
+8324
+2238
+10,562
+
+6147
+1342
+7489
+
+5290
+1256
+6546
+
+4397
+1163
+5560
+
+9175
+1380
+10,555
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic.
+
+Life 2020, 10, 138
+
+15 of 21
+
+Table 9. Detected signals by each method for voglibose and acarbose.
+
+Voglibose
+
+Acarbose
+
+Adverse Event
+
+Obs
+
+Exp
+
+ROR
+
+PRR
+
+IC
+
+LRT
+
+GPS
+
+BCPNN
+
+sB
+
+TreeScan
+
+500_165
+
+Anorexia
+
+8
+
+2.62
+
+2.42 *
+
+2.42 *
+
+0.59
+
+0.940
+
+1.12
+
+0.35
+
+1.37
+
+0.504
+
+600
+600_204
+600_205
+600_268
+600_279
+600_285
+
+Gastrointestinal system disorders
+Constipation
+Diarrhea
+Abdominal pain
+Dyspepsia
+Flatulence
+
+115
+11
+12
+10
+35
+15
+
+73.73
+3.96
+6.43
+3.63
+7.22
+0.39
+
+1.83
+2.26 *
+1.33
+2.20 *
+5.16 *
+40.28 *
+
+1.83
+2.26 *
+1.33
+2.20 *
+5.15 *
+40.00 *
+
+0.32
+0.60
+0.06
+0.55
+1.77 *
+4.49 *
+
+0.001 *
+0.782
+1.000
+0.910
+0.001 *
+0.001 *
+
+1.28
+1.24
+0.92
+1.17
+3.11 *
+20.89 *
+
+0.31
+0.43
+0.00
+0.37
+1.62 *
+2.79 *
+
+1.46
+1.47
+1.23
+1.43
+3.64 *
+10.76 *
+
+0.001 *
+0.336
+0.980
+0.447
+0.001 *
+0.001 *
+
+800
+800_389
+800_392
+800_407
+
+Metabolic and nutritional disorders
+Hypoglycemia
+Hyponatremia
+Weight decrease
+
+37
+24
+2
+2
+
+5.07
+0.55
+0.18
+0.21
+
+8.11 *
+48.25 *
+9.67 *
+8.19 *
+
+8.10 *
+47.86 *
+9.65 *
+8.18 *
+
+2.37 *
+4.84 *
+1.44 *
+1.24 *
+
+0.001 *
+0.001 *
+0.996
+0.998
+
+4.67 *
+27.47 *
+0.49
+0.47
+
+2.15 *
+3.41 *
+−0.30
+−0.34
+
+6.11 *
+17.12 *
+0.03
+0.04
+
+0.001 *
+0.001 *
+0.772
+0.860
+
+1100
+1100_515
+1100_523
+
+Respiratory system disorders
+Epistaxis
+Pharyngitis
+
+16
+2
+4
+
+9.46
+0.21
+0.85
+
+1.23
+8.18 *
+3.79 *
+
+1.23
+8.17 *
+3.79 *
+
+0.03
+1.24 *
+0.81
+
+1.000
+0.998
+0.992
+
+0.94
+0.47
+0.85
+
+−0.02
+−0.34
+0.15
+
+1.21
+0.04
+0.80
+
+0.981
+0.861
+0.745
+
+1810_401
+
+Edema peripheral
+
+3
+
+0.71
+
+3.15 *
+
+3.15 *
+
+0.44
+
+1.000
+
+0.60
+
+−0.20
+
+0.43
+
+0.973
+
+500_172
+
+Depression
+
+2
+
+0.08
+
+25.07 *
+
+25.02 *
+
+2.68 *
+
+0.638
+
+0.66
+
+−0.18
+
+0.04
+
+0.209
+
+600_205
+600_285
+600_336
+
+Diarrhea
+Flatulence
+Tooth disorder
+
+7
+12
+2
+
+3.01
+0.18
+0.01
+
+1.65
+72.43 *
+180.65 *
+
+1.64
+72.02 *
+177.84 *
+
+0.11
+5.16 *
+5.43 *
+
+1.000
+0.001 *
+0.010 *
+
+0.84
+31.93 *
+1.88
+
+−0.05
+2.62 *
+−0.10
+
+0.90
+10.06 *
+0.02
+
+0.924
+0.001 *
+0.008 *
+
+800
+800_383
+800_389
+
+Metabolic and nutritional disorders
+Hyperkalemia
+Hypoglycemia
+
+6
+2
+3
+
+2.38
+0.11
+0.26
+
+1.79
+17.08 *
+10.77 *
+
+1.79
+17.06 *
+10.76 *
+
+0.15
+2.16 *
+1.88 *
+
+1.000
+0.846
+0.632
+
+0.81
+0.58
+0.91
+
+−0.06
+−0.22
+0.23
+
+0.89
+0.03
+0.64
+
+0.920
+0.390
+0.202
+
+1210
+1210_544
+
+Red blood cell disorders
+Anemia
+
+4
+4
+
+0.62
+0.51
+
+5.70 *
+7.13 *
+
+5.70 *
+7.13 *
+
+1.26 *
+1.54 *
+
+0.798
+0.556
+
+1.00
+1.10
+
+0.33
+0.43
+
+0.98
+1.05
+
+0.326
+0.176
+
+1300
+1300_619
+
+Urinary system disorders
+Renal function abnormal
+
+6
+2
+
+2.16
+0.11
+
+2.06 *
+16.52 *
+
+2.06 *
+16.50 *
+
+0.29
+2.12 *
+
+0.998
+0.860
+
+0.87
+0.57
+
+0.04
+−0.23
+
+0.91
+0.03
+
+0.819
+0.396
+
+1810_711
+
+Abdomen enlarged
+
+2
+
+0.08
+
+25.76 *
+
+25.71 *
+
+2.72 *
+
+0.632
+
+0.66
+
+−0.18
+
+0.02
+
+0.197
+
+Obs, Observed count; Exp, Expected count; ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio test; GPS, Gamma Poisson
+Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified Bayes; TreeScan, Tree-based Scan Statistic; * signal.
+
+Life 2020, 10, 138
+
+16 of 21
+
+5. Discussion
+A number of disproportionality methods for data mining and the TreeScan method were compared
+for signal detection during drug surveillance for AEs data grouped into hierarchical structures.
+We included various frequentist methods such as ROR, PRR, IC, LRT, and TreeScan as well as Bayesian
+methods such as GPS, BCPNN, and sB. The LRT, GPS, BCPNN, sB, and TreeScan methods detected
+fewer signals than the ROR, PRR, and IC methods. The power and sensitivity of the GPS, sB, LRT,
+and TreeScan methods tended to be lower than those of others, which implies that these methods are
+more conservative. The higher power and sensitivity of the ROR, PRR, and IC methods seemed to be
+due to the higher type I error rates. The three methods had lower PPV. The TreeScan method controls
+the type I error rate at the desired level, while other methods cannot control this or find appropriate
+cutoffs for the desired type I error rate. However, no method was superior to the others in relation to
+all performance measures.
+We observed similar patterns in the analysis results of the KAERS data. The GPS and sB methods
+detected much fewer signals than the others overall. For the two specific drugs, some common AEs
+were detected by all methods. The ROR, PRR, and IC methods detected additional signals that were
+not detected by the GPS, sB, LRT, or TreeScan methods. The ROR and PRR methods detected rather
+too many signals, even if the number reported was small. Thus, the restriction of three or more cases
+for the reported count to be a signal for the ROR and PRR methods, which is usually imposed in
+practice [3], might be sensible.
+In terms of computation time, the GPS, LRT, and TreeScan methods are more intensive relative
+to the other methods. Other methods have a closed form for the confidence interval of each statistic,
+so only the cell count (nij ) and marginal count (ni. or n.j ) of the matrix are required to calculate the
+confidence interval. On the other hand, the GPS method requires all cell counts in the matrix to estimate
+the parameters of prior distribution. For the LRT and TreeScan method, a Monte Carlo simulation is
+required to obtain p-values.
+The methods considered in this paper are approaches that can be applied to an existing database.
+In some cases, one may want to continuously or sequentially monitor to detect a signal as early
+as possible. The sequential probability ratio test (SPRT) [21,22] can be used. The method has also
+been applied to a spontaneous adverse event reporting system [23,24]. However, the result of the
+SPRT method is highly dependent on the relative risk used to specify the alternative hypothesis [25].
+Although we did not include the SPRT in this study for these reasons, it would be interesting to
+compare the method in appropriate situations in future research.
+The drug safety databases such as KAERS are constructed by a spontaneous reporting system and
+very few AEs that occur were reported, so it has a large number of zero-count cells. In this situation,
+a zero-inflated Poisson model could be considered. Hu et al. [11] proposed ZIP-sB and ZIP-DP (Dirichlet
+process). Huang et al. [26] proposed a zero-inflated Poisson (ZIP) model based on the likelihood ratio
+test. According to these research findings, ZIP models detected fewer signals in data containing a large
+number of zero-counts. This means that they are more conservative by considering zero-counts. In a
+further study, we will evaluate the performance of ZIP models and apply them to real data to compare.
+Huang et al. proposed extending the likelihood ratio test-based (LRT) methods [9] that can
+detect signals for including a single AE or several AEs within one AE group. The extended LRT
+method could be used for hierarchical structures of AEs for a fixed drug. The threshold for a signal for
+multiple-layer analysis should be higher than that for single-layer analysis. It will be very interesting to
+see the simulation results by comparing the Extended LRT vs. TreeScan with multiple layers (PT, SOC,
+or others). This is a future research topic.
+Currently, some drug companies have different AE detection criteria. For example, AstraZeneca
+detects an AE when the EB05 is greater than 1.8, whereas GlaxoSmithKline detects AE when it is
+greater than 2 [12]. In our study, it was confirmed that the performance of each method could vary
+depending on the cutoff, which is the criteria for signal detection in simulation. Therefore, how to set
+the cutoff for signal detection is very important and worth noting.
+
+Life 2020, 10, 138
+
+17 of 21
+
+6. Conclusions
+In summary, the LRT, GPS, BCPNN, sB, and TreeScan methods are more conservative than the
+ROR, PRR, and IC methods. Only the TreeScan method controls the type I error rate at the desired
+level. No method is superior to the others in relation to all performance measures. It is recommended
+that those conducting drug-AE surveillance use not just one method, but make a decision based on
+several methods.
+Author Contributions: Conceptualization, I.J.; Data curation, G.P., H.J., and S.-J.H.; Formal analysis, G.P., H.J.,
+and S.-J.H.; Funding acquisition, I.J.; Investigation, G.P., H.J., S.-J.H., and I.J.; Methodology, G.P., H.J., S.-J.H., and
+I.J.; Project administration, I.J.; Software, S.-J.H.; Supervision, I.J.; Validation, G.P., and H.J.; Writing—original
+draft, G.P., H.J., and S.-J.H.; Writing—review and editing, I.J. All authors have read and agreed to the published
+version of the manuscript.
+Funding: This research was supported by Basic Science Research Program through the National Research
+Foundation of Korea (NRF), funded by the Ministry of Education (2019R1F1A1057182).
+Acknowledgments: We are very grateful to the reviewers for their insightful comments.
+Conflicts of Interest: The authors declare no conflict of interest.
+
+Appendix A
+Table A1. Summary of performance for each method at various cutoff points when the total sample
+size = 500,000 and rr ∼ U (1.2, 10).
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+ROR
+
+1
+1.5
+2
+2.5
+3
+
+0.996
+0.996
+0.995
+0.994
+0.994
+
+0.799
+0.747
+0.696
+0.641
+0.590
+
+0.303
+0.493
+0.621
+0.694
+0.740
+
+0.995
+0.995
+0.995
+0.995
+0.995
+
+0.764
+0.709
+0.651
+0.595
+0.539
+
+0.462
+0.631
+0.726
+0.780
+0.813
+
+0.998
+0.998
+0.998
+0.998
+0.998
+
+0.728
+0.663
+0.596
+0.532
+0.465
+
+0.729
+0.821
+0.865
+0.888
+0.904
+
+PRR
+
+1
+1.5
+2
+2.5
+3
+
+0.996
+0.996
+0.995
+0.994
+0.994
+
+0.799
+0.747
+0.695
+0.639
+0.588
+
+0.303
+0.495
+0.622
+0.695
+0.741
+
+0.995
+0.995
+0.995
+0.995
+0.995
+
+0.764
+0.708
+0.650
+0.593
+0.537
+
+0.462
+0.631
+0.727
+0.781
+0.813
+
+0.998
+0.998
+0.998
+0.998
+0.998
+
+0.728
+0.663
+0.596
+0.530
+0.462
+
+0.729
+0.821
+0.865
+0.889
+0.904
+
+IC
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.993
+0.992
+0.990
+0.983
+0.975
+
+0.758
+0.689
+0.619
+0.583
+0.494
+
+0.285
+0.663
+0.866
+0.910
+0.952
+
+0.994
+0.992
+0.992
+0.988
+0.987
+
+0.735
+0.658
+0.586
+0.540
+0.446
+
+0.468
+0.810
+0.922
+0.944
+0.973
+
+0.992
+0.991
+0.987
+0.987
+0.984
+
+0.682
+0.593
+0.512
+0.466
+0.366
+
+0.760
+0.927
+0.967
+0.978
+0.985
+
+LRT
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.958
+0.955
+0.946
+0.938
+0.935
+
+0.558
+0.535
+0.515
+0.495
+0.471
+
+0.962
+0.979
+0.988
+0.995
+0.999
+
+0.974
+0.967
+0.961
+0.955
+0.944
+
+0.527
+0.502
+0.477
+0.456
+0.433
+
+0.989
+0.994
+0.997
+0.999
+0.999
+
+0.974
+0.966
+0.959
+0.959
+0.949
+
+0.440
+0.414
+0.392
+0.370
+0.344
+
+0.994
+0.997
+1.000
+1.000
+1.000
+
+GPS
+
+1
+1.5
+2
+2.5
+3
+
+0.926
+0.925
+0.925
+0.922
+0.918
+
+0.511
+0.509
+0.506
+0.487
+0.430
+
+0.998
+0.998
+0.999
+0.999
+0.999
+
+0.934
+0.934
+0.934
+0.932
+0.926
+
+0.493
+0.491
+0.482
+0.439
+0.353
+
+0.999
+0.999
+0.999
+0.999
+1.000
+
+0.968
+0.968
+0.967
+0.965
+0.947
+
+0.478
+0.476
+0.447
+0.355
+0.242
+
+0.999
+0.999
+0.999
+0.999
+1.000
+
+sB
+
+1
+1.5
+2
+2.5
+3
+
+0.940
+0.929
+0.910
+0.880
+0.841
+
+0.593
+0.505
+0.426
+0.362
+0.310
+
+0.845
+0.990
+0.998
+1.000
+1.000
+
+0.962
+0.948
+0.938
+0.920
+0.889
+
+0.552
+0.462
+0.373
+0.298
+0.234
+
+0.937
+0.997
+1.000
+1.000
+1.000
+
+0.961
+0.954
+0.948
+0.934
+0.902
+
+0.491
+0.388
+0.301
+0.226
+0.162
+
+0.987
+0.999
+1.000
+1.000
+1.000
+
+BCPNN
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.964
+0.947
+0.930
+0.893
+0.837
+
+0.670
+0.542
+0.435
+0.342
+0.268
+
+0.737
+0.982
+1.000
+1.000
+1.000
+
+0.972
+0.960
+0.936
+0.907
+0.875
+
+0.646
+0.509
+0.396
+0.299
+0.223
+
+0.870
+0.996
+1.000
+1.000
+1.000
+
+0.972
+0.958
+0.937
+0.914
+0.865
+
+0.568
+0.422
+0.305
+0.215
+0.142
+
+0.964
+0.999
+1.000
+1.000
+1.000
+
+Life 2020, 10, 138
+
+18 of 21
+
+Table A1. Cont.
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+TreeScan
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.956
+0.951
+0.942
+0.932
+0.921
+
+0.569
+0.550
+0.534
+0.519
+0.495
+
+0.970
+0.985
+0.990
+0.996
+0.999
+
+0.960
+0.957
+0.951
+0.940
+0.929
+
+0.525
+0.504
+0.485
+0.471
+0.450
+
+0.981
+0.992
+0.995
+0.998
+1.000
+
+0.981
+0.976
+0.968
+0.961
+0.957
+
+0.464
+0.440
+0.419
+0.400
+0.376
+
+0.996
+0.997
+0.999
+1.000
+1.000
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic; * Cutoff values for the lower bound of the 95% CI for ROR, PRR, IC,
+BCPNN, and sB, for EB05 for GPS, and for the p-value for LRT and TreeScan.
+
+Table A2. Summary of performance for each method at various cutoff points when the total sample
+size = 1,000,000 and rr ∼ U (1.2, 10).
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+ROR
+
+1
+1.5
+2
+2.5
+3
+
+0.997
+0.997
+0.997
+0.997
+0.997
+
+0.853
+0.800
+0.745
+0.691
+0.640
+
+0.391
+0.649
+0.763
+0.818
+0.852
+
+0.996
+0.996
+0.996
+0.996
+0.996
+
+0.829
+0.772
+0.710
+0.645
+0.587
+
+0.569
+0.755
+0.834
+0.871
+0.892
+
+1.000
+1.000
+1.000
+1.000
+1.000
+
+0.779
+0.711
+0.645
+0.575
+0.502
+
+0.810
+0.886
+0.916
+0.932
+0.941
+
+PRR
+
+1
+1.5
+2
+2.5
+3
+
+0.997
+0.997
+0.997
+0.997
+0.997
+
+0.853
+0.800
+0.745
+0.691
+0.638
+
+0.391
+0.650
+0.763
+0.819
+0.852
+
+0.996
+0.996
+0.996
+0.996
+0.996
+
+0.829
+0.772
+0.709
+0.645
+0.585
+
+0.569
+0.755
+0.835
+0.871
+0.893
+
+1.000
+1.000
+1.000
+1.000
+1.000
+
+0.779
+0.711
+0.644
+0.574
+0.501
+
+0.810
+0.886
+0.916
+0.932
+0.941
+
+IC
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.994
+0.992
+0.989
+0.986
+0.983
+
+0.837
+0.766
+0.694
+0.651
+0.556
+
+0.263
+0.748
+0.912
+0.943
+0.971
+
+0.992
+0.990
+0.988
+0.988
+0.987
+
+0.817
+0.739
+0.663
+0.622
+0.525
+
+0.451
+0.859
+0.954
+0.967
+0.983
+
+1.000
+1.000
+1.000
+0.998
+0.994
+
+0.777
+0.686
+0.600
+0.550
+0.438
+
+0.794
+0.960
+0.983
+0.987
+0.991
+
+LRT
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.969
+0.966
+0.959
+0.953
+0.949
+
+0.664
+0.645
+0.625
+0.607
+0.584
+
+0.982
+0.992
+0.996
+0.998
+1.000
+
+0.982
+0.978
+0.971
+0.971
+0.967
+
+0.642
+0.623
+0.605
+0.589
+0.567
+
+0.992
+0.996
+1.000
+1.000
+1.000
+
+0.988
+0.986
+0.982
+0.977
+0.972
+
+0.571
+0.550
+0.532
+0.513
+0.492
+
+0.997
+0.999
+0.999
+0.999
+1.000
+
+GPS
+
+1
+1.5
+2
+2.5
+3
+
+0.954
+0.954
+0.953
+0.953
+0.952
+
+0.641
+0.639
+0.625
+0.577
+0.501
+
+0.998
+0.998
+0.998
+0.998
+0.998
+
+0.967
+0.967
+0.967
+0.965
+0.964
+
+0.621
+0.619
+0.587
+0.522
+0.428
+
+0.999
+0.999
+0.999
+1.000
+1.000
+
+0.980
+0.979
+0.978
+0.974
+0.963
+
+0.590
+0.583
+0.524
+0.422
+0.314
+
+0.999
+0.999
+1.000
+1.000
+1.000
+
+sB
+
+1
+1.5
+2
+2.5
+3
+
+0.976
+0.958
+0.941
+0.921
+0.889
+
+0.756
+0.640
+0.537
+0.450
+0.372
+
+0.753
+0.991
+1.000
+1.000
+1.000
+
+0.983
+0.968
+0.962
+0.949
+0.938
+
+0.743
+0.617
+0.515
+0.420
+0.334
+
+0.892
+0.998
+1.000
+1.000
+1.000
+
+0.990
+0.976
+0.970
+0.958
+0.939
+
+0.683
+0.545
+0.426
+0.324
+0.237
+
+0.977
+1.000
+1.000
+1.000
+1.000
+
+BCPNN
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.970
+0.961
+0.953
+0.941
+0.926
+
+0.716
+0.635
+0.545
+0.472
+0.406
+
+0.825
+0.994
+1.000
+1.000
+1.000
+
+0.971
+0.966
+0.962
+0.955
+0.948
+
+0.681
+0.583
+0.491
+0.409
+0.335
+
+0.937
+0.997
+0.999
+1.000
+1.000
+
+0.968
+0.961
+0.955
+0.943
+0.932
+
+0.609
+0.508
+0.411
+0.326
+0.247
+
+0.989
+1.000
+1.000
+1.000
+1.000
+
+TreeScan
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.972
+0.966
+0.964
+0.959
+0.955
+
+0.688
+0.673
+0.658
+0.646
+0.627
+
+0.980
+0.988
+0.992
+0.996
+0.997
+
+0.979
+0.977
+0.974
+0.966
+0.963
+
+0.651
+0.632
+0.615
+0.603
+0.581
+
+0.992
+0.996
+0.997
+1.000
+1.000
+
+0.985
+0.983
+0.983
+0.977
+0.968
+
+0.574
+0.553
+0.533
+0.518
+0.500
+
+0.999
+0.999
+1.000
+1.000
+1.000
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic; * Cutoff values for the lower bound of the 95% CI for ROR, PRR, IC,
+BCPNN, and sB, for EB05 for GPS, and for the p-value for LRT and TreeScan.
+
+Life 2020, 10, 138
+
+19 of 21
+
+Table A3. Summary of performance for each method at various cutoff points when the total sample
+size = 500,000 and rr ∼ U (1.2, 4).
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+ROR
+
+1
+1.5
+2
+2.5
+3
+
+0.991
+0.989
+0.979
+0.954
+0.859
+
+0.592
+0.471
+0.360
+0.260
+0.174
+
+0.204
+0.341
+0.434
+0.465
+0.453
+
+0.997
+0.997
+0.996
+0.989
+0.948
+
+0.571
+0.452
+0.340
+0.238
+0.158
+
+0.313
+0.465
+0.547
+0.576
+0.564
+
+0.996
+0.996
+0.996
+0.996
+0.990
+
+0.522
+0.403
+0.294
+0.198
+0.128
+
+0.510
+0.637
+0.686
+0.693
+0.673
+
+PRR
+
+1
+1.5
+2
+2.5
+3
+
+0.991
+0.989
+0.978
+0.954
+0.852
+
+0.592
+0.470
+0.359
+0.258
+0.172
+
+0.204
+0.342
+0.434
+0.466
+0.450
+
+0.997
+0.997
+0.996
+0.989
+0.944
+
+0.571
+0.451
+0.339
+0.237
+0.156
+
+0.313
+0.465
+0.548
+0.576
+0.563
+
+0.996
+0.996
+0.996
+0.996
+0.989
+
+0.522
+0.403
+0.292
+0.197
+0.126
+
+0.510
+0.638
+0.686
+0.694
+0.673
+
+IC
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.968
+0.948
+0.914
+0.880
+0.647
+
+0.578
+0.430
+0.296
+0.229
+0.106
+
+0.177
+0.457
+0.698
+0.777
+0.850
+
+0.979
+0.966
+0.944
+0.922
+0.769
+
+0.556
+0.402
+0.274
+0.210
+0.093
+
+0.281
+0.592
+0.777
+0.829
+0.881
+
+0.987
+0.981
+0.965
+0.956
+0.857
+
+0.511
+0.358
+0.231
+0.171
+0.068
+
+0.493
+0.771
+0.866
+0.897
+0.909
+
+LRT
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.810
+0.763
+0.721
+0.684
+0.639
+
+0.230
+0.202
+0.180
+0.161
+0.139
+
+0.910
+0.951
+0.973
+0.987
+0.995
+
+0.860
+0.827
+0.794
+0.769
+0.722
+
+0.210
+0.183
+0.159
+0.140
+0.119
+
+0.940
+0.966
+0.982
+0.991
+0.992
+
+0.918
+0.889
+0.860
+0.833
+0.784
+
+0.179
+0.154
+0.134
+0.117
+0.097
+
+0.968
+0.982
+0.991
+0.996
+0.999
+
+GPS
+
+1
+1.5
+2
+2.5
+3
+
+0.650
+0.164
+0.062
+0.019
+0.006
+
+0.163
+0.025
+0.009
+0.002
+0.001
+
+0.979
+0.994
+1.000
+1.000
+1.000
+
+0.745
+0.360
+0.150
+0.056
+0.005
+
+0.179
+0.047
+0.018
+0.004
+0.000
+
+0.984
+1.000
+1.000
+1.000
+1.000
+
+0.792
+0.529
+0.170
+0.016
+0.001
+
+0.185
+0.047
+0.011
+0.001
+0.000
+
+0.990
+1.000
+1.000
+1.000
+1.000
+
+sB
+
+1
+1.5
+2
+2.5
+3
+
+0.917
+0.790
+0.533
+0.210
+0.051
+
+0.421
+0.210
+0.090
+0.025
+0.005
+
+0.511
+0.947
+0.999
+1.000
+1.000
+
+0.942
+0.841
+0.607
+0.276
+0.056
+
+0.386
+0.186
+0.071
+0.021
+0.003
+
+0.652
+0.968
+0.997
+1.000
+1.000
+
+0.969
+0.894
+0.709
+0.300
+0.048
+
+0.351
+0.155
+0.055
+0.012
+0.002
+
+0.833
+0.979
+0.999
+1.000
+1.000
+
+BCPNN
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.807
+0.655
+0.384
+0.150
+0.044
+
+0.279
+0.140
+0.057
+0.017
+0.004
+
+0.860
+0.991
+0.999
+1.000
+1.000
+
+0.841
+0.716
+0.502
+0.208
+0.049
+
+0.260
+0.127
+0.051
+0.015
+0.003
+
+0.924
+0.995
+0.999
+1.000
+1.000
+
+0.851
+0.747
+0.548
+0.201
+0.029
+
+0.222
+0.100
+0.033
+0.007
+0.001
+
+0.980
+0.997
+1.000
+1.000
+1.000
+
+TreeScan
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.815
+0.776
+0.736
+0.691
+0.632
+
+0.230
+0.202
+0.177
+0.157
+0.133
+
+0.918
+0.948
+0.971
+0.983
+0.992
+
+0.855
+0.833
+0.792
+0.749
+0.693
+
+0.214
+0.187
+0.162
+0.143
+0.120
+
+0.945
+0.966
+0.978
+0.988
+0.991
+
+0.891
+0.852
+0.820
+0.784
+0.748
+
+0.181
+0.156
+0.135
+0.118
+0.098
+
+0.965
+0.982
+0.989
+0.990
+0.994
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic; * Cutoff values for the lower bound of the 95% CI for ROR, PRR, IC,
+BCPNN, and sB, for EB05 for GPS, and for the p-value for LRT and TreeScan.
+
+Table A4. Summary of performance for each method at various cutoff points when the total sample
+size = 1,000,000 and rr ∼ U (1.2, 4).
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+ROR
+
+1
+1.5
+2
+2.5
+3
+
+0.993
+0.993
+0.985
+0.960
+0.860
+
+0.677
+0.541
+0.406
+0.279
+0.175
+
+0.266
+0.512
+0.607
+0.633
+0.611
+
+0.996
+0.996
+0.996
+0.991
+0.950
+
+0.662
+0.520
+0.382
+0.257
+0.153
+
+0.401
+0.621
+0.692
+0.715
+0.694
+
+0.999
+0.999
+0.999
+0.999
+0.979
+
+0.629
+0.477
+0.337
+0.212
+0.120
+
+0.633
+0.774
+0.818
+0.821
+0.795
+
+PRR
+
+1
+1.5
+2
+2.5
+3
+
+0.993
+0.993
+0.985
+0.959
+0.855
+
+0.677
+0.541
+0.403
+0.277
+0.172
+
+0.266
+0.513
+0.608
+0.633
+0.610
+
+0.996
+0.996
+0.996
+0.991
+0.945
+
+0.662
+0.520
+0.380
+0.255
+0.149
+
+0.401
+0.621
+0.692
+0.715
+0.694
+
+0.999
+0.999
+0.999
+0.999
+0.978
+
+0.629
+0.476
+0.336
+0.210
+0.117
+
+0.633
+0.774
+0.818
+0.822
+0.793
+
+Life 2020, 10, 138
+
+20 of 21
+
+Table A4. Cont.
+True Signal Ratio
+
+0.03
+
+0.05
+
+0.1
+
+Method
+
+Cutoff *
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+Power
+
+Sensitivity
+
+PPV
+
+IC
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.986
+0.975
+0.953
+0.932
+0.760
+
+0.705
+0.537
+0.383
+0.300
+0.140
+
+0.164
+0.585
+0.818
+0.869
+0.922
+
+0.989
+0.981
+0.970
+0.957
+0.855
+
+0.687
+0.517
+0.359
+0.277
+0.116
+
+0.272
+0.704
+0.870
+0.906
+0.942
+
+0.996
+0.994
+0.992
+0.986
+0.924
+
+0.660
+0.479
+0.318
+0.234
+0.086
+
+0.508
+0.856
+0.934
+0.947
+0.960
+
+LRT
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.899
+0.885
+0.871
+0.855
+0.837
+
+0.382
+0.357
+0.333
+0.310
+0.285
+
+0.941
+0.964
+0.979
+0.992
+0.997
+
+0.925
+0.907
+0.897
+0.885
+0.859
+
+0.347
+0.316
+0.291
+0.270
+0.244
+
+0.964
+0.985
+0.994
+0.998
+0.999
+
+0.952
+0.941
+0.935
+0.918
+0.895
+
+0.312
+0.284
+0.259
+0.236
+0.211
+
+0.988
+0.995
+0.996
+0.999
+1.000
+
+GPS
+
+1
+1.5
+2
+2.5
+3
+
+0.838
+0.813
+0.768
+0.362
+0.033
+
+0.298
+0.262
+0.191
+0.049
+0.003
+
+0.995
+0.999
+1.000
+1.000
+1.000
+
+0.866
+0.841
+0.771
+0.372
+0.038
+
+0.292
+0.253
+0.156
+0.032
+0.002
+
+0.995
+0.999
+1.000
+1.000
+1.000
+
+0.902
+0.811
+0.583
+0.136
+0.004
+
+0.330
+0.177
+0.064
+0.006
+0.000
+
+0.991
+0.999
+1.000
+1.000
+1.000
+
+sB
+
+1
+1.5
+2
+2.5
+3
+
+0.961
+0.892
+0.764
+0.449
+0.124
+
+0.562
+0.338
+0.179
+0.063
+0.013
+
+0.561
+0.967
+1.000
+1.000
+1.000
+
+0.963
+0.917
+0.797
+0.509
+0.132
+
+0.525
+0.300
+0.138
+0.046
+0.009
+
+0.707
+0.983
+1.000
+0.998
+1.000
+
+0.967
+0.944
+0.855
+0.544
+0.121
+
+0.491
+0.261
+0.106
+0.027
+0.004
+
+0.872
+0.996
+0.999
+1.000
+1.000
+
+BCPNN
+
+log2 (1)
+log2 (1.5)
+log2 (2)
+log2 (2.5)
+log2 (3)
+
+0.915
+0.843
+0.655
+0.355
+0.094
+
+0.441
+0.265
+0.131
+0.048
+0.010
+
+0.860
+0.996
+1.000
+1.000
+1.000
+
+0.929
+0.863
+0.719
+0.426
+0.114
+
+0.417
+0.239
+0.112
+0.037
+0.007
+
+0.921
+0.998
+1.000
+1.000
+1.000
+
+0.927
+0.885
+0.788
+0.460
+0.086
+
+0.383
+0.205
+0.083
+0.021
+0.003
+
+0.979
+1.000
+1.000
+1.000
+1.000
+
+TreeScan
+
+0.2
+0.1
+0.05
+0.025
+0.01
+
+0.913
+0.899
+0.879
+0.854
+0.834
+
+0.378
+0.348
+0.323
+0.300
+0.273
+
+0.956
+0.977
+0.988
+0.993
+0.997
+
+0.932
+0.913
+0.896
+0.877
+0.846
+
+0.346
+0.319
+0.297
+0.273
+0.245
+
+0.967
+0.988
+0.991
+0.996
+0.999
+
+0.955
+0.935
+0.910
+0.905
+0.885
+
+0.313
+0.285
+0.261
+0.241
+0.215
+
+0.986
+0.992
+0.995
+0.997
+0.997
+
+ROR, Reporting Odds Ratio; PRR, Proportional Reporting Ratio; IC, Information Component; LRT, Likelihood ratio
+test; GPS, Gamma Poisson Shrinker; BCPNN, Bayesian Confidence Propagation Neural Network; sB simplified
+Bayes; TreeScan, Tree-based Scan Statistic; * Cutoff values for the lower bound of the 95% CI for ROR, PRR, IC,
+BCPNN, and sB, for EB05 for GPS, and for the p-value for LRT and TreeScan.
+
+References
+1.
+2.
+3.
+
+4.
+5.
+6.
+
+7.
+
+8.
+
+Korea Institution of Drug Safety & Risk Management. Guideline for KIDS-Korea Adverse Event Reporting System
+Database; Korea Institution of Drug Safety & Risk Management: Seoul, Korea, 2017.
+Rothman, K.J.; Lanes, S.; Sacks, S.T. The reporting odds ratio and its advantages over the proportional
+reporting ratio. Pharmacoepidemiol. Drug Saf. 2004, 13, 519–523. [CrossRef] [PubMed]
+Evans, S.J.; Waller, P.C.; Davis, S. Use of proportional reporting ratios (PRRs) for signal generation from
+spontaneous adverse drug reaction reports. Pharmacoepidemiol. Drug Saf. 2001, 10, 483–486. [CrossRef]
+[PubMed]
+Huang, L.; Zalkikar, J.; Tiwari, R.C. A likelihood ratio test based method for signal detection with application
+to FDA’s drug safety data. J. Am. Stat. Assoc. 2011, 106, 1230–1241. [CrossRef]
+Dumouchel, W. Bayesian Data mining in large frequency tables, with an application to the FDA apontaneous
+reporting system. Am. Stat. 1999, 53, 177–190.
+Bate, A.; Lindquist, M.; Edwards, I.R.; Olsson, S.; Orre, R.; Lansner, A.; De Freitas, R.M. A bayesian neural
+network method for adverse drug reaction signal generation. Eur. J. Clin. Pharmacol. 1998, 54, 315–321.
+[CrossRef]
+Noren, G.N.; Bate, A.; Orre, R.; Edwards, I.R. Extending the methods used to screen the WHO drug safety
+database towards analysis of complex associations and improved accuracy for rare events. Stat. Med. 2006,
+25, 3740–3757. [CrossRef]
+Norén, G.N.; Edwards, I.R. Opportunities and challenges of adverse drug reaction surveillance in electronic
+patient records. Pharmacovigil. Rev. 2010, 4, 17–20.
+
+Life 2020, 10, 138
+
+9.
+10.
+11.
+12.
+
+13.
+14.
+
+15.
+
+16.
+
+17.
+
+18.
+19.
+20.
+21.
+22.
+23.
+
+24.
+25.
+26.
+
+21 of 21
+
+Huang, L.; Zalkikar, J.; Tiwari, R.C. Likelihood ratio test-based method for signal detection in drug classes
+using FDA’s AERS database. J. Biopharm. Stat. 2013, 23, 178–200. [CrossRef]
+Huang, L.; Guo, T.; Zalkikar, J.N.; Tiwari, R.C. A review of statistical methods for safety surveillance.
+Ther. Innov. Regul. Sci. 2014, 48, 98–108. [CrossRef]
+Hu, N.; Huang, L.; Tiwari, R.C. Signal detection in FDA AERS database using Dirichlet process. Stat. Med.
+2015, 34, 2725–2742. [CrossRef]
+Candore, G.; Juhlin, K.; Manlik, K.; Thakrar, B.; Quarcoo, N.; Seabroke, S.; Wisniewski, A.; Slattery, J.
+Comparison of statistical signal detection methods within and across spontaneous reporting databases.
+Drug Saf. 2015, 38, 577–587. [CrossRef] [PubMed]
+Kulldorff, M.; Fang, Z.; Walsh, S.J. A tree-based scan statistic for database disease surveillance. Biometrics
+2003, 59, 323–331. [CrossRef] [PubMed]
+Kulldorff, M.; Dashevsky, I.; Avery, T.R.; Chan, A.K.; Davis, R.L.; Graham, D.; Platt, R.; Andrade, S.E.;
+Boudreau, D.; Gunter, M.; et al. Drug safety data mining with a tree-based scan statistic. Pharmacoepidemiol. Drug
+Saf. 2013, 22, 517–523. [CrossRef]
+Brown, J.S.; Petronis, K.R.; Bate, A.; Zhang, F.; Dashevsky, I.; Kulldorff, M.; Avery, T.R.; Davis, R.L.; Chan, K.A.;
+Andrade, S.E.; et al. Drug adverse event detection in health plan data using the gamma poisson shrinker and
+comparison to the tree-based scan statistic. Pharmaceutics 2013, 5, 179–200. [CrossRef]
+The Uppsala Monitoring Centre: The WHO Adverse Reaction Terminology—WHO-ART, Terminology for
+Coding Clinical Information in Relation to Drug Therapy. 2015. Available online: https://www.who-umc.
+org/vigibase/services/learn-more-about-who-art/ (accessed on 5 August 2020).
+Lee, M.Y.; Choi, D.S.; Lee, M.K.; Lee, H.W.; Park, T.S.; Kim, D.M.; Chung, C.H.; Kim, D.K.; Kim, I.J.; Jang, H.C.;
+et al. Comparison of acarbose and voglibose in diabetes patients who are inadequately controlled with basal
+insulin treatment: Randomized, parallel, open-label, active-controlled study. J. Korean Med. Sci. 2014, 29,
+90–97. [CrossRef] [PubMed]
+Vichayanrat, A.; Ploybutr, S.; Tunlakit, M.; Watanakejorn, P. Efficacy and safety of voglibose in comparison
+with acarbose in type 2 diabetic patients. Diabetes Res. Clin. Pract. 2002, 55, 99–103. [CrossRef]
+Martin, A.E.; Montgomery, P.A. Acarbose: An alpha-glucosidase inhibitor. Am. J. Health-Syst. Pharm. AJHP
+Off. J. Am. Soc. Health-Syst. Pharm. 1996, 53, 2277–2290. [CrossRef]
+Dabhi, A.S.; Bhatt, N.R.; Shah, M.J. Voglibose: An alpha glucosidase inhibitor. J. C. Diagn. Res. JCDR 2013, 7,
+3023–3027.
+Wald, A. Sequential tests of statistical hypotheses. Ann. Math. Stat. 1945, 16, 117–186. [CrossRef]
+Wald, A. Sequential Analysis. In Wald Sequential Analysis 1947; Jon Willey & Sons. Inc.: New York, NY,
+USA, 1947.
+Chan, C.L.; Rudrappa, S.; San Ang, P.; Li, S.C.; Evans, S.J. Detecting signals of disproportionate reporting
+from singapore’s spontaneous adverse event reporting system: An application of the sequential probability
+ratio test. Drug Saf. 2017, 40, 703–713. [CrossRef]
+Chan, C.L.; Soh, S.; Tan, S.H.; Ang, P.S.; Rudrappa, S.; Li, S.C.; Evans, S.J. Quantitative data mining in signal
+detection: The Singapore experience. Exp. Opin. Drug Saf. 2020, 19, 1–7. [CrossRef] [PubMed]
+Kulldorff, M.; Davis, R.L.; Kolczak, M.; Lewis, E.; Lieu, T.; Platt, R. A maximized sequential probability ratio
+test for drug and vaccine safety surveillance. Seq. Anal. 2011, 30, 58–78. [CrossRef]
+Huang, L.; Zheng, D.; Zalkikar, J.; Tiwari, R. Zero-inflated poisson model based likelihood ratio test for drug
+safety signal detection. Stat. Methods Med. Res. 2017, 26, 471–488. [CrossRef] [PubMed]
+© 2020 by the authors. Licensee MDPI, Basel, Switzerland. This article is an open access
+article distributed under the terms and conditions of the Creative Commons Attribution
+(CC BY) license (http://creativecommons.org/licenses/by/4.0/).
+
+

@@ -1,0 +1,1415 @@
+International Journal of Medical Informatics 129 (2019) 122–132
+
+Contents lists available at ScienceDirect
+
+International Journal of Medical Informatics
+journal homepage: www.elsevier.com/locate/ijmedinf
+
+Classifying adverse drug reactions from imbalanced twitter data
+Hong-Jie Dai
+a
+b
+c
+
+a,b,⁎
+
+T
+
+c
+
+, Chen-Kai Wang
+
+Department of Electrical Engineering, National Kaohsiung University of Science and Technology, Kaohsiung, Taiwan, Republic of China
+Post Baccalaureate Medicine, Kaohsiung Medical University, Kaohsiung, Taiwan, Republic of China
+Big Data laboratories of Chunghwa Telecom Laboratories, Taoyuan, Taiwan, Republic of China
+
+A R T I C LE I N FO
+
+A B S T R A C T
+
+Keywords:
+Adverse drug reaction
+Imbalanced data classiﬁcation
+Word embeddings
+Social media
+Synthetic minority over-sampling technique
+Pharmacovigilance
+Text classiﬁcation
+
+Background: Nowadays, social media are often being used by general public to create and share public messages
+related to their health. With the global increase in social media usage, there is a trend of posting information
+related to adverse drug reactions (ADR). Mining the social media data for this type of information will be helpful
+for pharmacological post-marketing surveillance and monitoring. Although the concept of using social media to
+facilitate pharmacovigilance is convincing, construction of automatic ADR detection systems remains a challenge because the corpora compiled from social media tend to be highly imbalanced, posing a major obstacle to
+the development of classiﬁers with reliable performance.
+Methods: Several methods have been proposed to address the challenge of imbalanced corpora. However, we are
+not aware of any studies that investigated the eﬀectiveness of the strategies of dealing with the problem of
+imbalanced data in the context of ADR detection from social media. In light of this, we evaluated a variety of
+imbalanced techniques and proposed a novel word embedding-based synthetic minority over-sampling technique (WESMOTE), which synthesizes new training examples from the sentence representation based on word
+embeddings. We compared the performance of all methods on two large imbalanced datasets released for the
+purpose of detecting ADR posts.
+Results: In comparison with the state-of-the-art approaches, the classiﬁers that incorporated imbalanced classiﬁcation techniques achieved comparable or better F-scores. All of our best performing conﬁgurations combined
+random under-sampling with techniques including the proposed WESMOTE, boosting and ensemble, implying
+that an integration of these approaches with under-sampling provides a reliable solution for large imbalanced
+social media datasets. Furthermore, ensemble-based methods like vote-based under-sampling (VUE) and random
+under-sampling boosting can be alternatives for the hybrid synthetic methods because both methods increase the
+diversity of the created weak classiﬁers, leading to better recall and overall F-scores for the minority classes.
+Conclusions: Data collected from the social media are usually very large and highly imbalanced. In order to
+maximize the performance of a classiﬁer trained on such data, applications of imbalanced strategies are required. We considered several practical methods for handling imbalanced Twitter data along with their performance on the binary classiﬁcation task with respect to ADRs. In conclusion, the following practical insights
+are gained: 1) When dealing with text classiﬁcation, the proposed word embedding-based synthetic minority
+over-sampling technique is more eﬀective than traditional synthetic-based over-sampling methods. 2) In cases
+where large amounts of training data are available, the imbalanced strategies combined with under-sampling
+techniques are preferred. 3) Finally, employment of advanced methods does not guarantee better performance
+than simpler ones such as VUE, which achieved high performance with advantages like faster building time and
+ease of development.
+
+1. Introduction
+The evolution of Web 2.0 has triggered a revolution in the way in
+which people access information. Users nowadays bring forth a new
+way of communication by sharing various types of information publicly
+
+⁎
+
+through social media. The survey conducted by Amante, Hogan,
+Pagoto, English and Lapane [1] demonstrated that 43.55% of adults in
+the U.S. use online health chat rooms or the Internet to obtain health
+information. People utilize social media to discuss diﬀerent topics of
+interest including health care. Even health care professionals take
+
+Corresponding author at: Post Baccalaureate Medicine, Kaohsiung Medical University, Kaohsiung, Taiwan, Republic of China.
+E-mail addresses: hjdai@nkust.edu.tw (H.-J. Dai), dennisckwang@gmail.com (C.-K. Wang).
+
+https://doi.org/10.1016/j.ijmedinf.2019.05.017
+Received 16 September 2018; Received in revised form 7 April 2019; Accepted 21 May 2019
+1386-5056/ © 2019 Elsevier B.V. All rights reserved.
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+advantage of social media to share information, promote healthy behaviour, and to educate and interact with patients [2]. As a result, there
+has been a growing interest in social media data mining for medical
+conditions, which enables medical web surveillance to be performed in
+a more eﬀective and timely manner as it can monitor emerging trends
+continually in contrast to the traditional methods, which are limited to
+annual or bi-annual reports. For example, Ginsberg, Mohebbi, Patel,
+Brammer, Smolinski and Brilliant [3] demonstrated a method to forecast the ﬂu epidemics by analyzing the query logs generated by Google
+users. Later, White, Tatonetti, Shah, Altman and Horvitz [4] employed
+a similar method in an attempt to identify adverse drug events (ADE)
+associated with drug interactions.
+The increasing number of public posts related to ADEs on social
+media presents an opportunity to mine these data for digital pharmacovigilance purposes [5–7]. Freifeld, Brownstein, Menone, Bao, Filice,
+Kass-Hout and Dasgupta [8] used Twitter as the data source to automatically identify tweets resembling ADEs and then semi-automatically
+ﬁlter out those that were irrelevant to ADEs. Their results suggested a
+high positive Spearman rank’s correlation coeﬃcient of 0.75
+(p < 0.0001) between ADEs reported on Twitter and those in the ADE
+reporting system of the United States Food and Drug Administration.
+ADEs include both preventable adverse events such as a wrong dose of
+drug leading to injury and non-preventable adverse drug reactions
+(abbreviated as ADRs) resulting from a complication that cannot be
+prevented given the current state of knowledge [9]. Unlike White
+et al.’s study, the monitoring of social media has the potential to
+identify events of ADRs [10].
+Although the application of social media to facilitate pharmacovigilance seems to be promising, a number of challenges remain to be
+resolved [5,11]. One of the key challenges is that the current state-ofthe-art supervised learning algorithms require substantial amounts of
+manually annotated data to achieve reliable performance. However, the
+annotation process is labour intensive and very time consuming. Furthermore, the real-world data mainly consists of normal events with
+only a small percentage of adverse events. Consequently, corpora created from social media data as such are usually highly imbalanced due
+to the uneven distribution. For example, Freifeld, Brownstein, Menone,
+Bao, Filice, Kass-Hout and Dasgupta [8] reported the number of ADE
+tweets in their compiled dataset represented only 7.2% of the 61,402
+posts. A dataset such as this one is referred to as imbalanced because
+the distributions of the classiﬁcation categories vary considerably. The
+fact that much of the collected social media data are imbalanced (irrelevant to pharmacovigilance) further complicates the process of
+corpus construction and algorithm training.
+To address these challenges, Yang, Kiang and Shang [12] proposed a
+partially supervised learning to automatically augment their training
+dataset by estimating how close an unlabelled example is to the labelled
+positive dataset. Their results suggested that their approach generally
+outperformed the baseline methods in classifying ADR related posts.
+Ginn, Pimpalkhute, Nikfarjam, Patki, O’Connor, Sarker and Gonzalez
+[13] released a dataset consisting of 10,822 tweets annotated manually
+with binary labels for ADR classiﬁcation applications. This openly
+available corpus formed the foundation of the shared tasks initiated for
+social media-based pharmacovigilance such as the Paciﬁc Symposium
+on Biocomputing (PSB) social media mining (SMM) shared task [14].
+However, the annotated corpus was highly imbalanced (1238 ADR related tweets out of 10,822), and the authors pointed out the necessity of
+conducting further investigations on this problem. This issue was partially addressed recently by using cost-sensitive strategies. For instance,
+Patki, Sarker, Pimpalkhute, Nikfarjam, Ginn, O’Connor, Smith and
+Gonzalez [15] applied the cost-sensitive classiﬁcation (CSC) method to
+re-weigh the training examples according to the total cost assigned to
+each class. Sarker and Gonzalez [16] employed the weighted support
+vector machines (SVMs) with a combination of multiple compatible
+corpora to deal with the problem of imbalance.
+In addition to the two cost-sensitive based strategies mentioned,
+
+Table 1
+Summary of the imbalanced methods studied. The method names highlighted in
+bold are the ones speciﬁcally proposed in this work.
+Name
+
+Abbreviation
+
+Strategy
+
+Random Under-sampling
+
+RUS
+
+Random Over-sampling
+
+ROS
+
+Vote-based Under-sampling Ensemble
+
+VUE
+
+All k-NN
+
+AkNN
+
+Synthetic Minority Over-sampling
+Technique
+SMOTE Boosting
+
+SMOTE
+
+RUS Boosting
+
+RUSB
+
+Easy Ensemble
+
+EE
+
+Word Embedding Minority Oversampling Technique
+
+WEMOTE
+
+Word Embedding-based Synthetic
+Minority Over-sampling
+Technique
+Word Embedding-based Approach
+Combined with Random Undersampling
+Cost-sensitive Classiﬁcation
+Cost-sensitive Learning CSL
+Weighted SVM
+Meta Cost
+
+WESMOTE
+
+Preprocessing
+(Under-sampling)
+Preprocessing
+(Over-sampling)
+Preprocessing
+(Under-sampling,
+ensemble)
+Preprocessing
+(Under-sampling)
+Preprocessing
+(Over-sampling)
+Preprocessing
+(Over-sampling,
+boosting)
+Preprocessing
+(Under-sampling,
+boosting)
+Preprocessing
+(Under-sampling,
+ensemble, boosting)
+Preprocessing
+(Over-sampling, word
+embedding)
+Preprocessing
+(Over-sampling, word
+embedding)
+Preprocessing
+(Under/Over-sampling,
+word embedding)
+Cost-sensitive
+Cost-sensitive
+Cost-sensitive
+Cost-sensitive
+(Ensemble)
+
+SMOTEB
+
+RUS_WE
+
+CSC
+CSL
+WSVM
+MC
+
+several methods have been proposed as solutions to the problem of
+imbalance [17–19]. However, we acknowledged that none of the studies inspected the eﬀectiveness of applying these imbalanced techniques on the task of ADR detection from social media. In light of this, we
+examined a variety of imbalanced methods and compared their performance on the task of the binary classiﬁcation of ADR tweets. Table 1
+summarizes all of the imbalanced methods considered in this work.
+Each method will be described in more detail later in the Method section.
+Furthermore, we proposed a novel word embedding-based synthetic
+minority over-sampling technique (WESMOTE), which is an advanced
+version of the synthetic minority over-sampling technique (SMOTE)
+proposed by Chawla, Bowyer, Hall and Kegelmeyer [20] that synthesizes new training examples from the sentence representation based on
+word embeddings. Our experiments certiﬁed the advantage of using the
+proposed WESMOTE method over SMOTE on the two datasets created
+speciﬁcally for the given task. We believe this work to be of practical
+value because all of the studied methods are commonly used in practice
+for handling imbalanced data sets. Our results can serve as an empirical
+guidance to determine the most appropriate imbalanced method for
+text data collected from social media.
+2. Materials and methods
+2.1. Datasets
+Two datasets used in this study were compiled with the goal of
+testing automated classiﬁcation of tweets mentioning ADR. One corpus
+was previously used for the binary classiﬁcation task of ADR tweets as
+part of the PSB SMM shared task [14] with a total of 15,717 annotations
+were made available. The other corpus was released by the SMM for the
+123
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+2.3. Feature set
+The n-gram, domain knowledge, negation, and word embedding
+(WE) features were extracted in this study.
+
+• Bag-of-words features: The features capture the information of word
+•
+
+Fig. 1. The distributions of the tweets in the employed datasets.
+
+•
+
+health applications shared task organized by the American Medical
+Informatics Association (AMIA) for the same purpose of the classiﬁcation of ADR-related tweets [21] with a total of 25,678 tweet annotations. The annotations in both datasets correspond to binary labels that
+indicate whether or not the corresponding tweets indicate the presence
+or absence of ADRs. Due to the privacy policy of Twitter, the exact texts
+of the tweets were not provided directly. Instead, the released datasets
+reference the tweets by the corresponding identiﬁers, which we used to
+download the actual text content using the Twitter API.
+Unfortunately, some of the users have either removed their posts or
+deactivated their accounts. As a result, some of the tweets referenced in
+the original corpora were no longer accessible. A total of 11,131 and
+21,539 tweets were downloaded for the PSB-SMM and AMIA-SMM4H
+datasets, respectively. Fig. 1 presents the statistics of the ﬁnal datasets
+used in this work.
+As shown in Fig. 1, the number of ADR tweets (the positive/minority cases) is far less than that of the non-ADR tweets (the negative/
+majority cases) in both datasets. The imbalance ratios (the number of
+majority examples divided by the number of minority examples) for the
+PSB-SMM and AMIA-SMM4H datasets are 9.2 and 10.3, respectively.
+
+•
+
+occurrences within tweets. We extracted unigrams and bigrams and
+used TF-IDF (Term Frequency-Inverse Document Frequency) as the
+weighting scheme.
+Domain knowledge features: The presence of ADR or drug mentions
+in a tweet indicates that the tweet may be related to ADR. The
+presence information was engineered as two binary features with
+the value of either 0 or 1. For example, in the Twitter post “I remember I took 80 mg of geodon on accident and slept for like 36 h”,
+both the ADR and the drug name lexical features were assigned the
+value of 1. The occurrences of ADR and drug names were identiﬁed
+using both the ADR mention recognizer developed in our previous
+work [22] and a string matching algorithm along with the ADR and
+drug name lexicons described in the pre-processing section.
+Negation features: We developed the feature set to capture whether
+a mentioned ADR is negated. We used three states to indicate the
+occurrence of an ADR mention as positive, negative, or missing in
+case no ADR mentions were identiﬁed by our recognizer. For tweets
+found to mention ADRs, the NegEx algorithm [28] was employed to
+determine whether it was negated or not.
+WE features: The features were included owing to their ability to
+capture a large number of syntactic and semantic relationships between words [29]. We used a 400-dimensional tweet word representation vector pre-trained by the skip-gram model with negative sampling released by Godin, Vandersmissen, De Neve and Van
+de Walle [30]. With the 400-dimension WEs in hand, we represented all pre-processed words w = {w1, w2, … wn} in a tweet as
+a 400-dimension word vector. The value of each dimension was
+extracted as a WE feature. There are many schemes that can be used
+to create such vector. In this study, we applied a simple but strong
+baseline inspired by the study of De Boom, Van Canneyt, Demeester
+and Dhoedt [31] in which we averaged the WEs of all words in a
+tweet by the following equation:
+n
+
+tweet emb(w) =
+
+1
+[∑ wei, d = 1,
+n i=1
+
+n
+
+∑ wei,d=2,
+i=1
+
+n
+
+…, ∑ wei, d = 400]
+i=1
+
+where wei,d=1 indicates the value of the ﬁrst dimension of the word
+embedding wei of the word wi, and n refers to the number of words of
+the tokenized tweet.
+
+2.2. Pre-processing
+We pre-processed the tweets to (1) remove special non-ASCII glyphs
+such as “®” and “™”, (2) normalize URLs, dosage information and
+Twitter speciﬁc characters such as usernames to symbols like “@URL”,
+“@DSG” and “@REF”, and (3) normalize the numerals to a single representative as proposed in our previous work [22]. The pre-processed
+tweets were then processed by the Twitter tokenizer developed by
+Owoputi, O'Connor, Dyer, Gimpel, Schneider and Smith [23] to generate the tokens.
+Subsequently, each token was processed by Hunspell [24] to detect
+spelling errors. The spell checker was conﬁgured to use the English
+dictionaries for Apache OpenOﬃce with two other dictionaries. One
+dictionary contains the ADR terms released by Nikfarjam, Sarker,
+O'Connor, Ginn and Gonzalez [25], and the other contains drug terms
+collected from RxNorm [26]. Whenever a token was considered to be
+misspelled, it was replaced by the ﬁrst recommended correction. Finally, we lowercased all tokens and used the Snowball stemmer [27] to
+perform stemming. Since Twitter posts are very short, we did not remove any stop words in order to preserve the information expressed.
+Table 2 shows a run-through example of the above pre-processing steps.
+
+2.4. Dealing with imbalanced data
+As shown in Fig. 1, the datasets used in this study are highly imbalanced, and such data raise signiﬁcant challenges for building predictive models. Several strategies have been developed to address this
+problem and they can be roughly grouped into the following two categories [17–19]: (1) Pre-processing strategies which consist of methods
+of using available or additional datasets in a way that is more in accordance with the user preference biases. After the pre-processing step,
+any standard learning algorithms can be applied. (2) Cost-sensitive
+strategies that consider the costs of making a wrong decision on the
+minority class either in the training or the prediction phase. This can be
+achieved by developing new learning methods with speciﬁc purposes or
+modifying existing algorithms to provide a better ﬁt to the imbalanced
+data.
+2.4.1. Pre-processing strategies
+Applying re-sampling strategies to obtain a more balanced data
+distribution has proven to be an eﬀective solution to the imbalance
+problem. Two of the simplest re-sampling approaches that can be
+124
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+Table 2
+The outcome of each pre-processing step for the tweet “@mateenahmadi had AF with COPd, thyroid disfunction. Renal impairment (17ml/min) and CHF. Gave
+metoprolol iv (50mg!) then suggested 4″. The alternative term for a misspelled word is listed inside the bracket.
+Original Tweet
+
+@mateenahmadi had AF with COPd, thyroid disfunction. Renal impairment (17ml/min) and CHF. Gave metoprolol iv (50mg!) then
+suggested 4
+
+Non-ASCII glyphs Remove
+
+@mateenahmadi had AF with COPd, thyroid disfunction. Renal impairment (17 ml/min) and CHF. Gave metoprolol iv (50mg!) then
+suggested 4
+@REF had AF with COPd, thyroid disfunction. Renal impairment (17ml/min) and CHF. Gave metoprolol iv (@DSG!) then suggested 4
+@REF had AF with COPd, thyroid disfunction. Renal impairment (1ml/min) and CHF. Gave metoprolol iv (@DSG!) then suggested 1
+@REF had AF with COPd, thyroid disfunction. Renal impairment (1ml/min) and CHF. Gave metoprolol iv (@DSG!) then suggested 1
+@REF had AF with COPd, thyroid disfunction [dysfunction]. Renal impairment (1ml/min [melamin]) and CHF [SF]. Gave metoprolol iv
+(@DSG!) then suggested 1
+@ref had af with copd, thyroid disfunction[dysfunction]. renal impairment (1 ml/min[melamin]) and chf [sf]. gave metoprolol iv (@dsg !)
+then suggested 1
+@ref had af with copd, thyroid disfunction[dysfunction]. renal impair (1ml/min[melamin]) and chf [sf]. gave metoprolol iv (@dsg !) then
+suggest 1
+
+Special Characters Normalization
+Numerical Normalization
+Tokenization
+Spelling Correction
+Lower case
+Stemming
+
+2.4.2. Pre-processing strategies based on word embedding
+Inspired by the successful implementation of WE in capturing syntactic and semantic word relationships, Chen, Xu, Liu, Lu and Xu [37]
+proposed WEMOTE to conduct over-sampling over P bases on the WE
+technique. In WEMOTE, for all examples in P , their text representations
+(denoted as TR _P ) were generated ﬁrst, each of which is calculated by
+summing a tweet’s tokens’ vector representations to generate a single
+representation tr _pi . The WEMOTE algorithm then randomly selects
+two examples from TR _P and calculates their mean vector as a new
+example until the number of newly generated examples meets the desired threshold.
+Similar to the idea of applying WE to conduct over-sampling over P ,
+we proposed the following two novel over-sampling methods:
+WESMOTE and RUS_WE.
+
+applied are under-sampling and over-sampling. Given the minority
+training set P and the majority training set N , the ﬁrst method randomly samples a subset Ni from N , where |Ni | < |N |, to relieve the
+imbalance problem, while the second duplicates examples from P to
+increase the size of the minority training set. We named the ﬁrst approach as random under-sampling (RUS) and the second as random oversampling (ROS).
+Nevertheless, applying the under-sampling approach directly
+abandons many potentially useful majority examples, which motivated
+us to explore the idea of an ensemble method. An explicit way to exploit
+all training examples in N with under-sampling for creating an ensemble of T classiﬁers is to sample several subsets N1, N2, …, NT from N
+without replacement so that N1 ∪ N2 ∪ …∪NT = N . We can then create
+an ensemble by using each subset Ni along with P . The prediction can
+be determined by taking a vote among the independently created
+classiﬁers. The simplest voting method is based on the majority rule,
+and this approach is referred to as the vote-based under-sampling ensemble (VUE). Under-sampling can also be achieved through data
+cleaning methods, which identify potentially noisy examples in N to
+balance the dataset [17]. For instance, for all examples in N , an example is kept if its class and the majority of its k nearest neighbors have
+the same class value. This approach is referred to as All k-NN (AkNN)
+[32].
+On the other hand, in addition to directly generating duplicated
+examples from P by ROS, the resampled data can include synthesized
+minority examples created by algorithms like SMOTE [20]. Unlike ROS,
+SMOTE produces synthetic samples by operating in the “feature space”
+of P rather than P itself. For each training example p from P , the algorithm identiﬁes p ’ s k nearest neighbors from P and extracts their
+feature vectors. It then manipulates the feature vector of p by randomly
+including or excluding the diﬀerences of the feature values between the
+neighbors and p .
+A more advanced approach is to employ the resampling technique
+to iteratively construct and combine multiple classiﬁers by considering
+the performance of those built previously, a technique known as
+boosting. For example, we can combine SMOTE with boosting which
+results in the SMOTEBoost (SMOTEB) algorithm [33]. Unlike standard
+boosting, where the distribution is updated uniformly for examples
+from both P and N , SMOTEBoost creates t synthetic minority examples
+to update the distribution. The RUSBoost (RUSB) [34] is another similar
+algorithm that adjusts the distribution by using RUS examples of N .
+Some algorithms such as EasyEnsemble (EE) [35] further combine
+boosting with ensemble. For each under-sampled training set Ni ∪ P ,
+the algorithm employs AdaBoost [36] as the base learner to iteratively
+create several classiﬁers by adjusting the weights of each sampled example in every iteration and the predictions of the classiﬁers are
+combined using a weighted vote.
+
+2.4.2.1. Wesmote. The key diﬀerence between the proposed WESMOTE
+and WEMOTE is that for each training example p from P , WESMOTE
+used a distance function to identify p ’ s k nearest neighbors from P to
+synthesize examples instead of picking up two random examples. The
+synthesized example was created by calculating the mean vector of p
+and one of its k nearest vectors. Fig. 2 illustrates the process of
+WESMOTE when k was set to two. In Fig. 2 (A), for the minority
+example p1, we used a distance function to ﬁnd the two nearest
+minority examples p2 and p3. For the minority example p2, p1 and p4
+were identiﬁed. A synthesized example was then created by calculating
+the mean vector of p1 and the randomly selected example from p2 or p3
+(p3 was selected in Fig. 2). The same process was applied for the
+minority example p2, where p4 was selected for synthesis. Fig. 2 also
+displays the decision surface before/after applying WESMOTE. If we
+consider the two majority classes in the bottom right corner as
+outliners, the decision boundary given in Fig. 2 (B) seems to be more
+appropriate.
+In this study, the distance among examples is determined by a distance metric calculated from the WE feature vectors only. We implemented three distance functions including L1, L2 and the word
+mover’s distance (WMD) [38]. Assume that the vectors of WE features
+extracted for two tweets are we and we′, where we , we′ ∈ R400 in this
+work, the L1 and L2 distances can be calculated by using Eqs. (1) and
+(2) below, respectively.
+
+L1(we, we′) = ‖we − we′‖1 =
+
+L2(we, we′) = ‖we − we′‖2 =
+
+400
+
+∑i =1 |wei − we′i |
+
+(1)
+
+400
+
+∑i =1 (wei − we′i )2
+
+(2)
+
+WMD considers the cost of transferring all words of one tweet to
+another to determine the distance between two tweets. The entire calculation process can be regarded as a transportation problem which can
+be measured by using the earth mover’s distance metric [39]. In our
+implementation, WMD was calculated as follows. Let t and t ′ be the
+125
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+Fig. 2. The process of WESMOTE with k set to two. The circular points are minority examples and the triangular points
+are majority examples. The data points in blue are the original
+examples and the data points in green are synthesized (For
+interpretation of the references to colour in this ﬁgure legend,
+the reader is referred to the web version of this article).
+
+learning (CSL) approach [43] learns a cost-sensitive classiﬁer by changing the proportion of each class in the training data to reﬂect the cost
+matrix.
+In addition to the cost matrix, the aforementioned approaches relied
+heavily on the quality of the estimation of class probabilities. Based on
+the idea that the optimal class labels may be diﬀerent from the original
+corpus when considering the cost matrix, MetaCost (MC) [44] created
+an ensemble classiﬁer through bagging to manage the imbalance problem. The probability of each class was re-estimated using each class’s
+fraction of the total vote. By combining the re-estimated probabilities
+with the cost matrix, MC relabels each training example with the class
+having the minimal cost and reapplies the same learning algorithm used
+in bagging to construct the ﬁnal cost-sensitive classiﬁer.
+Finally, Veropoulos, Campbell and Cristianini [45] generalized the
+soft margin objective function of SVMs by assigning the misclassiﬁcations of examples in P with a higher cost than the misclassiﬁcations in
+N so that the modiﬁed SVM will not tend to skew the separating hyperplane towards P and can thereby improve its performance in dealing
+with imbalanced data. We refer to this approach as the weighted SVM
+(WSVM).
+
+unigram representations with TF-IDF weighting scheme of two tweets
+without removing stop-words1 . Therefore, for a ﬁnite size vocabulary
+of n words, , t ′ ∈ Rn , where ti = TFIDF(wi ) . Let T ∈ Rn × n be a matrix
+where Tij ≥ 0 denotes the “amount” of information of word wi in t that
+can be transferred to wj in t′. To transfer the information of t completely
+to t′, the entire outgoing ﬂow from wi was ensured to be equal to ti , i.e.
+n
+∑ j Tij = ti . The amount of all incoming ﬂow from t to wj equals to
+n
+
+∑i Tij = t ′ j . Finally, we deﬁned WMD between two tweets as the
+minimum weighted cumulative cost indicated in Eq. (3) subjected to
+the following constraints.
+Tij ≥ 0, 1 ≤ i ≤ n, 1 ≤ j ≤ n,
+n
+
+∑j
+
+Tij ≤ ti,
+
+n
+
+∑i
+
+Tij ≤ t ′ j,
+n
+
+WMD(T, D) = min∑
+
+i=1
+
+n
+
+n
+
+{
+
+n
+
+n
+
+∑i =1 ∑ j=1 Tij = min ∑i =1 ti, ∑ j=1 t′ j
+
+}
+
+n
+
+∑ j=1 Tij d (i, j)
+
+(3)
+
+In Eq. (3), the ground distance function d (i, j ) was deﬁned by using
+Eq. (2).
+2.4.2.2. Word embedding-based over-sampling technique combined with
+random under-sampling (RUS_WE). The combination of over-sampling
+the minority examples with under-sampling the majority examples was
+proven to achieve a better performance than ROS or RUS [20]. In view
+of this, we proposed RUS_WE which combined the developed WE-based
+over-sampling methods with the RUS technique.
+
+3. Results
+3.1. Experimental conﬁgurations
+We conducted several experiments on the datasets illustrated in
+Fig. 1 to evaluate the eﬀectiveness of the presented imbalanced
+methods. The same setting of PSB-SMM and AMIA-SMM4H was adapted
+to split each dataset into the training and test subsets based on the
+available data. We performed 10-fold stratiﬁed cross validation (CV) on
+the training sets and applied the same conﬁgurations on the test set.
+SVM was used as the base learning algorithm because it is a well-known
+binary classiﬁcation method and the implementation of WSVM [46] is
+openly available [47]. All features described earlier were extracted as
+without applying any feature selection techniques. The un-weighted
+SVM with the polynomial kernel trained by the sequential minimal
+optimization algorithm [48] was considered as the baseline. Its performance was compared with that of the 15 imbalanced methods listed
+in Table 1. All of the experiments were conducted using Weka [49], and
+we implemented WEMOTE and the proposed WESMOTE as pre-processing ﬁlters in Weka. The conﬁguration details of each method are
+elaborated as follows. Please refer to Supplementary File S1 for the
+discussion about the parameter selection.
+
+2.4.3. Cost-sensitive strategies
+The cost-sensitive strategies can be incorporated to handle the imbalance issue by setting a higher cost for the misclassiﬁcation of minority examples from P with respect to the majority examples from N .
+For our ADR task, a 2 × 2 cost matrix was speciﬁed to represent the
+cost when an algorithm incorrectly classiﬁes an example. In the cost
+matrix, zero cost was set for correctly classiﬁed examples, and the cost
+of the misclassiﬁcation of N was set to one. Meanwhile, the cost of
+misclassifying examples from P was set to c , which is larger than one in
+order to penalize such cases. With the deﬁned cost matrix, several existing methods to make the learning algorithms cost-sensitive were
+considered. Cost-sensitive meta-learning methods can wrap any existing
+cost-insensitive learning algorithms into cost-sensitive ones [40]. The
+CSC approach [41] is an example of such method, which predicts an
+example as the minority class if its posterior probability estimation is
+larger than c . This approach is indeed the thresholding strategy in1+c
+troduced by Sun, Lim and Liu [42]. By contrast, the cost-sensitive
+
+• RUS: We produced a random subsample of the original dataset to
+achieve a 2:1 ratio between N and P .
+• ROS: We randomly oversampled the examples in P to generate a
+dataset with a 2:1 ratio between N and P .
+• VUE: We produced several RUS with a 2:1 ratio between N and P to
+
+1
+In general, one can use any bag-of-word representation to represent the
+document for calculating WMD. One reason that we used the unigram representation with TF-IDF is that we can directly exploit the feature values extracted in the feature extraction step.
+
+126
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+create the ensemble.
+
+Table 3
+Performance comparison of the diﬀerent feature sets.
+
+• AkNN: k was set to ﬁve and only examples in N (the majority set)
+were removed.
+• SMOTE: The parameter for the number of the nearest neighbors was
+set to 5 to synthesize the |P| minority examples.
+• SMOTEB: The same parameters set for SMOTE were used to con•
+•
+•
+•
+
+•
+
+•
+
+Number of Correctly Predicted ADR Tweets
+Number of ADR Tweets
+
+F=
+
+2×R×P
+R+P
+
+R
+
+F
+
+PSB-SMM
+
+Baseline feature set
+Full feature set
+Baseline feature set
+Full feature set
+
+0.655
+0.651
+0.648
+0.647
+
+0.382
+0.399
+0.351
+0.367
+
+0.482
+0.495
+0.455
+0.468
+
+3.3. Cross validation results on training sets
+3.3.1. Performance comparison of diﬀerent feature sets
+In this experiment, we explored the eﬀectiveness of the extracted
+features. We are speciﬁcally interested in the impact of the WE features.
+Therefore, the performances of two conﬁgurations with SVM as the
+base learner were reported. One is the baseline feature set including the
+n-gram, domain knowledge and negation features, and the other is the
+full feature set which further includes the WB features. The results are
+displayed in Table 3.
+It can be observed that by including the WB features, the recall of
+the models was improved with a slight decrease in the precision and
+improved F-score on both datasets.
+3.3.2. Performance comparison of diﬀerent imbalanced strategies
+This section presents the results of all listed imbalanced conﬁgurations on the 10-fold CV of the training sets of both tasks. The PRF-scores
+of the baseline without applying neither pre-processing nor cost-sensitive strategies serve as the standard for comparison. Fig. 4 shows the
+relative PRF-scores after applying diﬀerent imbalanced strategies2 .
+We can see that without applying any imbalanced techniques, the
+baseline approach had higher precision on both datasets. For conﬁgurations applying RUS-based methods such as RUS and RUSB, the score
+distribution is opposite to that of the baseline where the recall was
+signiﬁcantly higher than the precision and resulted in better F-score.
+The performance of ensemble-based methods such as VUE, EE and MC
+had a similar trend with recall higher than the precision. Among them,
+VUE achieved outstanding F-score on both datasets. Cost-sensitivebased methods (i.e. CSL, WSVM, CSC and MC) also greatly improved the
+recall. However, the poor precision of CSL and MC lead to the worst Fscore on both datasets. CSC seems to be a more robust method than the
+others under the same category due to its high F-score and stable P and
+R values on both datasets, as neither showed dramatic changes in
+comparison to the baseline.
+On the other hand, incorporation of synthetic-based over-sampling
+techniques alone such as WESMOTEWMD, WESMOTEL1/L2 and SMOTE
+contributed to better precision, recall and F-scores on the AMIA dataset.
+Nevertheless, this improvement was minor and not noticed on the PSB
+dataset. The precision and recall of the boosting-based approaches including EE, RUSB and SMOTEB had similar distributions corresponding
+to their origins. EE and RUSB obtained higher recalls as they originated
+from RUS, while SMOTEB had a better precision. Finally, combining
+RUS with synthetic-based over-sampling approaches such as
+RUS_WESMOTEL1 and RUS_SMOTE turned out to generate high F-scores
+on both datasets.
+
+We used the oﬃcial evaluation metric, the F-score, of the PSB-SMM
+and AMIA-SMM4H shared tasks to assess the performance of diﬀerent
+imbalanced strategies. The F-score is the most common information
+extraction evaluation metric, which is an evaluation score generated by
+the harmonic mean of the precision (P) and recall (R). The formulae for
+calculating the F-score are deﬁned as follows.
+
+R=
+
+P
+
+The evaluation metric used in this study focuses on the classiﬁer’s
+predictive performance for the minority examples (the ADR tweets)
+since the primary intent of this task is to distinguish the ADR indicating
+tweets from the high level of noise.
+
+3.2. Evaluation metrics
+
+Number of Correctly Predicted ADR Tweets
+Number of Predicted ADR Tweets
+
+Conﬁguration
+
+AMIA-SMM4H
+
+ﬁgure SMOTEB. The number of weak classiﬁers was set to three with
+the resampling method for updating the weights.
+RUSB: We used the same conﬁguration for RUS to conﬁgure RUSB.
+Similar to SMOTEB, the number of weak classiﬁers was set to three
+with the resampling weighting method.
+EE: According to the imbalance ratios illustrated in Fig. 2, we created ten and eleven under-sampled training sets for PSB-SMM and
+AMIA-SMM4H to build the ensemble models, respectively.
+WEMOTE: We synthesized additional |P| minority examples based on
+the WE features.
+WESMOTE: We synthesized the |P| minority examples by considering
+the ﬁve nearest neighbors determined by using the L1 distance
+(WESMOTEL1), the L2 distance (WESMOTEL2), and WMD (WESMOTEWMD). The optimization problem for Eq. (3) was solved by
+FastEMD, a linear time algorithm developed by Pele and Werman
+[50].
+RUS + Synthetic-based Over-sampling: We combined the syntheticbased over-sampling methods including SMOTE, WEMOTE,
+WESMOTEL1, WESMOTEL2, and WESMOTEWMD with RUS. A total of
+ﬁve conﬁgurations were generated (RUS_SMOTE, RUS_WEMOTE,
+RUS_WESMOTEL1, RUS_WESMOTEL2, and RUS_WESMOTEWMD). For
+each conﬁguration, we ﬁrst over-sampled the |P| minority examples
+and then under-sampled the majority class to achieve a 2:1 ratio
+between N and P .
+CSC, CSL, MC and WSVM: For the cost-sensitive strategies, the cost
+matrix shown in Fig. 3 was used. Therefore, the cost was set to 9.2
+for PSB-SMM, while for AMIA-SMM4H it was set to 10.3. The base
+learner (SVM) did not provide the posterior probabilities for its
+predictions. The logistic regression was used for CSC as the calibration function to calibrate the probabilities [51]. For MC, the
+number of bagging iterations was set to ten. For WSVM, the weight
+parameters for N and P were set to the reciprocal of the number of
+training examples.
+
+P=
+
+Dataset
+
+3.4. Results on the test sets
+Fig. 5 lists the results of the imbalanced conﬁgurations on the test
+
+Fig. 3. The cost matrix deﬁned for cost-sensitive strategies. TP, TN, FP, and FN
+stand for true positive, true negative, false positive and false negative, respectively.
+
+2
+
+127
+
+Detailed results are provided in Supplementary File S1.
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+Fig. 5. Performance comparison of the diﬀerent strategies on the test sets. The
+conﬁgurations above the bold line for each dataset indicate that their F-scores
+were higher than the baseline.
+
+Fig. 4. Performance comparison of diﬀerent strategies on the imbalanced
+training sets with 10-fold CV.
+
+proposed RUS_WESMOTEL2 and VUE models acquired outstanding
+performance, but their F-score was still lower than that of the best
+system [53]. We will elaborate on their comparison in Section 4.1.
+
+sets. Detailed results are provided in Supplementary File S1. The overall
+results were consistent with that obtained using cross-validation on the
+training data. The developed VUE and the proposed RUS_WE-based
+strategies were the top-ranked methods. The recall of VUE was signiﬁcantly higher than its precision, whereas RUS_WEs had smaller
+ﬂuctuations between precision and recall. Implementing only the oversampling-based methods did not show apparent improvement on the Fscores. However, when combined with RUS, the recall can be boosted
+with a slight reduction in precision which causes a signiﬁcant growth of
+the F-scores. It can be also observed that the proposed WE-based synthetic over-sampling methods in combination with RUS had better Fscores than SMOTE with RUS in general.
+Additionally, we speciﬁed the performance of the top 3 systems for
+both tasks in Fig. 5. Note that the performance was not directly comparable because they were established on diﬀerent feature sets, machine learning algorithms and even diﬀerent sizes of the training sets.
+Although the performances of the baseline models were lower than the
+top 3 systems, they can achieve the state-of-the-art performance if enhanced with some of the studied imbalanced techniques. On the PSB
+dataset, the proposed RUS_WESMOTEWMD and VUE models outperformed the highest-ranked system [52]. On the AMIA dataset, the
+
+4. Discussion
+4.1. Comparison of the proposed methods with other imbalanced strategies
+developed for the studied datasets
+The results of several imbalanced methods on the two datasets along
+with the other top-ranked performance on the same datasets were
+summarized in Fig. 5. Unlike the studies presented by Patki, Sarker,
+Pimpalkhute, Nikfarjam, Ginn, O’Connor, Smith and Gonzalez [15] and
+Sarker and Gonzalez [16] that relied only on cost-sensitive strategies,
+the top-ranked teams in both tasks applied a variety of strategies to deal
+with the issue of imbalanced datasets. Of the three top-ranked teams in
+SMM, Rastegar-Mojarad, Elayavilli, Yu and Liu [52] developed the
+highest-ranked system in which they employed a method similar to
+VUE but relied on a setting of the voting threshold instead of majority
+voting to aggregate the results from their random forest-based classiﬁers. Being the team in the third place, Ofoghi, Siddiqui and Verspoor
+[54] used SMOTE to create a balanced dataset (N : P equals 1:1) and
+128
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+Table 4
+Cost and performance on the SMM/SMM4H test sets and the corresponding building time on the training sets. The values in bold/bold and underlined indicate that
+they are the best/worst entries among all conﬁgurations.
+Rank
+
+Conf.
+
+Total Cost
+
+Building Time
+(sec.)
+
+P
+
+R
+
+F
+
+1
+2
+3
+4
+5
+n/a
+n/a
+n/a
+
+VUE
+RUSB
+RUS_WESMOTEWMD
+RUS_SMOTE
+CSC
+Baseline
+SMOTEB
+CSL
+
+1172/4553
+1209/4897
+1390/5238
+1425/5344
+1430/5555
+1684/6403
+1604/6492
+1564/4227
+
+281.2/660
+293.63/748
+15126.3/33464
+15765.5/32497
+452/739
+536/1248
+42294/138469
+269/552
+
+0.320/0.356
+0.324/0.361
+0.408/0.439
+0.389//0.451
+0.418/0.466
+0.504/0.593
+0.494/0.546
+0.142/0.193
+
+0.616/0.518
+0.591/0.470
+0.446/0.390
+0.434/0.367
+0.421/0.333
+0.273/0.208
+0.343/0.198
+0.868/0.789
+
+0.421/0.422
+0.419/0.408
+0.426/0.413
+0.410/0.405
+0.420/0.389
+0.354/0.307
+0.405/0.291
+0.244/0.310
+
+examples in each iteration so that the distribution of the class overlapping diﬀers in all sampled datasets, which increases the diversity of
+the created weak classiﬁers and gives the model a better chance to
+identify minority examples. This ﬁnding complies with the observation
+of Wang and Yao [58] that the larger diversity of the agreements among
+the weak classiﬁers created by ensemble methods can cause better recall for the minority classes.
+Among the top-ranked systems, only Magge, Scotch and Gonzalez
+[57] employed the cost-sensitive strategies and reported a very slight
+improvement on the test set of SMM4H. One potential reason that less
+teams applied the cost-sensitive strategies is that the implementation of
+these strategies requires a deep understating of both the corresponding
+learning algorithms and the application domain in order to comprehend
+why the algorithm fails when the class distribution is uneven [17].
+Another issue is that the misclassiﬁcation costs are often unknown but
+critical, especially in the classiﬁcation tasks involving high imbalance
+ratios [42]. In this study, we applied the cost setting for the minority
+class as the ratio of the majority to minority classes as suggested by
+Haixiang, Yijing, Shang, Mingyun, Yuanyue and Bing [19]. The results
+demonstrated that employing CSC can improve the recall of the baseline model and thus the F-scores. Our CSC classiﬁer had a comparable Fscore with the highest-ranked system on the SMM dataset, but exhibited
+less improvement on the SMM4H dataset. Weiss, McCarthy and Zabar
+[40] compared the eﬀectiveness of cost-sensitive strategies with preprocessing methods and stated that with more than 10,000 examples,
+the cost-sensitive strategies usually outperform the pre-processing
+methods such as RUS and ROS. Our CSC results with RUS and ROS
+shown in Table 3 and 4 can also validate Weiss et al.’s conclusion.
+Furthermore, the experiment results indicate that hybrid methods such
+as the proposed RUS_WESMOTEWME, ensemble-based approaches like
+VUE, or boosting-based methods like RUSB can consistently yield better
+F-scores than that of cost-sensitive strategies.
+In summary, we conclude that: 1) Hybrid methods combining RUS
+and synthetic-based methods are feasible options for the SMM and
+SMM4H datasets. Moreover, the proposed WE-based synthetic hybrid
+methods are more eﬀective than WEMOTE or SMOTE hybrid methods.
+Although this study focuses on studying ADR datasets, we believe that
+the insight can be applied in a more general manner on all textual
+training data collected from real world. 2) Ensemble-based methods
+like RUSB can be an alternative solution for the proposed WE-based
+synthetic hybrid methods. The simplest ensemble method, VUE, provides a very strong baseline considering its outstanding F-score on both
+the SMM and SMM4H datasets.
+
+achieved an F-score that is better than our baseline model but lower
+than most of the other strategies implemented in this study. By contrast,
+the team that ranked second [55] did not directly handle the imbalance
+issue a priori. Instead, they developed an ensemble classiﬁer based on a
+weighted average of the output of the classiﬁers built on the original
+imbalanced dataset.
+The size of the training set and the imbalance ratio of SMM4H were
+much higher than that of SMM. The larger size of the training set has
+motivated most systems to rely on RUS-based approaches in order to
+manage a training time. For example, the leading system developed by
+Kiritchenko, Mohammad, Morin and de Bruijn [53] extracted a very
+rich feature set including nineteen types of features and applied the
+same conﬁguration as the one we used for developing RUS. The systems
+that ranked second and third [56,57] employed convolutional neural
+network (CNN) models. Magge, Scotch and Gonzalez [57] investigated
+the eﬀectiveness of RUS and CSL, and observed that with CSL the Fscore of their CNN model can be slightly improved by 0.002 on the test
+set, while the F-score of the baseline model without using any imbalanced strategies cannot be improved by implementing RUS. The
+best-performing model developed by Jain, Peng and Wallace [56] was
+based on an ensemble of several CSC-based CNN models, which heuristically classiﬁed a post as ADR-related if at least two classiﬁers labelled it as possible.
+In general, our classiﬁers with RUSB, RUS_WESMOTEL2/WMD or VUE
+achieved comparable or even better F-scores on both datasets. As shown
+in Fig. 5, all of our state-of-the-art conﬁgurations combined RUS with
+techniques including the proposed WE-based synthetic minority oversampling, boosting and ensemble. Integrating RUS with our WE-based
+over-sampling methods with L2 or WMD resulted in a precision that is
+higher than those of all top-ranked systems on both datasets. The Fscores were also better than that of the leading system in SMM and the
+second and third-ranked systems in SMM4H. In particular, the F-score
+of our RUS_SMOTE is better than the third-ranked system in SMM
+which relied on SMOTE only. This result supports the suggestion given
+by Haixiang, Yijing, Shang, Mingyun, Yuanyue and Bing [19] that if the
+training size is large enough, a combination of SMOTE and undersampling is an alternative solution.
+Alternatively, we noticed that half of the top-ranked teams applied
+ensemble-based methods. As a well-known way to improve the classiﬁcation performance of weak classiﬁers, the results of the top-performing ensemble-based systems and ours including EE, MC and VUE
+demonstrated a signiﬁcantly higher recall than precision. Moreover, as
+one of the most common and eﬀective methods for ensemble learning,
+boosting can be considered as an iterative-based ensemble. Our results
+indicated that boosting-based methods like RUSB can be an alternative
+solution in particular on the SMM dataset. Nevertheless, SMOTEB is not
+a practical option for the huge dataset studied because of its lower
+performance and the signiﬁcantly longer training time required compared to all of the other studied strategies. This will be explained later
+in the next subsection. Both ensemble-based methods like VUE and
+boosting-based methods like RUSB eliminated diﬀerent majority class
+
+4.2. Comparison of the cost and the training time of the imbalanced
+strategies
+In this subsection, we analysed the implemented imbalanced strategies from perspectives other than the F-score for the minority examples. Table 4 displays the total costs and the building time for the top
+5 conﬁgurations with leading F-score on the test sets of SMM and
+129
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+funny.”). Unfortunately, the developed classiﬁers also suﬀered from
+similar problems mentioned by Sarker and Gonzalez [16] including the
+large proportion of spelling errors and non-standard term usage. Both of
+these challenges cannot be solved by the proposed WE features or
+synthetic minority over-sampling methods because the non-standard or
+misspelled terms would naturally become unavailable in the employed
+embedding even if we already used a pre-trained model from tweets.
+Therefore, they cannot contribute to the training or prediction phase of
+the classiﬁers.
+Finally, we further conducted an analysis on the common FP and
+false negative (FN) cases identiﬁed by the ﬁve best performing methods
+listed in Table 4. The number of FN cases is signiﬁcantly larger than
+that of FP cases on both datasets (805 vs. 50). The major cause of FN
+cases is the failure to recognize ADR mentions, which contributed to
+69% of the FNs. In some of the cases, the ADR relation was not explicitly described or was described across sentences in a human interpretable manner, leading to FNs. For example, the author of the tweet
+below did not directly describe the side eﬀect, but instead she mentioned that the use of Vioxx killed her husband.
+
+SMM4H. We assumed that the misclassiﬁcation cost information is
+provided with the deﬁnition in Fig. 3. The total cost was then calculated
+by using the following equation.
+
+Total cost= (FN× CostFN) + (FP× CostFP)
+The ﬁve conﬁgurations were ranked by the calculated total costs
+because it is known to be the best metric for evaluating classiﬁer performance when the misclassiﬁcation costs were known [40]. We also
+listed the results of SMOTEB and CSL for further discussion. All conﬁgurations listed in Table 4 were trained on a windows 2016 server3 .
+Overall, all top conﬁgurations exhibited lower cost than the baseline, which did not apply any imbalanced classiﬁcation techniques.
+VUE achieved the best overall rate regarding its least total cost and
+building time with the best recall and F-score. RUSB also provided a
+practical solution considering its shorter building time and total cost.
+On the contrary, the boosting-based approach SMOTEB demonstrated
+higher total cost and lower F-score than the baseline on SMM4H with
+signiﬁcantly increased model building time (˜25 times above the
+baseline on SMM). RUS combined with WESMOTE and SMOTE also
+demonstrated smaller total cost and better recall and F-scores than the
+baseline. The proposed RUS_WESMOTE obtained comparable or even
+better F-score than VUE and RUSB depending on the employed distance
+function. Conversely, there is a trade-oﬀ between the application of the
+hybrid approaches and VUE/RUSB because the hybrid of over-sampling
+approach leads to longer building time. Finally, the total costs and
+building time for the two cost-sensitive strategies CSC and CSL were
+also included in Table 4. We can see that the total cost of both methods
+was improved. CSC needed moderate building time while CSL required
+the shortest training time among all presented conﬁgurations. CSL demonstrated the best recall and the best total cost on the SMM4H dataset. However, it also had a high number of false positives (FPs) which
+dramatically reduced the precision and F-scores.
+
+“@REF’s vioxx was rushed through by the fda, too - and killed my
+husband. testing results were distorted, hidden. fda was complicit.”
+The FPs of the leading conﬁgurations can mostly be explained by
+the confusions between ADRs and the positive side eﬀects, such as
+“reversal of hair loss”, or other relations involving drugs and diseases/
+symptoms that are not ADRs. For instance, the following post includes
+mentions of a drug, a symptom and a disease, and the last two mentions
+may be considered as ADRs with diﬀerent context.
+“yes, i use advair 250/50. why are you asking me about my
+breathing, my asthma doesn't aﬀect my breathing. …quote of the
+day”
+Some FP cases were caused by tweets written in the subjunctive
+mood that explore conditional or imaginary situations. Descriptions of
+drugs and ADRs across diﬀerent sentences also lead to FPs, e.g.
+
+4.3. Error analysis
+
+“@REF I am non- diabetic but suﬀered from low sugar and tired all
+the time. Dr Prescribed Victoza feel like a million$.Hunger gone.”
+
+First, we examined the improvement of including WE features described in Table 3. It was observed that the inclusion of the WE features
+can increase the likelihood of classifying a rarely mentioned drug-induced ADE as positive. For example, the drug name “Tamiﬂu” was only
+mentioned twice in the training set of SMM4H and was not associated
+with any ADEs. Therefore, the weight for the n-gram features of “Tamiﬂu” is 0 after training. However, when we encoded it as the 400dimensional vector represented by the WE features, the model was able
+to correctly classify the following ADR tweets selected from the test set
+owing to the diﬀerent aspects of the word represented by the vector
+space.
+
+5. Conclusions
+We presented a variety of strategies used in practice for handling
+imbalanced data and studied their performance on two highly imbalanced ADR classiﬁcation datasets collected from Twitter. The results
+demonstrated that the combination of synthetic over-sampling techniques and under-sampling outperformed the baseline and most of the
+studied strategies for imbalanced data. The improvement brought by
+this combination can mainly be attributed the increased recall. We also
+observed that the proposed WE-based synthetic over-sampling methods
+integrated with RUS had a generally better performance than SMOTE
+with RUS based on their precision, recall and F-scores and total cost.
+Nevertheless, there is a trade-oﬀ between the incorporation of the hybrid approaches and the ensemble-based imbalanced classiﬁcation
+techniques like VUE and RUSB because the hybrid approach causes an
+increase in the building time. The practical insights from our experiment results for learning from the imbalanced textual data are summarized as follows. 1) The data collected from social media are usually
+very large, but imbalanced. To learn a classiﬁer from such data, applications of imbalanced strategies are required because the performance can be signiﬁcantly improved as we have indeed demonstrated
+using the two datasets. 2) Considering the size of the training data, the
+imbalanced strategies combined with RUS should be in favour over the
+other pre-processing strategies and cost-sensitive strategies in terms of
+performance and computational time. 3). When dealing with text
+classiﬁcation, the proposed WESMOTE is more eﬀective than the traditional SMOTE. 4) Ensemble-based methods like VUE or RUSB can be
+
+• this tamiﬂu is making me feel worse than i already feel and i don't
+think the z pack is helping :(
+• protip: don't take tamiﬂu with an empty stomach. it'll make you feel
+really nauseous.
+
+Additionally, we explored the performance improvement brought
+by the imbalanced methods. Sole application of over-sampling is known
+to result in overﬁtting [59], which is the main reason why employing
+these strategies alone did not exhibit consistent improvement of the
+performance over the baseline. By comparing the results of the leading
+conﬁgurations with the baseline, we observed that the imbalancedenhanced classiﬁers can successfully classify more ADR tweets written
+by users in atypical descriptions of their subjective perception of the
+drug (e.g. “enbrel for sure gives me wings! and i can't eat! it's great!” and
+“ventolin injections. make the body move and tremble like jelly. weird and
+3
+The server is equipped with an Intel Xeon E5-2630 v4 processor and 128GB
+DDR4 rams.
+
+130
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+an alternative solution for the hybrid methods. 5) Complex methods did
+not outperform the simpler ones. VUE is particularly noteworthy as it is
+the least computationally complex method among all of the outstanding
+studied strategies with additional advantages such as much faster
+building time and the ease of development. In the future, we will
+continue to investigate the application of more advanced sentence representation methods and their combination with the developed
+WESMOTE to handle the imbalanced text classiﬁcation task. The studied strategies will be evaluated on more datasets with additional
+learners, and their eﬀectiveness in other domains will also be assessed.
+
+[8]
+
+[9]
+[10]
+
+[11]
+
+[12]
+
+Authorship statement
+[13]
+
+Please indicate the speciﬁc contributions made by each author (list
+the authors’ initials followed by their surnames, e.g., Y.L. Cheung). The
+name of each author must appear at least once in each of the three
+categories below.
+
+[14]
+[15]
+
+Conﬂicts of interest statement
+[16]
+
+None
+
+[17]
+
+Summary Points
+
+[18]
+
+data is usually composed of normal examples with
+• Real-world
+only a small percentage of causal events, so the corpora
+
+•
+•
+•
+•
+
+[19]
+
+created from social media data were usually highly imbalanced.
+To address the imbalance issue for the task of adverse drug
+reaction detection, previous studies have applied cost-sensitive strategies. However, no work has been done to investigate the eﬀectiveness of diﬀerent imbalanced classiﬁcation techniques on the task.
+This study examined a variety of imbalanced methods and
+compared their performance on two openly available dataset
+for the binary classiﬁcation of ADR tweets.
+We proposed a novel word embedding-based synthetic minority over-sampling technique to synthesize new training
+examples based on the word embedding-based sentence representation.
+We provided an empirical guidance for practitioners to determine the most suitable imbalanced method for their textual data collected from social media and apply them to
+tasks like digital pharmacovigilance.
+
+[20]
+[21]
+
+[22]
+
+[23]
+
+[24]
+[25]
+
+[26]
+[27]
+[28]
+
+Acknowledgement
+This study was supported by the Ministry of Science and Technology
+of Taiwan [Grant numbers MOST-106-2221-E-143-007-MY3].
+
+[29]
+
+[30]
+
+References
+[1] D.J. Amante, T.P. Hogan, S.L. Pagoto, T.M. English, K.L. Lapane, Access to care and
+use of the Internet to search for health information: results from the US National
+Health Interview Survey, J. Med. Internet Res. 17 (2015).
+[2] C.L. Ventola, Social media and health care professionals: beneﬁts, risks, and best
+practices, Pharm. Therap. 39 (2014) 491.
+[3] J. Ginsberg, M.H. Mohebbi, R.S. Patel, L. Brammer, M.S. Smolinski, L. Brilliant,
+Detecting inﬂuenza epidemics using search engine query data, Nature 457 (2009)
+1012.
+[4] R.W. White, N.P. Tatonetti, N.H. Shah, R.B. Altman, E. Horvitz, Web-scale pharmacovigilance: listening to signals from the crowd, J. Am. Med. Inform. Assoc. 20
+(2013) 404–408.
+[5] A. Sarker, R. Ginn, A. Nikfarjam, K. O’Connor, K. Smith, S. Jayaraman,
+T. Upadhaya, G. Gonzalez, Utilizing social media data for pharmacovigilance: a
+review, J. Biomed. Inform. 54 (2015) 202–212.
+[6] E. Yom-Tov, E. Gabrilovich, Postmarket drug surveillance without trial costs: discovery of adverse drug reactions through large-scale analysis of web search queries,
+J. Med. Internet Res. 15 (2013).
+[7] R. Feldman, Utilizing text mining on online medical forums to predict label change
+
+[31]
+
+[32]
+[33]
+
+[34]
+
+[35]
+
+[36]
+[37]
+
+131
+
+due to adverse drug reactions, Proceedings of the 21th ACM SIGKDD International
+Conference on Knowledge Discovery and Data Mining (2015).
+C.C. Freifeld, J.S. Brownstein, C.M. Menone, W. Bao, R. Filice, T. Kass-Hout,
+N. Dasgupta, Digital drug safety surveillance: monitoring pharmaceutical products
+in twitter, Drug Saf. 37 (2014) 343–350.
+D.W. Bates, Preventing medication errors: a summary, Am. J. Health-system Pharm.
+64 (2007) S3–S9.
+M. Salathé, Digital pharmacovigilance and disease surveillance: combining traditional and big-data systems for better public health, J. Infect. Dis. 214 (2016)
+S399–S403.
+R. Sloane, O. Osanlou, D. Lewis, D. Bollegala, S. Maskell, M. Pirmohamed, Social
+media and pharmacovigilance: a review of the opportunities and challenges, Br. J.
+Clin. Pharmacol. 80 (2015) 910–920.
+M. Yang, M. Kiang, W. Shang, Filtering big data from social media–Building an
+early warning system for adverse drug reactions, J. Biomed. Inform. 54 (2015)
+230–240.
+R. Ginn, P. Pimpalkhute, A. Nikfarjam, A. Patki, K. O’Connor, A. Sarker,
+G. Gonzalez, Mining twitter for adverse drug reaction mentions: a corpus and
+classiﬁcation benchmark, Proceedings of the Fourth Workshop on Building and
+Evaluating Resources for Health and Biomedical Text Processing (BioTxtM) (2014).
+A. Sarker, A. Nikfarjam, G. Gonzalez, Social media mining shared task workshop,
+Biocomputing 2016: Proceedings of the Paciﬁc Symposium (2016) 581–592.
+A. Patki, A. Sarker, P. Pimpalkhute, A. Nikfarjam, R. Ginn, K. O’Connor, K. Smith,
+G. Gonzalez, Mining adverse drug reaction signals from social media: going beyond
+extraction, Proc. BioLinkSig 2014 (2014) 1–8.
+A. Sarker, G. Gonzalez, Portable automatic text classiﬁcation for adverse drug reaction detection via multi-corpus training, J. Biomed. Inform. 53 (2015) 196–207.
+P. Branco, L. Torgo, R. Ribeiro, A survey of predictive modelling under imbalanced
+distributions, ACM Comput. Surv. 49 (2015).
+M. Galar, A. Fernandez, E. Barrenechea, H. Bustince, F. Herrera, A review on ensembles for the class imbalance problem: bagging-, boosting-, and hybrid-based
+approaches, IEEE Transactions on Systems, Man, and Cybernetics, IEEE Trans. Syst.
+Man Cybern. C Appl. Rev. 42 (2012) 463–484.
+G. Haixiang, L. Yijing, J. Shang, G. Mingyun, H. Yuanyue, G. Bing, Learning from
+class-imbalanced data: review of methods and applications, Expert Syst. Appl. 73
+(2017) 220–239.
+N.V. Chawla, K.W. Bowyer, L.O. Hall, W.P. Kegelmeyer, SMOTE: synthetic minority
+over-sampling technique, J. Artif. Intell. Res. 16 (2002) 321–357.
+A. Sarker, G. Gonzalez-Hernandez, Overview of the second social media mining for
+health (SMM4H) shared tasks at AMIA 2017, Proceedings of the 2nd Social Media
+Mining for Health Research and Applications Workshop Co-Located With the
+American Medical Informatics Association Annual Symposium (AMIA 2017)
+Washington D.C. (2017) 43–48.
+H.-J. Dai, M. Touray, C.-K. Wang, J. Jonnagaddala, S. Syed-Abdul, Feature
+Engineering for Recognizing Adverse Drug Reactions from Twitter Posts,
+Information (2016).
+O. Owoputi, B. O’Connor, C. Dyer, K. Gimpel, N. Schneider, N.A. Smith, Improved
+part-of-speech tagging for online conversational text with word clusters,
+Proceedings of the Conference of the North American Chapter of the Association for
+Computational Linguistics (2013).
+Retrieved, (2019) April 1from http://hunspell.github.io/.
+A. Nikfarjam, A. Sarker, K. O’Connor, R. Ginn, G. Gonzalez, Pharmacovigilance
+from social media: mining adverse drug reaction mentions using sequence labeling
+with word embedding cluster features, J. Am. Med. Inform. Assoc. 22 (2015)
+671–681.
+S. Liu, W. Ma, R. Moore, V. Ganesan, S. Nelson, RxNorm: prescription for electronic
+drug information exchange, IT Prof. 7 (2005) 17–23.
+Retrieved, (2019) April 1from http://snowball.tartarus.org/.
+W.W. Chapman, W. Bridewell, P. Hanbury, G.F. Cooper, B.G. Buchanan, A simple
+algorithm for identifying negated ﬁndings and diseases in discharge summaries, J.
+Biomed. Inform. 34 (2001) 301–310.
+T. Mikolov, K. Chen, G. Corrado, J. Dean, Eﬃcient estimation of word representations in vector space, Proceedings of the International Conference on
+Learning Representations, (2013).
+F. Godin, B. Vandersmissen, W. De Neve, R. Van de Walle, Multimedia lab @ ACL
+WNUT NER shared task: named entity recognition for twitter microposts using
+distributed word representations, Proceedings of the Workshop on Noisy UserGenerated Text, (2015), pp. 146–153.
+C. De Boom, S. Van Canneyt, T. Demeester, B. Dhoedt, Representation learning for
+very short texts using weighted word embedding aggregation, Pattern Recognit.
+Lett. 80 (2016) 150–156.
+I. Tomek, Two modiﬁcations of CNN, IEEE Trans. Systems, Man and Cybernetics 6
+(1976) 769–772.
+N.V. Chawla, A. Lazarevic, L.O. Hall, K.W. Bowyer, SMOTEBoost: improving prediction of the minority class in boosting, European Conference on Principles of Data
+Mining and Knowledge Discovery (2003) 107–119.
+C. Seiﬀert, T.M. Khoshgoftaar, J. Van Hulse, A. Napolitano, RUSBoost: a hybrid
+approach to alleviating class imbalance, IEEE Transactions on Systems, Man, and
+Cybernetics-Part A: Systems and Humans 40 (2010) 185–197.
+X.-Y. Liu, J. Wu, Z.-H. Zhou, Exploratory undersampling for class-imbalance
+learning, IEEE transactions on systems, man, and cybernetics, IEEE Trans. Syst. Man
+Cybern. B Cybern. 39 (2009) 539–550.
+R.E. Schapire, A brief introduction to boosting, Ijcai (1999) 1401–1406.
+T. Chen, R. Xu, B. Liu, Q. Lu, J. Xu, WEMOTE-word embedding based minority
+oversampling technique for imbalanced emotion and sentiment classiﬁcation,
+Workshop on Issues of Sentiment Discovery and Opinion Mining, (2014).
+
+International Journal of Medical Informatics 129 (2019) 122–132
+
+H.-J. Dai and C.-K. Wang
+
+2009, IEEE 12th International Conference on (2009) 460–467.
+[51] J. Platt, Probabilistic outputs for support vector machines and comparisons to
+regularized likelihood methods, Advances in Large Margin Classiﬁers 10 (1999)
+61–74.
+[52] M. Rastegar-Mojarad, R.K. Elayavilli, Y. Yu, H. Liu, Detecting signals in noisy datacan ensemble classiﬁers help identify adverse drug reaction in tweets, Proceedings
+of the Social Media Mining Shared Task Workshop at the Paciﬁc Symposium on
+Biocomputing, (2016).
+[53] S. Kiritchenko, S.M. Mohammad, J. Morin, B. de Bruijn, NRC-Canada at SMM4H
+shared task: classifying tweets mentioning adverse drug reactions and medication
+intake, Proceedings of the 2nd Social Media Mining for Health Research and
+Applications Workshop, (2017).
+[54] B. Ofoghi, S. Siddiqui, K. Verspoor, Read-biomed-ss: adverse drug reaction classiﬁcation of microblogs using emotional and conceptual enrichment, Proceedings of
+the Social Media Mining Shared Task Workshop at the Paciﬁc Symposium on
+Biocomputing, (2016).
+[55] Z. Zhang, J. Nie, X. Zhang, An ensemble method for binary classiﬁcation of adverse
+drug reactions from social media, Proceedings of the Social Media Mining Shared
+Task Workshop at the Paciﬁc Symposium on Biocomputing, (2016).
+[56] S. Jain, X. Peng, B.C. Wallace, Detecting twitter posts with adverse drug reactions
+using convolutional neural networks, Proceedings of the 2nd Social Media Mining
+for Health Research and Applications Workshop, (2017).
+[57] A. Magge, M. Scotch, G. Gonzalez, CSaRUS-CNN at AMIA-2017 tasks 1, 2: under
+sampled CNN for text classiﬁcation, Proceedings of the 2nd Social Media Mining for
+Health Research and Applications Workshop, (2017), pp. 76–78.
+[58] S. Wang, X. Yao, Diversity analysis on imbalanced data sets by using ensemble
+models, IEEE Symposium on Computational Intelligence and Data Mining
+(CIDM’09) (2009) 324–331.
+[59] C. Drummond, R.C. Holte, C4. 5, class imbalance, and cost sensitivity: why undersampling beats over-sampling, Workshop on learning from imbalanced datasets II,
+Citeseer (2003) 1–8.
+
+[38] M. Kusner, Y. Sun, N. Kolkin, K. Weinberger, From word embeddings to document
+distances, International Conference on Machine Learning, (2015), pp. 957–966.
+[39] G. Monge, Mémoire sur la théorie des déblais et des remblais, Histoire de
+l’Académie Royale des Sciences de Paris (1781).
+[40] G.M. Weiss, K. McCarthy, B. Zabar, Cost-sensitive learning vs. Sampling: which is
+best for handling unbalanced classes with unequal error costs? Proceedings of the
+2007 International Conference on Data MiningLas Vegas (2007) 25–28.
+[41] I.H. Witten, E. Frank, Data Mining: Practical Machine Learning Tools and
+Techniques with Java Implementations, Morgan Kaufmann, 1999.
+[42] A. Sun, E.-P. Lim, Y. Liu, On strategies for imbalanced text classiﬁcation using SVM:
+a comparative study, Decis. Support Syst. 48 (2009) 191–201.
+[43] N. Thai-Nghe, Z. Gantner, L. Schmidt-Thieme, Cost-sensitive learning methods for
+imbalanced data, neural networks (IJCNN), The 2010 International Joint
+Conference on (2010) 1–8.
+[44] P. Domingos, Metacost: a general method for making classiﬁers cost-sensitive,
+Proceedings of the Fifth ACM SIGKDD International Conference on Knowledge
+Discovery and Data Mining (1999) 155–164.
+[45] K. Veropoulos, C. Campbell, N. Cristianini, Controlling the sensitivity of support
+vector machines, Proceedings of the International Joint Conference on AI, (1999)
+pp. 60.
+[46] C.-C. Chang, C.-J. Lin, LIBSVM: a library for support vector machines, ACM Trans.
+Intell. Syst. Technol. (TIST) 2 (2011) 27.
+[47] LIBSVM. Retrieved, (2019) April 1from https://www.csie.ntu.edu.tw/˜cjlin/
+libsvm/.
+[48] J.C. Platt, Fast training of support vector machines using sequential minimal optimization, in: S. Bernhard, lkopf, J.C.B. Christopher, J.S. Alexander (Eds.), Advances
+in Kernel Methods, MIT Press, 1999, pp. 185–208.
+[49] G. Holmes, A. Donkin, I.H. Witten, Weka: a machine learning workbench,
+Proceedings of the 1994 Second Australian and New Zealand Conference on
+Intelligent Information Systems (1994) 357–361.
+[50] O. Pele, M. Werman, Fast and robust earth mover’s distances, computer vision,
+
+132
+
+

@@ -1,0 +1,1520 @@
+Received September 17, 2020, accepted October 5, 2020, date of publication October 7, 2020, date of current version October 21, 2020.
+Digital Object Identifier 10.1109/ACCESS.2020.3029446
+
+Predicting Drug Risk Level from Adverse
+Drug Reactions Using SMOTE and Machine
+Learning Approaches
+JIANXIANG WEI
+
+1 School
+
+1,
+
+ZHIQIANG LU
+
+2,
+
+KAI QIU
+
+2,
+
+PENGYANG LI
+
+2,
+
+AND HAOFEI SUN
+
+2
+
+of Management, Nanjing University of Posts and Telecommunications, Nanjing 210003, China
+2 School of Internet of Things, Nanjing University of Posts and Telecommunications, Nanjing 210003, China
+
+Corresponding author: Zhiqiang Lu (lu_zhiqiang@foxmail.com)
+This work was supported in part by the Science and Technology Innovation Training Program of Nanjing University of Posts and
+Telecommunications under Grant SZDG2019028, and in part by the Major Project of Philosophy and Social Science Research in Jiangsu
+Universities under Grant 2020SJZDA102.
+
+ABSTRACT Adverse drug reactions (ADRs) are the major source of morbidity and mortality. The prediction
+of drug risk level based on ADRs is few. Our study aims at predicting the drug risk level from ADRs
+using machine learning approaches. A total of 985,960 ADR reports from 2011 to 2018 were attained
+from the Chinese spontaneous reporting database (CSRD) in Jiangsu Province. Among them, there were
+887 Prescription (Rx) Drugs (84.72%), 113 Over-the-Counter-A (OTC-A) Drugs (10.79%) and 47 OTC-B
+Drugs (4.49%). An over-sampling method, Synthetic Minority Oversampling Technique (SMOTE), was
+applied to the imbalanced classification. Firstly, we proposed a multi-classification framework based
+on SMOTE and classifiers. Secondly, drugs in CSRD were taken as the samples, ADR signal values
+calculated by proportional reporting ratio (PRR) or information component (IC) were taken as the features.
+Then, we applied four classifiers: Random Forest (RF), Gradient Boost (GB), Logistic Regression (LR),
+AdaBoost (ADA) to the tagged data. After evaluating the classification results by specific metrics, we finally
+obtained the optimal combination of our framework, PRR-SMOTE-RF with an accuracy rate of 0.95.
+We anticipate that this study can be a strong auxiliary judgment basis for experts on the status change of
+Rx Drugs to OTC Drugs.
+INDEX TERMS Adverse drug reaction, drug risk level, imbalanced dataset, multi-classification, machine
+learning, SMOTE.
+
+I. INTRODUCTION
+
+Adverse drug reactions (ADRs) are unwanted phenotypic
+responses caused due to alterations in biological pathways in
+response to drug treatments [1]. More detailed definition of
+ADRs was given in The lancet [2], ‘‘an appreciably harmful
+or unpleasant reaction, resulting from an intervention related
+to the use of a medicinal product, which predicts hazard from
+future administration and warrants prevention or specific
+treatment, or alteration of the dosage regimen, or withdrawal
+of the product.’’ Owing to the growing number of morbidity
+and mortality caused by severe ADRs, studies on ADRs
+have become vital. Drugs as the macroscopic entities acting
+directly on human bodies, are the direct cause of ADRs.
+Therefore, the drug risk level determined by ADRs can be a
+The associate editor coordinating the review of this manuscript and
+approving it for publication was Ikramullah Lali
+
+VOLUME 8, 2020
+
+.
+
+powerful auxiliary judgment basis for experts. Furthermore,
+this will be helpful for one application scenario: when a new
+drug produced by a pharmaceutical company is put on the
+market and used in clinical practice for a period, ADR reports
+are collected to determine the risk level of the drug. Then the
+drug is re-evaluated to decide whether to continue circulation
+or withdraw.
+According to the Food and Drug Administration (FDA),
+drugs can be divided into two categories, Prescription (Rx)
+Drugs and Over-the-Counter (OTC) Drugs. Rx Drugs are
+prescribed by a doctor, which usually has strong pharmacology effects, thus the application method and duration of
+medication have special requirements. Highly toxic, highly
+dependent, newly marketed or other specific drugs are usually
+listed as Rx Drugs. OTC Drugs do not require a doctor’s
+prescription. According to self-judgment, the patient can buy
+the OTC Drugs selectively without the guidance of the doctor
+
+This work is licensed under a Creative Commons Attribution 4.0 License. For more information, see https://creativecommons.org/licenses/by/4.0/
+
+185761
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+to relieve the mild short-term illness and discomfort. They
+are relatively safe to use in accordance with the requirements
+specification. For OTC Drugs, Chinese FDA (CFDA) further
+divide OTC Drugs into two categories, OTC-A Drugs and
+OTC-B Drugs. OTC-B Drugs have higher risk controllability
+than OTC-A Drugs. Therefore, the inductive drug risk level
+order for our experiment is Rx Drugs > OTC-A Drugs >
+OTC-B Drugs. After introducing the drug risk level, the application scenario mentioned above turns into the status of drugs
+changing problems [3]. Changing the status of drugs from
+Rx Drugs to OTC-A or OTC-B Drugs provides patients with
+improved access to effective therapies. Eliminating prescription requirements saves both the healthcare professionals’
+and the patients’ time.
+ADR reports are usually collected from spontaneous
+reporting databases for signal detection. The spontaneous
+reporting database is a pharmacovigilance means adopted by
+many countries for ADR signal detection. Doctors, patients
+and medical institutions voluntarily report to drug regulatory agencies through the network to form this database.
+With uncertain numerators and denominators, the original
+databases don’t have the clear probability structure so that
+the incidence rates or severe rates cannot be calculated. [4]
+However, the target drug risk level is not only determined by
+the frequency of ADR reports (non-probabilistic structure),
+but also affected by the severity of ADRs. The ADRs of a
+high-risk drug are rare but may be dangerous or even fatal.
+Just considering the frequency of ADRs would also neglect
+the significant information contained in the ADR reports
+database. Thus, a lot of signal detection methods were proposed to solve this problem, including Proportional Reporting
+Ratio (PRR) [5], Reporting Odds Ratio (ROR) [6], Medicines
+and Healthcare products Regulatory Agency (MHRA) [5]
+and Information Component (IC) [7]. These calculations,
+also called the disproportionality analyses, differ from one
+another. The PRR, MHRA and ROR are frequentist (nonBayesian), whereas the IC is Bayesian [8].
+Taking the Rx Drugs, OTC-A Drugs and OTC-B Drugs as
+the labels and signal detection values of drug-ADR pairs as
+the dataset, we could construct the multi-classification model
+in supervised machine learning.
+Observing the spontaneous databases, we could find the
+three drug risk levels are imbalanced, which disturbs the traditional classification. Traditional classification techniques
+tend to be overwhelmed by the majority class and neglect the
+minority class. For instance, in the spontaneous databases,
+the number of Rx Drugs are much larger than that of OTC
+Drugs, taking up 95% and 5% separately. Then even all drugs
+are classified as the Rx Drugs, it can also achieve a high
+accuracy rate of 95%. However, all the OTC drugs have been
+incorrectly classified in the majority Rx Drugs class, which
+also proves the accuracy rate is not suitable for imbalanced
+classification.
+Synthetic Minority Oversampling Technique (SMOTE)
+algorithm is an over-sampling method proposed by
+Chawla [9]. It is applied to balance the dataset by
+185762
+
+increasing the number of samples in the minority class based
+on k-nearest neighbors to almost equal classes. Due to the
+simplicity and associativity of the SMOTE, it has various
+extended approaches in related work.
+The aim of this study is to predict the drug risk level from
+ADRs using SMOTE and machine learning to explore the
+mechanism of ADRs determining drug risk level. We propose
+a framework that combines signal detection, the improved
+SMOTE algorithm and the multi-classifier specially for a
+spontaneous reporting database. At the same time, we give the
+best structure combination and evaluation metrics performing
+well on imbalanced multi-classification.
+The rest of the paper is organized as follows. Section II
+reviews the related work of ADRs and SMOTE. Section III
+discusses the dataset, signal detection, feature scaling, used
+machine learning classification models and evaluation metrics. Section IV illustrates the proposed framework. Section V
+presents the experiments and results. Section VI discusses the
+experimental results. Finally, section VII concludes the paper
+and provide possible directions for future work.
+II. RELATED WORK
+
+There are two mainstream methods for ADR signal detection: frequentist (non-Bayesian) and Bayesian. PRR, ROR,
+MHRA are the representations of frequentist methods,
+while IC is the symbol of Bayesian methods. In 2002,
+Puijenbroek et al. [10] made a detailed comparative analysis
+of these methods. In the study, they summarized the pros
+and cons generally recognized in subsequent studies. PRR
+is highly explanatory and most widely applicable, but its
+standard error cannot always be calculated. ROR is easy to be
+applied and feasible in logistic regression, but its following
+disadvantages are obvious—it is difficult to be interpreted,
+unreliable in the case of small numbers in cells and hard to
+be calculated if denominator is zero. IC is always applicable,
+suitable for the large numbers of calculations and usable
+for pattern recognition in high dimensions. From that we
+can get there is no uniform standard that can be applied in
+every situation. Consequently, we choose the representative
+PRR and IC as comparison targets to explore the best signal
+detection method in our predictive framework.
+The studies on predicting the drug labels based on ADR
+signal detection have much potential for further exploration.
+In 2013, Gurulingappa [11] applied the ADR signal detection
+to predicting drug label changes. In their study, ADR signals
+generated from different datasets were manually compared
+against drug label changes. However, the manual comparison
+can take a lot of time and efforts, lacking automatic association of signal values with drug labels. Most studies in ADRs
+have focused on the following three aspects.
+The first aspect is the improvement of traditional signal
+detection method. In 2007, Almenoff et al. [12], described
+the statistical concepts behind these traditional quantitative
+signal detection methods and provided examples of how
+these methods can be used to identify new drug interactions.
+In 2017, Pierce et al. [13] applied a semi-automated approach
+VOLUME 8, 2020
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+to social media monitoring to explore whether social media
+can provide warnings for serious and rare events earlier
+than traditional signal detection from spontaneous reporting
+database. They confirmed the higher speed of social media
+to some extent. In 2018, Schollto et al. [14] developed a new
+prediction model-based approach to improve the efficiency of
+full database screening. Compared with the traditional signal
+detection method ROR, the AUC increased from 0.649 to
+0.740, the proportion of potential signals increased from
+12.3% to 19.4%. In the same year, Xiao et al. [15] developed a
+new framework that detects signals from various data sources
+via two steps, Monte Carlo Expectation Maximization and
+signal combination.
+Secondly, the classification of ADRs is popular in recent
+years. In 2016, Kaufman [16] introduced a classification
+standard of ADRs: type A (known, high morbidity and low
+mortality), type B idiosyncratic (low morbidity and high
+mortality), type C (continuing), type D (delayed use) and
+type E (end of use) reactions. In 2019, to resolve entity-level
+ADR classification tasks, Alimova et al. [17] investigated
+deep neural network models in the natural language processing field based on various ADR corpus. In the same
+year, to improve ADR classification in social media postings,
+Alhuzali et al. [18] proposed a neural model that combines
+sentiment analysis with transfer learning techniques.
+Finally, the prediction of drug interaction based on ADRs
+is also a mainstream research direction. In 2016, Li et al. [19]
+proposed a novel data-driven approach for drug combinations
+prediction based on data from spontaneous reporting system.
+In their research, they predicted an interesting interaction that
+one drug could reduce the ADRs of the other.
+Through the above massive literature research, our study is
+the first to predict the drug risk level based on ADRs or ADR
+signal detection as far as we know.
+In the field of medicine, the use of machine learning to
+solve classification problems is common and widely used,
+and the imbalance of data is also a common phenomenon
+in classification, which causes problems to classifiers and
+classification evaluation metrics. The proposal of SMOTE
+greatly improves the accuracy of classification. In recent
+years, the combination of SMOTE and classifiers has been
+widely used in the medical field. For the SMOTE-Random
+Forest combination, Abdoh et al. [20] used Random Forest
+classifier with SMOTE and feature reduction techniques
+to help cervical cancer diagnosis in 2017, Tao et al. [21]
+used SMOTE-Random Forest to construct a predictive tool
+‘‘WarfarinSeer’’ in 2018. For the SMOTE-Gradient Boost
+combination, Lin et al. [22] proposed an efficient classification method of Hot Spots and Hub Protein Interfaces based on
+SMOTE-Gradient Boost in 2019. For the SMOTE-XGBoost
+combination, Mahmud et al. [23] identified drug–target interaction based on and protein sequence and drug chemical
+structure using XGBoost with SMOTE in 2019.
+However, there is a lack of a comprehensive and representative comparison. Therefore, when selecting a classifier,
+since the classifiers are divided into ensemble classifiers
+VOLUME 8, 2020
+
+and individual classifiers, the ensemble classifiers are further
+divided into two types: Boosting and Bagging. We chose the
+most representative algorithm from each of them, including
+Random Forest (Bagging algorithm), Gradient Boost (Boosting algorithm), AdaBoost (Boosting algorithm) and Logistic
+Regression (individual algorithm).
+III. MATERIALS AND METHODS
+A. DATASET
+
+A total of 985,960 ADR reports from 2011 to 2018 were
+obtained from the Chinese spontaneous reporting database
+(CSRD) in Jiangsu Province. In the spontaneous reporting database, an ADR report (also called a tuple) contained fields which were report ID, report address, patient
+age, patient gender, drug name and ADR name. Those
+ADR reports were divided into one-to-one relationship
+between drug and ADR. Therefore, drug-ADR pairs with
+their matching frequencies were obtained. Then, we got
+the dataset Frequency_DATA consisting of 3262 drugs and
+3163 ADRs. After normalizing the names of drugs and
+ADRs and deleting the drug-ADR pairs with frequencies less
+than 3, we got the dataset Normalized_Frequency_DATA
+containing 1047 drugs and 751 ADRs. Then we visited
+authoritative China Medical Information Platform and manually tagged drugs with 0,1,2 labels, representing Rx Drug,
+OTC-A Drug, OTC-B Drug. Then we named the dataset as
+Tagged_Frequency_DATA which contained 1047 samples
+and 751 features. Thus, the 1047 drugs were divided into
+three classes in descending order of risk level. Among them,
+there were 887 Rx Drugs (label = 0, 84.72%), 113 OTC-A
+Drugs (label = 1, 10.79%) and 47 OTC-B Drugs (label =
+2, 4.49%). The preliminary statistical results suggested that
+Tagged_Frequency_DATA were highly imbalanced, sparse
+and high-dimensional.
+Tagged_Frequency_DATA can be described as the
+following.
+Sample space:
+X = {x1 , x2 , . . . , xm }, m = 1047
+
+(1)
+
+The drugs and ADRs made up the Sample space together,
+drugs were the samples and ADRs were the features.
+Feature vector:
+xi = (xi1 ; xi2 ; ...; xid ) ∈ X,
+
+i ∈ [1, 1047], d = 751 (2)
+
+Every sample was described by d features, and x is one
+of feature vectors in sample space. Where x represents the
+frequency under the matching drug-ADR pair.
+Label space:
+Y = {0, 1, 2}
+
+(3)
+
+The numbers 0,1,2 mean Rx Drug, OTC-A Drug, OTC-B
+Drug severally.
+Label:
+y∈Y
+
+(4)
+185763
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+The minority class sets P 1 , P 2 and majority class set N
+were then defined as:
+N = {(x, y) |y = 0 } ,
+P 2 = {(x, y) |y = 2 }
+
+P 1 = {(x, y) |y = 1 } ,
+(5)
+
+Thus, in the process of classification, we faced the
+P 1 , P 2  N for highly imbalanced problems. Also,
+the sparse and high-dimensional problems exited, because
+many drugs had a few limited ADRs while the dimension was
+determined by all ADRs.
+B. SIGNAL DETECTION
+
+The target drug risk level is not only determined by the absolute number of ADR reports, but also affected by the severity
+of ADRs. However, the serious ADRs are normally rare in
+database. In other words, a high-risk level drug may only
+have several ADRs, but they may be severe or even deadly.
+Considering the two factors both affect the drug risk level,
+we introduced the two signal detection measures represented
+as frequentist and Bayesian respectively based on disproportionate reporting. Subsequently, the signal detection results
+were taken as the feature values during the classification
+process.
+Moreover, calculations of measures of disproportionality
+are generally based on the same principles of calculation
+using the two-by-two contingency table [10].
+TABLE 1. Two-by-two contingency table.
+
+1) PROPORTIONAL REPORTING RATIO (PRR)
+
+Proportional Reporting Ratio (PRR) is a classical method for
+signal detection. It was first applied by Evans [5]. He proposed that the PRR values generated are measures related to
+strength of association which behave in a similar fashion to
+relative risks. That is, the higher the PRR is, the greater the
+strength of the drug-ADR pair signal is. It is a good choice to
+reveal the inherent law of drug risk level.
+The formula to compute PRR value is:
+
+a (a + b)
+(6)
+PRR = 
+c (c + d)
+In our experiment, after computing the PRR values
+of all drug-ADR pairs from Tagged_Frequency_DATA,
+frequencies were substituted with PRR values. Then x in (2)
+represents the PRR value under the matching drug-ADR
+pair. Thus, the dataset Tagged_Frequency_DATA was transformed into the dataset PRR_DATA (imbalanced).
+185764
+
+2) INFORMATION COMPONENT (IC)
+
+Information component (IC) [7] comes from the information theory. Its value represents the strength of association
+between the concrete states of the two variables. Its form
+is from the mutual information. It is the logarithmic form
+of the symmetrical factor relating to the prior and posterior
+probability:
+P(A, D)
+(7)
+IC = log2
+P(A)P(D)
+Since the focus was the strength of the IC between specific
+drugs and ADRs present in the same report, we could neglect
+the other three states of the two variables. In other words,
+P (A) can be defined as the probability that a concrete ADR
+is present in a report; P (D) can be defined as the probability
+that a concrete drug is present in a report; thus P (A, D) is cooccurrence probability that both a concrete drug and an ADR
+are present in the same report.
+As the probabilities are unknown, a beta distribution
+is asserted for each probability. From the distribution,
+we can calculate the mathematical expectation of IC of each
+drug-ADR pair [10]:
+
+cij + γij (C + α) (C + β)
+
+(8)
+E(ICij ) = log2
+(C + γ ) (ci + αi ) cj + βj
+where
+γ = γij
+
+(C + α) (C + β)
+·
+(ci + αi ) (cj + β)
+
+(9)
+
+and γij = 1, αi = 1, α = 2, βj = 1, β = 2 according
+to the information theory [24]. C represents the total number
+of ADR reports in our database, cij is the number of specific
+drug-ADR pairs, ci is the number of all ADRs caused by a
+target drug, cj is the number of all drugs that leading to a
+target ADR.
+Similarly, after the IC values of all drug-ADR pairs from
+Tagged_Frequency_DATA were computed, frequencies
+were substituted with IC values. Then x in (2) represents the
+IC value under the matching drug-ADR pair. Thus, the dataset
+was transformed into the dataset IC_DATA (imbalanced).
+C. FEATURE SCALING
+
+Feature scaling can accelerate the speed of finding the optimal solution and improve the accuracy of classification model
+under a big dataset. Among all the ADR features, the PRR
+or Chi-Square values of some features have a large span.
+To eliminate impact caused by that without being affected
+by the sparse dataset problem, we applied the MaxAbsScaler
+with our methods. The MaxAbsScaler feature scaling method
+is described below:
+It scales each feature by its maximum absolute value.
+This approach scales and translates each feature individually.
+It does not shift or concentrate the data and thus does not
+destroy any sparsity.
+The formula is:
+x
+x0 =
+(10)
+max {|x|}
+VOLUME 8, 2020
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+From the formula, the maximal absolute value of each
+feature in the training set will be 1.0.
+D. SYNTHETIC MINORITY OVERSAMPLING TECHNIQUE
+(SMOTE)
+
+In the first experiment, we ignored the category imbalance
+phenomenon and found that the accuracy rate of the model
+was very high. However, when we focused on the precision and recall of the model, we found the anomaly. The
+results were dominated by Rx Drugs, almost all the drugs
+were classified as Rx Drugs. In this study, we used an oversampling technique called SMOTE to make the number of
+Rx Drugs, OTC-A Drugs, OTC-B Drugs equal to balance
+our dataset. Also, according to the original theory [9], the
+generation ratio
+ N % needs to be set. However, the iterations
+N = (int)(N 100) leading to the amount of new generated
+samples is assumed to be in integral multiples of original
+minority samples. This will result in roughly equal categories.
+Thus, we used the improved SMOTE algorithm.
+We constructed the nearest neighbor matrix, with the
+original samples indexes in P 1 , P 2 were taken as rows, and
+the k nearest neighbors indexes were columns. Each selected
+row index i and column index knn were determined by randomly generated sample sequences:
+s = rand(0, Ngenerated )
+i = s÷k
+knn = s%k
+
+(11)
+(12)
+(13)
+
+where the s ÷ k means s is divided by k with simple chopping
+(simple chopping is assumed without rounding), and the s%k
+means s mod k (the remainder when s is divided by k).
+This process generated both the random original sample i
+and its nearest neighbor knn simultaneously, which could
+allow the generation process to be controlled to exactly equal
+categories P 1 , P 2 , N.
+Then the process can be described below:
+Step 1: Select randomly both the original sample xi in
+P 1 and its k-nearest neighbor xknn in P 1 . (xi , xknn are PRR
+feature vectors)
+Step 2: Calculate the difference between the xi and xknn .
+Step 3: Multiply the calculated difference by a random
+number gap between 0 and 1.
+Step 4: Add the result of step 3 to the original sample xi to
+select a new point on the line segment between xi and xknn .
+Step 5: Repeat steps from 1 to 4 until the number of
+samples in P 1 equals to N.
+Step 6: Repeat steps from 1 to 5, but substitute P 1 with P 2
+Step 7: Repeat steps from 1 to 6, but substitute PRR feature
+vectors with IC feature vectors.
+Finally, we could get the PRR_DATA (balanced) and
+IC_DATA (balanced).
+E. RANDOM FOREST (RF)
+
+Random Forest was first proposed by Breiman in 2001 [25].
+The random forests algorithm is a type of Bagging classifier
+VOLUME 8, 2020
+
+with a wide range of applications, outstanding universality,
+and robustness for avoiding overfitting. RF further introduces
+random attribute selection in the training process of decision
+tree based on Bagging integration. Specifically, the traditional
+decision tree selects an optimal attribute in the set of attributes
+(assuming d attributes) of the current node when selecting
+the partitioning attribute. In RF, for each node of the base
+decision tree, a subset containing k attributes is randomly
+selected from the attribute set of the node, and then an optimal
+attribute is selected from the subset for partitioning.
+The RF algorithm can be implemented in the following
+steps.
+Step 1: Use Bootstrap Method (a method relies on random
+sampling with replacement) to select the samples from the
+dataset.
+Step 2: Unsampled samples are used in out-of-bag estimate.
+Step 3: Assuming the dimension of each sample is d, that
+is d attributes of each sample, each node randomly selects a
+k-size subset from d attributes (where k  d).
+Step 4: Use the k attributes selected in step 3 to construct
+a partition and use the best split point to calculate the next
+node. (In order to get the best split point, use some measures
+such as Gini impurity, information gain and information gain
+ratio to measure the quality of a split.)
+Step 5: Partition the tree repeatedly until only one leaf node
+is reached and the tree is finished without pruning.
+Step 6: Build the forest by repeating step 1 to step 5 to get
+trained trees.
+Step 7: Obtain the prediction data from the trained trees
+using the trees classification voting.
+Step 8: Build the final RF model using the highest voted
+attributes.
+The introduction of two randomness in step 1 and step 3 is
+very important to the classification performance of RF. That
+is why RF is not easy to fall into overfitting and has good
+noise resistance.
+F. LOGISTIC REGRESSION (LR)
+
+Logistic Regression is one of the most frequently used
+machine learning algorithms in binary classification. It is
+simple in design, easy to be implemented, usable as a
+performance benchmark, and also performs well in many
+tasks. Given the multi-class of our experiment, Multinomial
+Logistic Regression, also called Polytomous Logistic
+Regression [26], was applied in our experiment.
+The Multinomial Logistic Regression model in our
+experiment can be defined as below:
+
+P(y = k |x) =
+
+
+
+
+
+
+
+
+
+P(y = k |x) =
+
+
+
+
+
+
+
+
+1+
+
+1+
+
+ewk ·x
+K
+−1
+X
+
+e
+
+k=1
+1
+K
+−1
+X
+
+,
+
+k = 1, 2, . . . , K − 1
+
+,
+
+k=K
+
+wk ·x
+
+(14)
+
+ewk ·x
+
+k=1
+185765
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+The LR algorithm can be implemented in the following
+steps.
+Step 1: Using maximum a posteriori (MAP) estimation to
+estimate the unknown parameters in each vector wk .
+Step 2: Compute the P(y = k |x) , k = 1, 2, . . . , K for
+each feature vector x in testing dataset.
+Step 3: Compare the K probabilities of each feature
+vector x and select the y corresponding to the maximum of
+the probabilities as the prediction.
+G. ADABOOST (ADA)
+
+AdaBoost short for Adaptive Boosting is a machine learning algorithm formulated by Freund and Schapire [27]. The
+core feature of AdaBoost is the use of multiple classifiers at
+the same time. More specifically, the weight of the training
+samples of the next classifier will be adjusted accordingly
+with the classification effect of the previous classifier. Also,
+coefficients of classifiers will be affected by the classification error rates when they are combined into a strong
+classifier.
+However, AdaBoost can only deal with a binary
+classification. In order to solve the problem, we introduced the Multi-class AdaBoost (SAMME) proposed by
+Hastie et al. [28] in our experiment. SAMME has the same
+simple modular structure as AdaBoost, but there is a simple
+and subtle difference in calculating the coefficient αm of
+m − th iteration classifier Gm (x), specifically, the extra term
+log(K − 1).
+In AdaBoost algorithm, the coefficient formula can be
+defined as
+αm = log
+
+1 − errm
+errm
+
+(15)
+
+In the Multi-class AdaBoost (SAMME) algorithm,
+the coefficient formula can be defined as
+αm = log
+
+1 − errm
++ log(K − 1)
+errm
+
+1, 2, . . . , K [28].
+
+k
+
+m=1
+
+H. GRADIENT BOOST (GB)
+
+Gradient Boost was first proposed by Friedman [29], [30].
+As is mentioned above, AdaBoost adopts the strategy of
+increasing the weight of the wrong classified samples in
+the previous round of learning. While in Gradient Boost,
+the negative gradient is used as a measure of the errors of the
+previous round of the classifier, and in the next round of
+learning, the negative gradient is used to correct the errors
+made in the last round. This core of GB can be described as
+below:
+After the m − th iteration, we could get the integrated
+classifier Fm (x):
+Fm (x) = Fm−1 (x) + βm · Gm (x)
+
+(17)
+
+where, Gm (x) is the m − th iteration classifier, and βm is the
+weight of it.
+In the m − th iteration, the aim is to minimize the loss
+function:
+L(F) =
+
+N
+X
+
+L(yi , Fm (xi ))
+
+(18)
+
+i=1
+
+If F(x) is taken as a parameter, the gradient descent method
+can also be used:
+∂
+L(y, Fm−1 (x)) (19)
+Fm (x) = Fm−1 (x) − βm ·
+∂Fm−1 (x)
+Comparing formula (17) and formula (19), we could make
+the following formula true:
+
+(16)
+
+where the errm is the classification error rate, K is the number
+of classes. It is obvious that when K = 2, the SAMME
+algorithm reduces to AdaBoost algorithm.
+Therefore, the process of Multi-class AdaBoost can be
+described in the following steps.
+Step 1: Initialize the weight D1 of training samples, then
+the weight of each training sample is initialized as N1 , where
+N is the number of samples.
+Step 2: Train weak classifiers iteratively. During the iteration, the weight Di of training samples needs to be updated.
+If a sample point has been accurately classified, then its
+weight will be reduced when training the next weak classifier,
+on the contrary, if the sample point is not accurately classified,
+its weight will increase.
+Step 3: The weak classifiers are weighted and averaged to
+obtain a strong classifier. Coefficient αm of a weak classifier
+with low error rate errm will be large, coefficient αm of a weak
+classifier with high error rate errm will be small.
+185766
+
+Step 4: Get the final prediction model by combining
+the m classifiers after iteration. Assume there are M weak
+classifiers. Then the strong classifier can be described
+M
+P
+as Gm (x) = arg max
+αm · II(Gm (x) = k), k =
+
+Gm (x) ≈ −
+
+∂
+∂Fm−1 (x)
+
+L(y, Fm−1 (x))
+
+(20)
+
+Minimize it by the gradient descent method, that is, use the
+classifier Gm (x) to fit the negative gradient of loss function in
+the last round.
+Except for the difference mentioned above, the process of
+GB is the same as the ADA due to the homology in boosting.
+I. EVALUATION METRICS
+
+Due to the imbalance of our data, the accuracy rate cannot be
+the only evaluations.
+Accuracy =
+
+TP0 + TP1 + TP2
+Nsamples
+
+(21)
+
+where the TP0 is the number of true positive samples with
+label 0, the TP1 is that with label 1, the TP2 is that with label 2,
+the Nsamples is the sum of testing samples.
+Using the one-vs-all method, we could get the metrics
+value (Recall, Precision and F1-score) of each label
+VOLUME 8, 2020
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+in Y = {0, 1, 2}.
+TP
+Recall =
+TP + FN
+TP
+Precision =
+TP + FP
+2 · Recall · Precision
+F1 − score =
+Recall + Precision
+
+respectively. They are respectively defined as
+(22)
+(23)
+
+macro − FPR =
+
+(24)
+
+In this study, the TP is the number of true positive
+(true label = 1 and predicted label = 1) samples with a certain
+label. The TN is the number of true negative (true label = 0
+and predicted label = 0) samples with a certain label. The FN
+is the number of false negative (true label = 1 and predicted
+label = 0) samples with a certain label. The FP is the false
+positive (true label = 0 and predicted label = 1) samples with
+a certain label. The F1-score is the harmonic mean of the
+Recall and Precision. This metric considers both Recall and
+Precision and gives them the same degree of importance. It is
+a suitable metric to evaluate imbalanced classification results.
+Receiver operating characteristic (ROC) curve was first
+introduced into machine learning by Spackman in 1989 [31].
+He used it to compare two detection systems to see if one
+is better than another, which is a good choice to evaluate a
+binary classifier when one class is rare since it considers comprehensively the classification thresholds. The ROC curve
+is a plot of true positive rate (TPR) against false positive
+rate (FPR), showing the TPR on the vertical axis and the
+FPR horizontal axis. We applied the one-hot encoding to the
+label space Y = {0, 1, 2}. Then the mapping relationship is
+established as follows:
+
+
+ 0 → 100 
+Y = 1 → 010
+(25)
+
+
+2 → 001
+One-hot encoding initially was a concept in electronic
+design, which employs one flip-flop per state for building
+state machines [32]. It was later introduced into machine
+learning. In our experiment, one-hot encoding split a threecategory classification into three two-category classifications in order to compute the macro and micro values
+and draw the comprehensive ROC curves (macro-ROC and
+micro-ROC curves). For example, in the new label space
+Y = {100, 010, 001}, the three two-category classifications
+can be described as below.
+1) Rx Drug (the first digit of label = 1), not Rx Drug (the
+first digit of label = 0).
+2) OTC-A Drug (the second digit of label = 1), not OTC-A
+Drug (the second digit of label = 0).
+3) OTC-B Drug (the third digit of label = 1), not OTC-B
+Drug (the third digit of label = 0).
+After calculating the macro-TPR and corresponding
+macro-FPR, the micro-TPR and corresponding micro-FPR,
+the macro-ROC curve and micro-ROC curve can be drawn.
+Also the AUC values of the two curves were calculated
+VOLUME 8, 2020
+
+macro − TPR =
+
+micro − TPR =
+
+=
+
+n
+
+n
+
+i=1
+n
+X
+
+i=1
+n
+X
+
+TPi
+1X
+1X
+TPRi =
+n
+n
+TPi + FNi
+
+(26)
+
+1
+n
+
+(27)
+
+FPRi =
+
+i=1
+
+=
+
+i=1
+
+FPi
+TNi + FPi
+
+TP
+TP + FN
+n
+1 P TPi
+n
+i=1
+
+n
+n
+1 P TPi + 1 P FNi
+n
+n
+i=1
+
+micro − FPR =
+
+1
+n
+
+(28)
+
+i=1
+
+FP
+TN + FP
+n
+1 P FPi
+n
+i=1
+
+n
+n
+1 P TNi + 1 P FPi
+n
+n
+i=1
+
+(29)
+
+i=1
+
+where the TPR represents the ratio of TP (true label = 1,
+predicted label = 1) samples to all actual positive (true
+label = 1) samples, FPR represents the ratio of FP (true
+label = 0, predicted label = 1) samples to all actual negative
+(true label = 0) samples. n represents the number of classes
+(n = 3). Macro and micro mean that the order of calculating
+the averages is different. The macro first calculates TPR,
+FPR, and then averages, while micro first calculates averages,
+then TPR, FPR.
+In this study, we were inspired by Lipton et al. [33]. They
+did research to compare the imbalanced multi-classification
+performance evaluated by the macro average F1-score and
+micro average F1-score, then they found macro F1-score
+was performing better. We constructed macro-ROC and
+micro-ROC curves to explore which is performing better on
+imbalanced multi-classification.
+IV. PROPOSED MODEL
+
+The aim of our proposed framework is to predict drug risk
+level from ADRs by applying SMOTE and machine learning
+approaches to explore the mechanism of ADRs determining
+drug risk level. As is shown in FIGURE 1, our framework
+can be divided into four stages: preprocessing stage, classification stage, validation stage and application stage. More
+specifically, we want to evaluate whether the use of the
+SMOTE algorithm has a significant impact on the classification results, explore which of the two signal detection
+methods (PRR and IC) is more suitable for our model structure, compare the pros and cons of the four classification
+methods (RF, GB, LR and ADA) combined with SMOTE
+respectively, and decide which of the two classification evaluation curves (the macro-ROC curve and the micro-ROC
+curve) is more suitable for evaluating the imbalanced multiclassification problem. After the above comparisons are completed, the optimal strategy is selected for each comparison.
+185767
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+(imbalanced). With the SMOTE algorithm applied into
+the above two imbalanced datasets, we got two balanced
+datasets PRR_DATA (balanced) and IC_DATA (balanced).
+Then the PRR_DATA (imbalanced) and IC_DATA (imbalanced), PRR_DATA (balanced) and IC_DATA (balanced)
+were the input for the next stage.
+B. CLASSIFICATION STAGE
+
+We made representative and careful selection of the model,
+then selected RF from the Bagging classification algorithm,
+GB and ADA from the Boosting classification algorithm, and
+LR from the individual classification algorithm. After the
+data splitting described in the validation stage, we took the
+PRR_DATA (imbalanced) and IC_DATA (imbalanced)
+as input to the four classifiers and did the cross-validation
+simultaneously, thus we could get the results of classification
+without SMOTE. Then we took the PRR_DATA (balanced)
+and IC_DATA (balanced) as input to the classifiers and
+did the cross-validation, thus the results of classification
+with SMOTE were obtained. The acquisition of the results
+prepares for the next stage of comparative analysis.
+C. VALIDATION STAGE
+
+FIGURE 1. Proposed drug risk level prediction framework.
+
+Combining the optimal strategies for each stage selected in
+this process, we will eventually build our prediction model
+for drug risk levels.
+A. PREPROCESSING STAGE
+
+We normalized the dataset Frequency_DATA by normalizing the names of drugs and ADRs and deleting the
+drug-ADR pairs with frequencies less than 3. The resulting dataset was Normalized_Frequency_DATA. After manually tagging the labels to that dataset according to the
+China Medical Information Platform, we got the dataset
+Tagged_Frequency_DATA. By introducing the two kinds
+of signal detection methods (PRR and IC) into our experiment, the Tagged_Frequency_DATA could be processed
+into two datasets. Due to the imbalance of dataset, they
+were named as PRR_DATA (imbalanced) and IC_DATA
+185768
+
+We used the grid search to do 10-fold cross validation.
+We split the input data into 70% samples as training set and
+30% samples as testing set in stratified random sampling,
+which means the training set consisted of 70% samples of
+each class and the testing set consisted of 30% samples of
+each class. Also, there was no overlap between training set
+and testing set in each class. With the adjustment of hyperparameters in each classifier model using grid search to get the
+highest accuracy, we applied 10-fold cross-validation technique to test and validate our models by splitting the training
+set into 10 folds. The grid search range and configuration
+for the hyperparameters of each classification algorithm were
+suggested by their original published paper.
+1) RF [25]: The number of trees in the forest n_estimator
+was searched in {10, 20, . . . , 150}. The maximum depth of
+the tree max_depth was searched in {10, 20, . . . , 100}.
+2) LR [26]: Maximum number of iterations max_iter taken
+for the optimization algorithm to converge was searched in
+{50, 100, 150, 200}. And the L2-regularization was used in
+the penalization.
+3) ADA [27]: We took the decision tree as the base estimator. Then the maximum number of estimators n_estimator
+at which boosting is terminated was searched in {10,
+20, . . . , 150}. The maximum depth of the tree max_depth was
+searched in {10, 20, . . . , 100}.
+4) GB [29], [30]: The decision tree was taken as the base
+estimator in GB. The number of estimators n_estimator was
+searched in {10, 20, . . . , 150}. The maximum depth of the
+tree max_depth was searched in {10, 20, . . . , 100}.
+In each fold, grid search has chosen the best parameters
+tuning to establish the trained model. Thus, ten trained models were obtained from the ten folds. We chose the best trained
+model from the ten trained models according to the highest
+VOLUME 8, 2020
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+FIGURE 2. The confusion matrixes of classifiers processed by PRR before using SMOTE.
+
+FIGURE 3. The confusion matrixes of classifiers processed by IC before using SMOTE.
+
+accuracy. Then we input the testing set to the best trained
+model to get the evaluation metrics values and draw the ROC
+curve. After comprehensive comparison, we could choose
+the best classification evaluation metrics, classifier and signal
+detection approach in our framework.
+D. APPLICATION STAGE
+
+Based on the comparison of evaluation metrics values
+from above stages, the better imbalanced dataset redefined as Chosen_DATA (imbalanced) was chosen from
+PRR_DATA (imbalanced) and IC_DATA (imbalanced).
+Then, we applied the four trained classifier models (with
+SMOTE, trained by balanced data) on the Chosen_DATA
+(imbalanced). It is a practical stage in which we input raw
+data without SMOTE, Chosen_DATA (imbalanced), into
+the final models trained by balanced data. The classification
+performances were finally given in this stage.
+V. RESULTS
+A. CLASSIFICATION WITHOUT SMOTE
+
+Without SMOTE oversampling, the dataset PRR_DATA
+(imbalanced) or IC_DATA (imbalanced) has 1047 drugs
+in total, in which the minority classes are OTC-A Drug
+(label = 1), OTC-B Drug (label = 2) and the majority class is
+Rx Drug (label = 0). The numbers of samples in three classes
+are 113 (10.79%), 47 (4.49%) and 887 (84.72%). After splitting the dataset, we took the training set (732 samples) as the
+input of the four classifiers and obtained the following results:
+FIGURE 2 depicts the confusion matrix of four trained
+classifiers using PRR as the signal detection method and the
+testing set (315 samples) as the input for prediction. It can
+VOLUME 8, 2020
+
+be seen from FIGURE 2 that the dark blue blocks in the four
+subgraphs concentrate in the upper left corner, which indicates the number of correctly-classified Rx drugs, and their
+numbers are 266, 263, 267, 259. At the same time, most of the
+data concentrate in the first column on the left, and the rest are
+close to white (indicating the amount of data is very small),
+which means most of the drug labels were predicted to be 0,
+and a few of the drug labels were predicted to be 1 and 2. Also,
+labels 1 and 2 were hardly classified correctly. FIGURE 3
+describes the confusion matrix for prediction using IC as the
+signal detection method. It can be seen from FIGURE 3 that
+its quantity distribution characteristics are roughly the same
+as those in FIGURE 2. At the same time, whether it is PRR
+or IC processing, the numbers in the remaining blocks of LR
+classifier are 0 except that in the upper left corner block.
+Table 2 summarizes these quantitative characteristics and
+uses evaluation metrics to evaluate the four classifiers under
+the two signal detection methods. It can be seen from
+Table 2 that under PRR and IC processing, the accuracy rates
+of the four classifiers are almost the same and high, which
+are about 0.85. In the classification results of each classifier processed by PRR and IC, the other evaluation metrics
+(precision, recall and F1-score) are also comparable. The
+classification results also satisfy that the evaluation metrics
+of label 0 are much larger than those of label 1 and label 2,
+but for the case of label 2, the precision, recall and F1-score
+of the results of classifiers processed by IC are slightly larger
+than those processed by PRR. It is obvious that whether it
+is PRR or IC processing, when using the LR classifier for
+classification, the values of precision, recall, and F1-score of
+labels 1 and labels 2 were 0.
+185769
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+TABLE 2. The evaluation metrics of classifiers before using SMOTE.
+
+FIGURE 4. The PRR processed ROC curves before using SMOTE.
+
+FIGURE 5. The IC processed ROC curves before using SMOTE.
+
+FIGURE 4 uses macro-TPR and macro-FPR, the microTPR and micro-FPR to trace the macro-ROC curve and
+micro-ROC curve under PRR signal detection. It is found that
+the macro-ROC curves in the four subgraphs are all lower
+than the micro-ROC curves. The micro-ROC curves are close
+to the optimal point (0,1), but the macro-ROC curves are
+close to the diagonal, which means the classification effect
+was close to no recognition Random classification. At the
+same time, the area under each ROC curve was calculated
+as the AUC value, which marked in the lower right corner of
+FIGURE 4. In the four subgraphs, the highest AUC value of
+macro-ROC is from GB, which is 0.76, and the lowest AUC
+value is from ADA, which is 0.67. The highest AUC value
+185770
+
+of micro-ROC is from GB and LR to be 0.94, and the lowest
+AUC value is from ADA, which is 0.92. FIGURE 5 depicts
+the macro-ROC curve and micro-ROC curve under IC signal
+detection. The highest AUC value of the macro-ROC curve is
+from RF and GB, which both give 0.65, and the lowest AUC
+value is from ADA, which is 0.60. The highest AUC value of
+the micro-ROC curve is from RF and GB to be 0.92, and the
+lowest AUC value is from ADA, which is 0.90. Whether it is
+PRR or IC processing, we can see that the fluctuation of the
+same curve of different classifiers is approximately the same.
+The difficulty of imbalanced classification mainly comes
+from outliers or noise in the feature space. The minority
+samples embedded in the dense region of the majority
+VOLUME 8, 2020
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+FIGURE 6. The confusion matrixes of classifiers processed by PRR after using SMOTE.
+
+FIGURE 7. The confusion matrixes of classifiers processed by IC after using SMOTE.
+
+TABLE 3. The evaluation metrics of classifiers after using SMOTE.
+
+samples greatly affected the classification performance of
+each classifier. As a result, the results of the above classifiers
+were similar and poor, which tended to divide the samples
+into the large number class (label = 0).
+
+B. CLASSIFICATION WITH SMOTE
+
+With SMOTE oversampling, the dataset PRR_DATA
+(balanced) or IC_DATA (balanced) has 2661 drugs in total,
+and the numbers of the three types of drugs are equal, all of
+which are 887 (33.33%). After dividing the dataset and using
+the training set (1862 samples) as input to the four classifiers,
+we got the following results:
+FIGURE 6 illustrates the confusion matrix of four trained
+classifiers using PRR as the signal detection method and the
+VOLUME 8, 2020
+
+testing set (799 samples) as the input for prediction. The dark
+blue blocks in the four subgraphs concentrate in the diagonal
+area, and the non-diagonal areas are light blue or white, which
+indicates that the three types of drugs have a high proportion
+of correct classification.
+FIGURE 7 describes the confusion matrix using IC as the
+signal detection method for prediction. It also has the same
+distribution characteristics as FIGURE 6. Meanwhile, in LR
+classifiers, whether processed by PRR or IC, the upper left
+corner of the diagonal is obviously lighter than the other parts
+of the diagonal, which means the predictions for label 0 have
+much worse performance than those for label 1 and label 2.
+Table 3 has the same form as Table 2. Under PRR and IC
+signal detection processing, the accuracy rate of PRR processing is higher than that of IC processing, and the accuracy
+185771
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+FIGURE 8. The PRR processed ROC curves after using SMOTE.
+
+FIGURE 9. The IC processed ROC curves after using SMOTE.
+
+rates of the four classifiers are significantly different. The
+RF classifier achieves the highest accuracy rate of 0.93
+(PRR processing) and 0.92 (IC processing). The LR classifier
+achieves the worst classification results with the classification
+accuracy rate being 0.76 (PRR processing) and 0.66 (IC
+processing). The GB classifier and the ADA classifier have
+similar accuracy rates that are between 0.82 and 0.86. For
+the other evaluation metrics (precision, recall and F1-score),
+most of them also satisfy that the values of PRR processing
+are greater than those of IC processing. Among the four
+classifiers, the evaluation metrics of RF classifier are the
+highest, while those of LR are the lowest, and the evaluation
+metrics obtained by the GB and ADA classifiers are similar in
+the middle level. Contrary to Table 2, the evaluation metrics
+of label 2 are larger than the those of label 1 and label 0. Those
+phenomena are especially obvious on the F1-score.
+FIGURE 8 and FIGURE 9 respectively describe the
+macro-ROC curve and micro-ROC curve of each classifier
+under the two signal detection methods after using SMOTE.
+Firstly, compared with FIGURE 4 and FIGURE 5, the most
+obvious difference is that the micro-ROC and macro-ROC
+curves almost coincide with each other. After PRR and IC
+processing, the curve change law and AUC value change law
+between the subgraphs are the same. For PRR processing,
+the two curves of RF tend to (0,1) point with AUC values
+(0.98, 0.98), the two curves of LR deviate from (0,1)
+point with AUC values (0.90, 0.90), GB with AUC values
+(0.96, 0.97) and ADA with AUC values (0.94, 0.95) are in
+the middle state. For IC processing, the two curves of RF
+tend to (0,1) point with AUC values (0.99, 0.99), and the
+two curves of LR deviate from (0,1) point with AUC value
+185772
+
+(0.84, 0.84), GB with AUC value (0.95, 0.94) and ADA with
+AUC values (0.93, 0.93) are in the middle state. So, in most
+cases, for the same classifier, the PRR processed curve is
+always closer to the (0,1) point than the IC processed curve.
+Correspondingly, the AUC value of the PRR processed curve
+is always larger than that of the IC processed curve.
+
+C. APPLICATION ON CHOSEN DATA (IMBALANCED)
+
+The results in Section B show that in most cases, the classification effect of the PRR processed classifier is better
+than that of the IC processed classifier. And compared
+with Section A, using SMOTE improves the classification
+effect significantly. Finally, at the application stage, we input
+PRR_DATA (imbalanced) as Chosen_DATA to the trained
+classifiers (with SMOTE, trained by balanced data) to get the
+final classification performance of our entire framework.
+In FIGURE 10, the color of the block at the diagonal is
+still darker than that of the rest, but there is an unexpected
+situation in LR. The number of label 1 drugs mislabeled as
+label 0 is larger than (approximately twice) that of drugs
+classified correctly.
+In Table 4, we can clearly see that the evaluation metrics
+of RF are the largest under all the labels, especially that
+its accuracy rate can reach 0.95. Secondly, GB and ADA
+are comparable. The accuracy rate of both is 0.85. For the
+comprehensive evaluation metric F1-score, GB is greater than
+ADA when label equals 0, and ADA is greater than GB when
+label equals 1 and 2. The worst-performing classifier is LR,
+whose accuracy rate is only 0.73 and F1-score is also much
+lower than that of the other three classifiers.
+VOLUME 8, 2020
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+FIGURE 10. The confusion matrixes in application stage.
+
+FIGURE 11. The ROC curves in application stage.
+
+TABLE 4. The evaluation metrics in application stage.
+
+Finally, from FIGURE 11, we can see that the two ROC
+curves almost coincide with FIGURE 8 and FIGURE 9.
+Among them, the RF and LR curves have the highest degree
+of coincidence, with AUC values (0.97, 0.98) and (0.89, 0.88)
+respectively, while the GB and ADA curves have slightly
+worse degree of coincidence, with AUC values (0.93, 0.96)
+and (0.89, 0.95) respectively.
+VI. DISCUSSION
+
+Whether SMOTE is used or not, our analyses and selection
+are as follows. The accuracy rates in Table 2 are high, all
+around 0.85, which creates the illusion of well-performing
+classification. Observing the consistency of the accuracy
+rates in the tables with the rest of the evaluation metrics,
+we could find that the accuracy rates in Table 3 are normal
+VOLUME 8, 2020
+
+and scientific. This is because when classifying unbalanced
+data, the classifier without SMOTE normally classifies drugs
+into the majority class to achieve an accuracy rate that is
+approximately equal to the majority class ratio (Rx Drugs,
+84.72%). According to the comparison between Section A
+and Section B in the results, after SMOTE is applied,
+the probability of correct classification in minority classes
+greatly increases.
+For the selection of signal detection methods, our discussions are as follows. Before using SMOTE, we can see from
+Table 2 that there is no significant difference between the
+two signal detection methods, while the comparison between
+FIGURE 4 and FIGURE 5 shows that the AUC value of
+macro-ROC processed by PRR is significantly higher than
+that of IC. After using SMOTE, it can be found that the evaluation metrics of PRR processing are generally better than
+those of IC for all of classifiers in Table 3. The comparison
+between FIGURE 8 and FIGURE 9 also shows that the AUC
+value of each classifier in PRR processing is greater than
+that in IC processing. In particular, the classification effect
+of LR classifier got obviously poor results in IC processing.
+FIGURE 7 proves that especially when label equals 0 and
+label equals 1. Also, Table 3 shows LR classifier processed
+by IC is the worst among all the classifiers. In summary,
+compared to IC processing models, the PRR processing models achieve better classification results and can be the most
+widely used one. The reason may be that our data set is not
+huge enough. IC is more suitable for super large-scale data,
+but PRR is suitable for data of various sizes, and it has better
+interpretability.
+To find out the best classifier, our discussions are as
+follows. The classification effects of the four classifiers show
+185773
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+no significant difference before SMOTE, but the difference
+is obvious after SMOTE. This is confirmed again in the
+application stage. The results in Section B and Section C
+suggested the classification effects of the classifiers ranked
+from high to low as RF > GB ≈ ADA > LR. Thus, we are
+wondering whether there is such a common phenomenon
+when we use ADRs to predict the drug risk levels. In the integrated algorithm, the Bagging algorithm is always better than
+the Boosting algorithm, and the non-integrated algorithm is
+always the worst. In this study, the reason might be that GB
+and ADA (Boosting algorithms) have serial base classifiers,
+which will cause them to be sensitive to noise and easy to
+overfit, while the RF (Bagging algorithm) has parallel base
+classifiers.
+In terms of the decision of classification evaluation curves,
+it can be seen from FIGURE 4 and FIGURE 5 that for
+imbalanced data, the macro-ROC curve is more suitable to
+be used as the evaluation curve, because it can correspond
+to the change of the comprehensive metric F1-score of our
+classifiers, and the AUC of the curve can also be used as a
+powerful metric for the evaluation of classification effects.
+According to FIGURE 8 and FIGURE 9, for balanced data,
+it is possible to choose micro-ROC or macro-ROC curves.
+The measurement performance of the two resembles each
+other greatly, and the AUC values of the two curves are very
+similar. As can be seen from FIGURE 10 and FIGURE 11,
+the constructed models have done their best to reduce the differences between macro-ROC and micro-ROC curves in the
+adaptation scenarios of imbalanced and balanced data, especially in RF and LR. But at the same time, macro-ROC, as one
+of the most applicable curve types, is most suitable for the
+evaluation of classification results. By comparison, we finally
+confirm that the optimal combination of our framework is
+PRR-SMOTE-RF, which is applied to our ADR spontaneous
+reporting database, with the accuracy rate of 0.95.
+Regarding the comparison between the testing results in the
+validation stage and the application results in the application
+stage, it should be noted that most of the comprehensive
+performance metrics in the application stage are inevitably
+reduced compared to the validation stage. In terms of accuracy, under the PRR signal detection method, only the application result of RF model (0.95) is slightly higher than the
+testing result of RF model (0.93). The application result of
+GB is 0.85, which is slightly lower than the testing result of
+that (0.86). The application result of LR is 0.73, while the
+testing result of that is 0.76. The application result of ADA is
+the same as the testing result of that, which is 0.85. In terms of
+average of F1-score, under the PRR signal detection method,
+the application results are all less than the testing results. The
+application result of RF is 0.89, while the testing result of
+that is 0.93. The application results of GB, LR, ADA (0.68,
+0.57, 0.68, separately) were significantly lower than the testing results of those (0.86, 0.75, 0.85, separately). According
+to the above comparison, although most of the application
+results are always relatively smaller than the testing results,
+the actual values of the two metrics in the application results
+185774
+
+obtained in the application stage of the PRR-SMOTE-RF
+framework are still large enough, the value of its accuracy
+is 0.95 and the value of its average of F1-score is 0.89.
+Therefore, this also adequately shows that the framework we
+designed can effectively predict the three risk levels of drugs
+in the practical application process.
+As the majority of studies, the design of the current study
+is subject to limitations. The first is that we chose the decision
+tree as the base classifier of each classification algorithm.
+Meanwhile, more data splitting ways and classification models could be applied. The second limitation concerns the lack
+of computational requirements comparison. In the process of
+practical use, especially in the case of very large-scale data,
+it is very important to consider the time complexity and space
+complexity (computational requirements). Thirdly, the time
+span of the database we used resulted in a limited number
+of reports, and the quality of reports is also affected by the
+voluntary reporting attribute of the spontaneous reporting
+database.
+VII. CONCLUSION
+
+Our paper is the first to predict drug risk levels based on
+ADRs. We conduct the research using SMOTE and machine
+learning approaches. The framework proposed is used to
+explore the mechanism of ADRs to determine drug risk
+levels, to guide and assist decision-making in the transition
+from Rx Drugs to OTC Drugs. More specifically, our framework aims at the problem raised by New England Journal
+of Medicine as early as 2001 [3], the status change of a
+drug from Rx to OTC concerning the quality of healthcare,
+patients’ access to drugs, patients’ autonomy, and the cost
+of healthcare. Finally, as the discussion section mentioned,
+the optimal combination: PRR-SMOTE-RF based on the
+above framework was constructed and good classification
+prediction effect using macro-ROC curve obtained.
+This framework has the potential to be generalized to various drug regulatory agencies, like FDA or CFDA, to provide
+an easy but reliable way for ADR signal detection and drug
+classification. Also, it would be an auxiliary judgment basis
+for experts to decide on the status change of Rx Drugs to
+OTC Drugs. In the future, more machine learning or deep
+learning classification algorithms should be tested, and the
+computational complexity should be taken into account in the
+comparison process. At the same time, this framework will be
+applied to more ADR spontaneous reporting databases.
+REFERENCES
+[1] J. R. Nebeker, P. Barach, and M. H. Samore, ‘‘Clarifying adverse drug
+events: A clinician’s guide to terminology, documentation, and reporting,’’
+Ann. Internal Med., vol. 140, no. 10, pp. 795–801, 2004.
+[2] I. R. Edwards and J. K. Aronson, ‘‘Adverse drug reactions: Definitions,
+diagnosis, and management,’’ Lancet, vol. 356, no. 9237, pp. 1255–1259,
+Oct. 2000.
+[3] E. P. Brass, ‘‘Changing the status of drugs from prescription to over-thecounter availability,’’ New England J. Med., vol. 345, no. 11, pp. 810–816,
+Sep. 2001.
+[4] W. P. Stephenson and M. Hauben, ‘‘Data mining for signals in spontaneous
+reporting databases: Proceed with caution,’’ Pharmacoepidemiology Drug
+Saf., vol. 16, no. 4, pp. 359–365, 2007.
+VOLUME 8, 2020
+
+J. Wei et al.: Predicting Drug Risk Level from Adverse Drug Reactions Using SMOTE and Machine Learning Approaches
+
+[5] S. J. W. Evans, P. C. Waller, and S. Davis, ‘‘Use of proportional reporting
+ratios (PRRs) for signal generation from spontaneous adverse drug reaction
+reports,’’ Pharmacoepidemiology Drug Saf., vol. 10, no. 6, pp. 483–486,
+Oct. 2001.
+[6] K. J. Rothman, S. Lanes, and S. T. Sacks, ‘‘The reporting odds ratio and its
+advantages over the proportional reporting ratio,’’ Pharmacoepidemiology
+Drug Saf., vol. 13, no. 8, pp. 519–523, Aug. 2004.
+[7] A. Bate, M. Lindquist, I. R. Edwards, S. Olsson, R. Orre, A. Lansner,
+and R. M. De Freitas, ‘‘A Bayesian neural network method for adverse
+drug reaction signal generation,’’ Eur. J. Clin. Pharmacol., vol. 54, no. 4,
+pp. 315–321, Jul. 1998.
+[8] T. Sakaeda, A. Tamon, K. Kadoyama, and Y. Okuno, ‘‘Data mining of the
+public version of the FDA adverse event reporting system,’’ Int. J. Med.
+Sci., vol. 10, no. 7, p. 796, 2013.
+[9] N. V. Chawla, K. W. Bowyer, L. O. Hall, and W. P. Kegelmeyer, ‘‘SMOTE:
+Synthetic minority over-sampling technique,’’ J. Artif. Intell. Res., vol. 16,
+pp. 321–357, Jun. 2002.
+[10] E. P. van Puijenbroek, A. Bate, H. G. M. Leufkens, M. Lindquist, R. Orre,
+and A. C. G. Egberts, ‘‘A comparison of measures of disproportionality
+for signal detection in spontaneous reporting systems for adverse drug
+reactions,’’ Pharmacoepidemiology Drug Saf., vol. 11, no. 1, pp. 3–10,
+2002.
+[11] H. Gurulingappa, L. Toldo, A. M. Rajput, J. A. Kors, A. Taweel, and
+Y. Tayrouz, ‘‘Automatic detection of adverse events to predict drug label
+changes using text and data mining techniques,’’ Pharmacoepidemiology
+Drug Saf., vol. 22, no. 11, pp. 1189–1194, Nov. 2013.
+[12] R. Harpaz, W. DuMouchel, N. H. Shah, D. Madigan, P. Ryan, and
+C. Friedman, ‘‘Novel data-mining methodologies for adverse drug event
+discovery and analysis,’’ Clin. Pharmacol. Therapeutics, vol. 91, no. 6,
+pp. 1010–1021, Jun. 2012.
+[13] C. E. Pierce, K. Bouri, C. Pamer, S. Proestel, H. W. Rodriguez,
+H. Van Le, C. C. Freifeld, J. S. Brownstein, M. Walderhaug, I. R. Edwards,
+and N. Dasgupta, ‘‘Evaluation of facebook and Twitter monitoring to detect
+safety signals for medical products: An analysis of recent FDA safety
+alerts,’’ Drug Saf., vol. 40, no. 4, pp. 317–331, Apr. 2017.
+[14] J. H. G. Scholl, F. P. A. M. van Hunsel, E. Hak, and
+E. P. van Puijenbroek, ‘‘A prediction model-based algorithm for computerassisted database screening of adverse drug reactions in The Netherlands,’’
+Pharmacoepidemiology Drug Saf., vol. 27, no. 2, pp. 199–205, Feb. 2018.
+[15] C. Xiao, Y. Li, I. M. Baytas, J. Zhou, and F. Wang, ‘‘An MCEM framework
+for drug safety signal detection and combination from heterogeneous real
+world evidence,’’ Sci. Rep., vol. 8, no. 1, pp. 1–10, Dec. 2018.
+[16] G. Kaufman, ‘‘Adverse drug reactions: Classification, susceptibility and
+reporting,’’ Nursing Standard, vol. 30, no. 50, pp. 53–63, Aug. 2016.
+[17] I. Alimova and E. Tutubalina, ‘‘Entity-level classification of adverse drug
+reactions: A comparison of neural network models,’’ in Proc. Workshop
+Widening NLP, 2019, pp. 132–134.
+[18] H. Alhuzali and S. Ananiadou, ‘‘Improving classification of adverse drug
+reactions through using sentiment analysis and transfer learning,’’ in Proc.
+18th BioNLP Workshop Shared Task, 2019, pp. 339–347.
+[19] Y. Li, P. Zhang, Z. Sun, and J. Hu, ‘‘Data-driven prediction of beneficial
+drug combinations in spontaneous reporting systems,’’ in Proc. AMIA
+Annu. Symp., American Medical Informatics Association, 2016, p. 808.
+[20] S. F. Abdoh, M. Abo Rizka, and F. A. Maghraby, ‘‘Cervical cancer
+diagnosis using random forest classifier with SMOTE and feature reduction techniques,’’ IEEE Access, vol. 6, pp. 59475–59485, 2018, doi:
+10.1109/ACCESS.2018.2874063.
+[21] Y. Tao and Y. Zhang, ‘‘‘WarfarinSeer’: A predictive tool based on SMOTErandom forest to improve warfarin dose prediction in Chinese patients,’’ in
+Proc. IEEE Int. Conf. Bioinf. Biomed. (BIBM), Dec. 2018, pp. 1022–1026.
+[22] X. Lin, X. Zhang, and X. Xu, ‘‘Efficient classification of hot spots and hub
+protein interfaces by recursive feature elimination and gradient boosting,’’
+IEEE/ACM Trans. Comput. Biol. Bioinf., early access, Jul. 30, 2019, doi:
+10.1109/TCBB.2019.2931717.
+[23] S. M. H. Mahmud, W. Chen, H. Jahan, Y. Liu, N. I. Sujan, and
+S. Ahmed, ‘‘IDTi-CSsmoteB: Identification of drug–target interaction based on drug chemical structure and protein sequence using
+XGBoost with over-sampling technique SMOTE,’’ IEEE Access, vol. 7,
+pp. 48699–48714, 2019.
+[24] R. Orre, A. Lansner, A. Bate, and M. Lindquist, ‘‘Bayesian neural networks
+with confidence estimations applied to data mining,’’ Comput. Statist. Data
+Anal., vol. 34, no. 4, pp. 473–493, Oct. 2000.
+[25] L. Breiman, ‘‘Random forests,’’ Mach. Learn., vol. 45, no. 1, pp. 5–32,
+2001.
+VOLUME 8, 2020
+
+[26] J. Engel, ‘‘Polytomous logistic regression,’’ Statistica Neerlandica, vol. 42,
+no. 4, pp. 233–252, Dec. 1988.
+[27] Y. Freund and R. E. Schapire, ‘‘A desicion-theoretic generalization of online learning and an application to boosting,’’ in Proc. Eur. Conf. Comput.
+Learn. Theory. Cham, Switzerland: Springer, 1995, pp. 23–37.
+[28] T. Hastie, S. Rosset, J. Zhu, and H. Zou, ‘‘Multi-class AdaBoost,’’ Statist.
+Interface, vol. 2, no. 3, pp. 349–360, 2009.
+[29] J. H. Friedman, ‘‘Greedy function approximation: A gradient boosting
+machine,’’ Ann. Statist., vol. 29, no. 5, pp. 1189–1232, Oct. 2001.
+[30] J. H. Friedman, ‘‘Stochastic gradient boosting,’’ Comput. Statist. Data
+Anal., vol. 38, no. 4, pp. 367–378, Feb. 2002.
+[31] K. A. Spackman, ‘‘Signal detection theory: Valuable tools for evaluating
+inductive learning,’’ in Proc. 6th Int. Workshop Mach. Learn. Amsterdam,
+The Netherlands: Elsevier, 1989, pp. 160–163.
+[32] S. K. Knapp, ‘‘Accelerate FPGA macros with one-hot approach,’’ Electron.
+Design, vol. 38, no. 17, pp. 71–78, 1990.
+[33] Z. C. Lipton, C. Elkan, and B. Naryanaswamy, ‘‘Optimal thresholding
+of classifiers to maximize F1 measure,’’ in Proc. Joint Eur. Conf. Mach.
+Learn. Knowl. Discovery Databases. Cham, Switzerland: Springer, 2014,
+pp. 225–239.
+
+JIANXIANG WEI received the Ph.D. degree in
+informatics from Nanjing University, Jiangsu,
+China. He has been an Associate Professor with
+the School of Management, Nanjing University
+of Posts and Telecommunications. His current
+research interests include medical informatics,
+data visualization, machine learning, and
+computing algorithms.
+
+ZHIQIANG LU is currently pursuing the bachelor’s degree with the School of Internet of Things,
+Nanjing University of Posts and Telecommunications. His specialty is network engineering. His
+current research interests include signal detection,
+machine learning, deep learning, and data mining.
+
+KAI QIU is currently pursuing the bachelor’s
+degree with the School of Internet of Things,
+Nanjing University of Posts and Telecommunications. His specialty is network engineering. His
+current research interests include artificial intelligent, machine learning, and data visualization.
+
+PENGYANG LI is currently pursuing the bachelor’s degree with the School of Internet of Things,
+Nanjing University of Posts and Telecommunications. His specialty is network engineering. His
+current research interests include machine learning, deep learning, and language processing.
+
+HAOFEI SUN is currently pursuing the bachelor’s degree with the School of Internet of Things,
+Nanjing University of Posts and Telecommunications. His specialty is the Internet of Things
+engineering. His current research interests include
+machine learning and deep learning.
+
+185775
+
+

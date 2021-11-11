@@ -1,0 +1,1149 @@
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+Extracting drug-drug interactions from texts with BioBERT and multiple
+entity-aware attentions
+
+T
+
+Yu Zhu, Lishuang Li , Hongbin Lu, Anqiao Zhou, Xueyang Qin
+⁎
+
+School of Computer Science and Technology, Dalian University of Technology, 116024 Dalian, China
+
+ARTICLE INFO
+
+ABSTRACT
+
+Keywords:
+Drug-drug interactions
+BioBERT
+Entity-aware attention
+
+Drug-drug interactions (DDIs) extraction is one of the important tasks in the field of biomedical relation extraction, which plays an important role in the field of pharmacovigilance. Previous neural network based models
+have achieved good performance in DDIs extraction. However, most of the previous models did not make good
+use of the information of drug entity names, which can help to judge the relation between drugs. This is mainly
+because drug names are often very complex, leading to the fact that neural network models cannot understand
+their semantics directly. To address this issue, we propose a DDIs extraction model using multiple entity-aware
+attentions with various entity information. We use an output-modified bidirectional transformer (BioBERT) and
+a bidirectional gated recurrent unit layer (BiGRU) to obtain the vector representation of sentences. The vectors of
+drug description documents encoded by Doc2Vec are used as drug description information, which is an external
+knowledge to our model. Then we construct three different kinds of entity-aware attentions to get the sentence
+representations with entity information weighted, including attentions using the drug description information.
+The outputs of attention layers are concatenated and fed into a multi-layer perception layer. Finally, we get the
+result by a softmax classifier. The F-score is used to evaluate our model, which is also adopted by most previous
+DDIs extraction models. We evaluate our proposed model on the DDIExtraction 2013 corpus, which is the
+benchmark corpus of this domain, and achieves the state-of-the-art result (80.9% in F-score).
+
+1. Introduciton
+Drug-drug interactions (DDIs) occur when patients are given multikinds of drugs, the effects of the drugs may be enhanced or weakened
+by other drugs, or serious adverse drug reactions (ADRs) [1] may occur.
+Therefore, the study of the relation between drugs has been widely
+concerned by the biomedical community. Due to the rapid increase in
+the number of biomedical literatures, it is unrealistic to extract large
+number of DDI relations from them manually. Therefore, to develop a
+method for automatic extraction of DDIs from biomedical literature is
+of great significance for current healthcare management and clinical
+testing research.
+In recent years, extracting DDIs relations from biomedical texts has
+attracted more and more attention [2,3]. At present, advanced models
+for this task mainly utilize two kinds of methods. The first is the traditional machine learning method, which requires various syntactic and
+lexical features to be sent to discriminators such as SVM or random
+forest. Chowdhury and Lavelli [4] used a two-stage model for multiclassification. Kim et al. [5] used a variety of lexical and semantic
+
+features to build the model. Thomas et al. [6] applied the kernel
+function method based on majority voting model. Zheng et al. [7] used
+a graph kernel based on equivalence class and integrated contextual
+information. In general, these feature-based and kernel-based methods
+are highly dependent on well-designed feature sets or kernel functions.
+Another kind of methods are mainly based on deep neural networks,
+such as convolutional neural network (CNN), recurrent neural network
+(RNN) and attention mechanism. Asada et al. [8] proposed a method to
+input molecular information into graph convolution neural network
+(GCNN) and extract DDIs using CNN. RNN is more suitable for processing time series data than CNN, and is better on capturing the sequence characteristics of sentences, especially when sentences are long.
+Sahu and Ananda [9] used a LSTM-based and attention pooling model
+to extract DDIs, the results were higher than those based on CNN. Zhang
+et al. [10] proposed a hierarchical RNN method, which combines the
+shortest dependent path (SDPs) and sentence sequence to extract DDIs.
+Sun et al. [11] proposed a new recursive hybrid convolution neural
+network (RHCNN) for extracting DDIs. Zheng et al. [12] used a fourstep preprocess on the DDI corpus and a character level attention to
+
+Corresponding author.
+E-mail addresses: zy13pig@gmail.com (Y. Zhu), lilishuang314@163.com (L. Li), luhongbin-123@163.com (H. Lu), a1347324360@163.com (A. Zhou),
+qinxueyang@mail.dlut.edu.cn (X. Qin).
+⁎
+
+https://doi.org/10.1016/j.jbi.2020.103451
+Received 5 December 2019; Received in revised form 10 April 2020; Accepted 7 May 2020
+Available online 23 May 2020
+1532-0464/ © 2020 Elsevier Inc. All rights reserved.
+
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Y. Zhu, et al.
+
+encode the word vector, and achieved better results.
+BERT [13] is a recently proposed pre-trained language model. Due
+to its multi-layer bidirectional transformer [14] structure, BERT can
+integrate the contextual information of sentences into the word vector
+both from forward and backward. This makes it contain more context
+information than traditional word embedding models, such as
+Word2Vec [15] and GloVe [16]. Besides,the word vector generated by
+BERT will change according to the context, while the traditional word
+embedding models are context-free. Wang et al. [17] proposed a BERT
+based DDIs detection model, and achieved the state-of-the-art result
+using evidence of supplement-drug interactions from scientific text.
+Peng et al. [18] made pre-trained BERT models on biomedical literature
+and the results showed that their models had better performance over
+other pre-trained language models on some biomedical datasets. BioBERT [19] is another pre-trained BERT model which is trained with
+large-scale biomedical corpora. Li et al. [20] proposed a BioBERT based
+model which used GCNN to integrate dependence structure information
+into the model. However, BioBERT is trained on specific tasks [19],
+resulting in the lack of generalization ability.
+Drug names in DDIs corpus are often complex and varied, which
+makes it difficult for neural networks to understand their meanings. In
+order to avoid the influence of drug names on sentence semantics (e.g.
+BERT tokens for drug “hydroxychloroquin” are “h ##ydro ##xy ##ch
+##lor ##o ##quin ##e”, which have no specific meanings), fixed
+symbols such as “drug0” and “drug1” are used as alternatives in previous
+works [5,12,21,22]. But inevitably, such methods ignore the information of drug names that can help to extract the relation between two
+drugs. For example, in the sentence “…administration of oral amiodarone
+regularly results in an increase in serum digoxin concentration …” from
+DDIs corpus, “amiodarone” and “digoxin” can all be used to treat arrhythmias, so it is very likely that there is a certain relation between
+those two drugs. Therefore, if drug description information can be integrated into the neural network model, the model can better understand the complex drug names in DDIs corpus, and can better extract
+their relation.
+Based on the above ideas, we propose a neural network based
+method using output-modified BioBERT and multiple entity-aware attentions. We send the preprocessed sentence from DDIs corpus into the
+BioBERT model to get vector representation of each word in the sentence, and concatenate them as the sentence vector, then take it as the
+input to the BiGRU layer to get the contextual representation of the
+sentence. We use three kinds of entity-aware attentions to get sentence
+representation with entity information weighted, including attentions
+using drug description information, mutual drug entity information,
+and drug entity information. For the drug description information, we
+first get the drug description documents from DrugBank [23] and Wikipedia1, and get them by converting those documents to vectors
+through the Doc2Vec2 tool. Finally, the classification of DDIs is obtained through the softmax layer.
+The contributions of this paper are as follows:
+
+2. Methods
+The overview of our model is illustrated in Fig. 1. We feed the
+BioBERT pre-trained word vectors into bidirectional gated recurrent
+units (BiGRU) layer to get the semantic representation of sentence.
+Then multiple entity-aware attentions are used to integrate drug entity
+information into sentence representation, including entity attentions
+integrated with knowledge vectors. We concatenate the outputs of attention layers and the original sentence representation, and put them
+into the multi-layer perception (MLP) layer. Finally we get the result
+through the softmax layer. Our code is available at https://github.com/
+nickhub919/j191015. Details of our model are described in the following sections.
+2.1. Input representation layer
+Our model has two parts of input, one is the sentences from DDIs
+corpus, the other is the drug description documents from DrugBank and
+Wikipedia. We use an output-modified BioBERT model and Doc2Vec
+model to get their embedding vectors respectively.
+2.1.1. Encoding sentences with output-modified BioBERT
+We modify the output of the BioBERT model and use it to get the
+vector representation of sentences. Given a sentence from the DDIs
+corpus, we need to split the words in the sentence into tokens, and then
+represent each token with a d-dimensional vector. We use the BERT
+tokenizer to split the words into BERT tokens, and limit the maximum
+length of the sentence sequence to Nt . To eliminate the influence of the
+drug names on the semantics of sentence, we replace the drug entities
+whose relation need to be extracted with “drug1” and “drug2”, and replace other drug names with the token “drug0”. BERT tokens for “drug0”
+are “drug” and “##0”, for “drug1” are “drug” and “##1”, etc. In this
+way, the meaning of token “drug” is consistent with the semantics of
+sentence, and “##0” or “##1” can be used as labels to distinguish
+different drugs in a sentence. Then, to make the output vector more
+generalized, we use the average output of the last four layers of
+BioBERT model to get the vectors of the sentence tokens
+Nt × d .
+ST = [w1, w2, …, w Nt ]
+2.1.2. Encoding drug description documents with Doc2Vec
+For the drug description documents, we use the Doc2Vec tool to get
+their vector representations. The process is showed in Fig. 2. There are
+total 8500 drug entities in the DDIs corpus, and 30% of the drugs appeared in the corpus could be found in DrugBank. We get those drug
+descriptions directly from DrugBank, and for drugs that can’t be found
+in DrugBank, we get their description through Wikipedia with a web
+crawler. Then we put all drug description documents into Doc2Vec
+Nk × dk ,
+model and get their vector representations SK = [k1, k2, …, k Nk ]
+where Nk means total number of drug entities and dk means the size of
+the vector.
+
+1. We propose multiple entity-aware attentions with various entity
+information to strengthen the representations of drug entities in
+sentences.
+2. We integrate drug descriptions from Wikipedia and DrugBank to our
+model to enhance the semantic information of drug entities.
+3. We modified the output of the BioBERT model and the results show
+that it is better than using the BioBERT model directly.
+4. We achieve state-of-the-art results for the DDIs extraction with a Fscore of 80.9% on DDIExtraction 2013 dataset [3].
+
+1
+2
+
+2.2. BiGRU layer
+We adopt BiGRU layer to encode the output of BERT layer.
+Recurrent neural networks such as GRU and LSTM can obtain temporal
+information and semantic information in sequences, by computing a
+hidden state vector at each time step based on the current input and the
+entire history of inputs. Previous studies [24,25] have shown that GRU
+cells have comparable performance and lower computational complexity compared to LSTM cells, so we choose GRU cells to reduce the
+training time of our model. The BiGRU layer consists of two GRU cells
+which encode the sequence in both forward and backward directions,
+which can learn contextual information from both side. Although the
+transformer layers in the BioBERT model can play a similar role, we still
+need a BiGRU layer to make the sentence contextual representation
+more consistent with the current corpus because we have not trained
+
+https://en.wikipedia.org/.
+https://radimrehurek.com/gensim/models/doc2vec.
+2
+
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Y. Zhu, et al.
+
+Fig. 1. The architecture of our model. The input sentence is “acarbose did not interfere with the absorption or disposition of the glyburide in diabitic patients”. “acarbose”
+and “glyburide” are the two drug entities.
+
+•
+Fig. 2. The process of encoding drug description documents with Doc2Vec.
+“acarbose” and “glyburide” are the two drug entities. The document vectors are
+used as the drug description information in Fig. 1.
+
+After we get the above three different kinds of entity information,
+we put them into the attention model, and get sentence representation
+vectors integrating multiple entity information. In order to match the
+dimension of attention model, the vectors of entity information must
+have the same dimension as the hidden state of BiGRU. We use one MLP
+layer
+to
+expand
+the
+drug
+description
+vectors
+exp
+exp
+exp
+exp
+dh
+kdrug
+=
+MLP
+(
+k
+),
+k
+=
+MLP
+(
+k
+),
+k
+,
+k
+,
+and
+use
+1
+drug
+1
+1
+drug
+2
+drug 2
+1
+drug 2
+drug1
+another MLP layer to expand the BioBERT embeddings of the two drugs
+exp
+exp
+wdrug
+and
+their
+difference
+1 = MLP2 (wdrug1), wdrug 2 =
+exp
+exp
+exp
+exp
+d
+h . Then we
+MLP2 (wdrug 2 ), sub12 = MLP2 (sub12 ), wdrug1, wdrug 2, sub12
+exp
+exp
+exp
+exp
+exp
+send those expanded feature vectors (kdrug
+1, kdrug 2, wdrug1, wdrug 2, sub12 )
+into five different attention layers separately to get the attentionpooling vectors of the sentence sequence SG , the attention-pooling
+mechanism can be summarized as follows:
+
+the BioBERT along with the model. The representation of the t-th token
+encoded by BiGRU ht can be gained by the follow formulas:
+
+ht = GRU wt , ht
+
+1
+
+ht = GRU wt , ht + 1
+ht = ht , ht .
+
+which can reflect the relation between the two entities. The attention mechanism can focus on context of the words that describe the
+relation with this information.
+Drug description information: We adopt the document vectors of
+the two drug entities kdrug1, kdrug2 SK as the drug description information. The document vectors are used as external knowledge of
+drugs to send into the attention mechanism. This knowledge based
+attention can focus on important context related with drug and
+improve the context representation of the sentence.
+
+(1)
+
+Then
+we
+get
+the
+BiGRU
+encoded
+sentence
+sequence
+Nt × dh
+SG = [h1, h2, , h Nt ]
+, where dh means the dimension of the
+output vector, which is twice the size of the GRU cell.
+
+si = vT tanh (WS hi + WF ve)
+
+2.3. Multiple entity-aware attention layer
+
+ai = exp (si )/
+
+NT
+
+exp (sj )
+
+j=1
+
+Since our model only uses BioBERT embeddings in the input layer,
+we need to use some mechanisms to integrate the information of the
+two drug entities and their mutual information into the semantic representation of sentence. In our proposed model, we integrate three
+different types of entity information into attention model to solve this
+problem, which are drug entity information, mutual drug entity information, and drug description information.
+
+NT
+
+o=
+
+(2)
+
+where hi SG, ve means the five entity feature vectors as mentioned
+da × dh, v
+da
+above. WS , WF
+, where da is the size of the attention
+e
+dh
+matrix. The output o
+is the weighted sum of all token vectors in
+the sentence sequence. Through the above five different attention mechanisms, we get semantic representations of the sentence with different entity information ok1, ok 2, oe1, oe2, oe12 .
+
+• Drug entity information: We adopt the BioBERT embeddings of
+•
+
+ai hi ,
+i=1
+
+two drug entities wdrug1, wdrug 2 ST as drug entity information.
+Through the BioBERT model, these embeddings can contain position
+and contextual information of drug entities. The attention mechanism can focus on entity related context with those information.
+Mutual drug entity information: We adopt the vector obtained by
+subtracting the BioBERT embeddings of two drug entities as their
+d . In this way, we get
+mutual information sub12 = wdrug1 wdrug 2
+the vector containing semantic differences of the two drug entities,
+
+2.4. Classification and training
+We consider the DDIs extraction task as a classification problem.
+Given a sentence in DDIs corpus and two drug entities in the sentence,
+the goal of the DDIs extraction task is to predict the relation between
+those two drug entities from all real DDIs types (int, effect, advice,
+mechanism) and a fake type “negative”. Inspired by [26,27] we obtain
+3
+
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Y. Zhu, et al.
+
+the final sentence representation vector cfinal by feeding the outputs of
+three different attentions combined with the last token of the sentence
+sequence h Nt into a MLP layer:
+
+cfinal = MLP ([oe1, oe2 , oe12 , ok1, ok 2 , h Nt ]),
+
+instances could lead to the degradation on performance, we do not
+retain these positive examples.
+3.2. Evaluation metric
+
+(3)
+
+We adopt micro-averaged F-score to evaluate our model, which is
+the official evaluation metric of DDIExtraction 2013 task, and adopted
+by most existing DDIs extraction models. The micro-averaged F-score is
+defined as follows:
+
+where “[…]” means the concatenation operation. Finally, we use a
+softmax layer to get the probability distribution over all classes
+P = softmax (cfinal ) . During training, we use the adam optimizer and the
+cross-entropy loss:
+I
+
+loss ( ) =
+
+yi logP yi Di +
+i=1
+
+2,
+
+Pmicro =
+
+(4)
+
+Rmicro =
+
+N
+n = 1 TPn
+N
+N
+n = 1 TPn + n = 1 FPn
+N
+TP
+n=1 n
+N
+N
+n = 1 TPn + n = 1 FNn
+
+where I denotes the size of the training set D = {(D1, y1), …, (DI , yI )} and
+yi denotes the golden answer of the i-th training instance. P (yi Di ) denotes the probability that the result predicted with Di belongs to yi ,
+which is calculated as P (yi Di) = softmax (cfinal ) . is a hyper-parameter
+of 2 regularization.
+
+where TPn, FPn, FNn denote the ture-positive, false-positive, and falsenegative instance numbers of the n-th class, respectively.
+
+3. Results
+
+3.3. Hyper-parameter settings
+
+3.1. Dataset
+
+We use the Keras3 library with the backend of TensorFlow4 to implement our model, and the code is written in Python3.5. We randomly
+select 10% of the training set as the developing set, and the rest of the
+training set is used to train the model. Developing set is used to evaluate
+the performance of the model and optimize the hyper-parameters. The
+hyper-parameter settings are listed in Table 2.
+
+Fmicro =
+
+We evaluate our model on the DDIExtaction 2013 corpus, which is
+the benchmark dataset for the DDIs extraction task. The DDIs corpus
+consists of 792 texts from the DrugBank database and 233 abstracts
+from the MEDLINE database. There are four kinds of DDIs types: Effect,
+Mechanism, Advice, Int, and If two drugs are not related, their relation
+are marked as Negative. The meanings of these DDI types are as follows:
+
+•
+•
+
+(5)
+
+3.4. Experimental results
+
+• Mechanism: This type is used to annotate DDIs describing pharma•
+
+2 × Pmicro × Rmicro
+,
+Pmicro + Rmicro
+
+3.4.1. Comparison with prior works
+We compare the performance of our model with other established
+methods on DDIExtraction 2013 test set, which are shown in Table 3.
+We calculate the overall Precision (P), Recall(R), and F-score to access
+the performance of our model, and achieve scores of 81.0%, 80.9%, and
+80.9%, which are higher than the state-of-the-art method of Peng et al.
+[18] by 1.0% on F-score. From the table we can see that the deep
+learning models are generally superior to the feature-based models. To
+assess the performance on multi-classification, we evaluate each DDIs
+type separately. The F-score of the Advice, Effect, Mechanism, and Int
+types is 86.0%, 80.1%, 84.6%, and 56.6%. By comparing with other
+excellent models, our model achieves the highest performance on Advice, Effect and Mechanism types.
+
+cokinetic mechanism of two drug entities (e.g. “Co-administration of
+naltrexone with acamprosate produced a 25% increase in auc.”).
+Effect: This type is used to annotate DDIs describing an effect or a
+pharmacodynamics mechanism (e.g. “Concurrent administration of
+a tnf antagonist with orencia has been associated with an increased
+risk of serious infections.”).
+Advice: This type is used when a suggestion or advice regarding a
+drug interaction is given. (e.g. “Administration of wellbutrin tablets
+to patients receiving levodopa concurrently should be undertaken
+with caution”).
+Int: This type is used to annotate DDIs appears in text without any
+additional information (e.g. “Clinical studies with celecoxib have
+identified potentially significant interactions with lithium.”).
+
+3.4.2. Effect of different input vectors
+In order to understand the influences of different input vectors on
+the performance of our proposed model, we try five different input
+vectors on our proposed model and the results on test set are shown in
+Table 4. For the Word2Vec model, we train it with 5 GB biomedical
+corpora from Pubtator. BioBERT has three different versions: trained
+with PubMed corpus, with PMC corpus, and with both of the above
+corpora. We do one-tailed t-test on the output-modified BioBERT and
+the original BioBERT with best performance, to show that our modification is effective. From the table, we can see that the methods based
+on BioBERT model achieve better results than the method based on
+Word2Vec. For those BioBERT based methods, the more training corpora used, the better the effect. What’s more, our modification of the
+output of the BioBERT model has achieved remarkable results, which is
+1.4% higher than the best model in the three original BioBERT models.
+
+In the DDIExtraction 2013 corpus, there are more than two drug
+entities in most sentences, which leads to the fact that there are many
+unrelated drug entities pairs appeared in one single sentence.
+Therefore, the numbers of instances that belong to different DDIs types
+are quite imbalanced, which makes it difficult for the model to classify
+DDIs that has fewer instances. For example, in the training set, the
+number of negative instances is more than 100 times that of instances of
+the Int type. In order to alleviate this problem, following previous
+works [5,12,22], we adopt a strategy to filter negative instances as
+follow.
+
+• If two drugs in a drug pair appear in the same coordinate structure,
+filter out the corresponding instances.
+• If two drugs in a drug pair have the same name or one of them is the
+abbreviation of the other, filter out the corresponding instances.
+• If the drug is a special case of the other in a drug pair, filter out the
+
+3.4.3. Ablation studies on different attention mechanisms
+In order to understand the effect of each entity-aware attention on
+
+corresponding instances.
+
+The statistics of the original dataset and the filtered dataset are
+showed in Table 1. It can be seen that a small numbers of positive instances are also filtered by the strategy. Because all these kinds of
+
+3
+4
+
+4
+
+https://keras.io/.
+https://www.tensorflow.org/.
+
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Y. Zhu, et al.
+
+Table 1
+Dataset.
+Instances
+
+Positive
+
+DDIs type
+
+Train
+
+Effect
+Mechanism
+Advice
+Int
+
+Negative
+Total
+After applying the filtering strategy
+Positive
+Effect
+Mechanism
+Advice
+Int
+Negative
+Total
+
+Test
+
+DrugBank
+
+MedLine
+
+Overall
+
+DrugBank
+
+MedLine
+
+Overall
+
+1535
+1257
+818
+178
+22118
+25906
+
+152
+62
+8
+10
+1547
+1779
+
+1687
+1319
+826
+188
+23665
+27685
+
+298
+278
+214
+94
+4367
+5251
+
+62
+24
+7
+2
+345
+440
+
+360
+302
+221
+96
+4712
+5691
+
+1510
+1250
+813
+177
+14208
+17958
+
+152
+62
+7
+10
+1181
+1412
+
+1662
+1312
+820
+187
+15389
+19370
+
+298
+278
+214
+94
+4367
+5251
+
+62
+24
+7
+2
+345
+440
+
+360
+302
+221
+96
+4712
+5691
+
+itself, the mutual information of the two drug entities, and the drug
+description documents. We removed the attention modules of the above
+categories from our model separately. We do one-tailed t-test on the
+model without attention and models with single attention, which can
+show whether the three kinds of attentions are effective. Then we do
+the same test on our proposed model and models with two different
+kinds of attentions, which can show that whether a specific kind of
+attention is necessary to our model. The experimental results of these
+part-deleted models on test set are shown in Table 5.
+From the table we can see that adding each type of attention individually can improve the performance of the model more or less. The
+performance of the model with drug description information has not
+improved much, this is due to the lack of context information and position information of entities, which are very important to the model.
+
+Table 2
+Hyper-parameters.
+Group
+
+Hyper-parameter
+
+Value
+
+Embedding Layer
+
+Doc2Vec embedding size
+BioBERT embedding size
+Max sentence length
+BERT output layer number
+BiGRU output size
+Drop out
+Attention output size
+Drop out
+MLP output size
+Learning rate
+Batch size
+Training epoch
+
+200
+768
+250
+4
+1536
+0.5
+1536
+0.3
+256
+0.001
+128
+100
+
+BiGRU Layer
+Attention Layer
+Output layer
+Training
+
+Table 3
+Comparison with prior works. The highest value in each column is shown in bold. “_” denotes the value is not provided in the paper.
+Methods
+
+Feature-based models
+
+Deep learning models
+
+F-score on each DDIs type
+
+Thomas et al. [6]
+Kim et al. [5]
+Chowdhury et al. [4]
+Zheng et al. [7]
+Sahu et al. [9]
+Asada et al. [8]
+Zhang et al. [10]
+Sun et al. [11]
+Li et al. [20]
+Zheng et al. [12]
+Peng et al. [18]
+our method
+
+Overall performance
+
+Advice
+
+Effect
+
+Mechanism
+
+Int
+
+P
+
+R
+
+F-score
+
+0.632
+0.725
+0.692
+0.714
+0.794
+0.816
+0.803
+0.805
+—
+0.851
+—
+0 . 860
+
+0.61
+0.662
+0.628
+0.713
+0.676
+0.71
+0.718
+0.734
+—
+0.766
+—
+0 . 801
+
+0.618
+0.693
+0.679
+0.669
+0.763
+0.738
+0.74
+0.782
+—
+0.775
+—
+0. 846
+
+0.51
+0.483
+0.547
+0.516
+0.431
+0.458
+0.543
+0 . 589
+—
+0.577
+—
+0.566
+
+0.642
+—
+0.646
+—
+0.734
+0.733
+0.741
+0.773
+0.776
+0.784
+—
+0 . 810
+
+0.579
+—
+0.656
+—
+0.697
+0.718
+0.718
+0.737
+0.757
+0.762
+—
+0 . 809
+
+0.609
+0.67
+0.651
+0.684
+0.715
+0.725
+0.729
+0.754
+0.766
+0.773
+0.799
+0 . 809
+
+the performance of our model, we did the ablation studies on different
+attention mechanisms. We divided these entity-aware attentions into
+three categories: attention using the information of the drug entity
+
+We can also see that the performance of our proposed model is improved compared to the models with two different kinds of attentions.
+In particular, after adding the drug description information, the performance of the model is improved by 1.2%, which proves that adding
+this feature can improve the overall performance of the model.
+
+Table 4
+The effects of different input vectors on performance. means the percentage
+of the improvement on F-score. ∗ marks significant improvements over
+BioBERT on PubMed&PMC with p < 0.04 under one-tailed t-test.
+Embedding Type
+
+F-score
+
+Word2Vec on biomedical corpora
+BioBERT on PMC
+BioBERT on PubMed
+BioBERT on PubMed&PMC
+Output-modified BioBERT on PubMed&PMC
+
+0.723
+0.767
+0.786
+0.795
+0.809
+
+4. Discussion
+4.1. The performance of different input vectors
+
+—
+4.4%
+6.3%
+7.2%
+8.6%
+
+The output-modified BioBERT pre-trained with PubMed and PMC
+has achieved a better performance compared with other word embedding methods. We think this is mainly caused by three reasons. First,
+BioBERT trained with two biological corpora has the richest
+5
+
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Y. Zhu, et al.
+
+less the number of averaged layers, the less the generalization performance of the model, and the more the number of averaged layers, the
+less accurate the model. The average of last four layers is a good
+equilibrium.
+We also try to fine-turn the BioBERT with our model. We carry out
+experiments on a Tesla V100 GPU. Because of the huge number of
+parameters of the BERT model, our batch size can only be set very small
+(The utilization rate of the 32 GB GPU memory reached maximum
+when we set the batch size to 4), which leads the training progress very
+slow. After several iterations, the model still classify all instances to
+negative instances. Due to time constraints, we suspend fine-turning the
+BioBERT model.
+
+Table 5
+The effects of different entity attention mechanisms on performance. means
+the percentage of the improvement of F-score over the model without attention.
+∗ marks significant improvements over model without attention with p < 0.04
+under one-tailed t-test. ∗∗ marks significant differences over the final model
+with p < 0.05 under one-tailed t-test.
+Attention type
+
+F-score
+
+Without attention
+Entity info
+Mutual info
+Drug description
+Entity info + Mutual info
+Entity info + Drug description
+Mutual info + Drug description
+Entity info + Mutual info + Drug description
+
+0.772
+0.786
+0.793
+0.780
+0.797
+0.795
+0.801
+0.809
+
+—
+1.4%
+2.1%
+0.8%
+2.5%
+2.3%
+2.9%
+3.7%
+
+4.2. The performance of different entity-aware attentions
+We pick some instances from test set and visualize their selected
+fragments with the weight of the attention layer, which are shown in
+Fig. 3. The darker color means greater weights for a token in the sentence sequence. Fig. 3(a), (b) show the effect of the entity attention, we
+can see this kind of attention can well focus on two entities in the sequence. Fig. 3(c) shows the effect of the entity subtraction attention,
+which mainly gives a higher weight to the tokens describing the relation between two entities. Fig. 3(d), (e) show the effect of the knowledge attention, we can see that this kind of attention also pay attention
+on the tokens containing main semantic information. For the latter part
+of the sentence after comma, our attention mechanisms do not pay
+attention because it does not describe the relation between two drug
+entities.
+
+background knowledge, which makes the meaning of each word preciser. Second, the BioBERT model can integrate the contextual information of sentences into the word vector well through the 12-layer
+Transformer model compared with the Word2Vec model. Third, the
+BioBERT model is trained through specific tasks, which leads to poor
+generalization performance of the output of the later transformer layers
+in the Bert model, by our modification to the output of the BioBERT
+model (averaging the output of the last four layers), we improve the
+generalization performance, and the result is significantly higher which
+confirmed our analysis.
+In order to study the effect of modifying the output of BioBERT, we
+try a variety of methods to integrate the outputs of different transformers in BioBERT. These methods are mainly divided into two categories, that are to concatenate or average the outputs of the transformers in the last several layers of BioBERT. We find that both methods
+can improve the performance after a proper number of layers are
+merged. But when the number of the merged layers is more than five,
+the performance begins to decline. The results show that the average of
+the last four layers achieve the best performance. It can be seen that the
+
+4.3. Error analysis
+Fig. 4 shows the confusion matrix of our model. The darker color in
+the figure means the larger proportion. In order to highlight the wrong
+classifications, we regularize the number of each category for each DDIs
+type by 1 normalization. From the figure we can see that there are
+mainly two types of errors:
+
+Fig. 3. The attention weights of different attention mechanisms. We replaced the two drug names with “drugA” and “drugB” in order to give a better show of the
+relation between the two drugs.
+
+6
+
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Y. Zhu, et al.
+
+CRediT authorship contribution statement
+Yu Zhu: Conceptualization, Methodology, Writing - original draft.
+Lishuang Li: Supervision, Funding acquisition, Investigation, Writing original draft. Hongbin Lu: Investigation, Visualization, Writing - review & editing. Anqiao Zhou: Data curation, Formal analysis, Writing review & editing. Xueyang Qin: Investigation, Resources, Validation.
+Declaration of Competing Interest
+The authors declare that they have no known competing financial
+interests or personal relationships that could have appeared to influence the work reported in this paper.
+Acknowledgment
+This work is supported by grant from the National Natural Science
+Foundation of China (No. 61672126) and the National Key R&D
+Program of China (2018YFC0910500). The Titan Xp GPU used for this
+research was donated by the NVIDIA Corporation. The authors declare
+that they have no competing interests.
+
+Fig. 4. The confusion matrix of the results of our model.
+
+• Four kinds of positive instances (Advise, Mechanism, Effect, Int) are
+often misclassified into negative instances.
+• The instances of Int type are often misclassified into Effect type.
+
+References
+[1] V. Miranda, A. Fede, M. Nobuo, V. Ayres, A. Giglio, M. Miranda, R.P. Riechelmann,
+Adverse drug reactions and drug interactions as causes of hospital admission in
+oncology, J. Pain Symptom Manage. 42 (2011) 342–353.
+[2] I. Segura-Bedmar, P. Martinez, D. Sanchez-Cisneros, The 1st ddiextraction-2011
+challenge task: Extraction of drug-drug interactions from biomedical texts, vol,
+2011, 2011, pp. 1–9.
+[3] M. Herrero-Zazo, I. Segura-Bedmar, P. Martínez, T. Declerck, The DDI corpus: An
+annotated corpus with pharmacological substances and drug-drug interactions, J.
+Biomed. Inform. 46 (2013) 914–920.
+[4] M.F.M. Chowdhury, A. Lavelli, Fbk-irst: A multi-phase kernel based approach for
+drug-drug interaction detection and classification that exploits linguistic information, in: Second Joint Conference on Lexical and Computational Semantics (∗ SEM),
+Volume 2: Proceedings of the Seventh International Workshop on Semantic
+Evaluation (SemEval 2013), 2013, pp. 351–355.
+[5] S. Kim, H. Liu, L. Yeganova, W.J. Wilbur, Extracting drug-drug interactions from
+literature using a rich feature-based linear kernel approach, J. Biomed. Inform. 55
+(2015) 23–30.
+[6] P. Thomas, M. Neves, T. Rocktäschel, U. Leser, Wbi-ddi: drug-drug interaction extraction using majority voting, in: Second Joint Conference on Lexical and
+Computational Semantics (∗ SEM), Volume 2: Proceedings of the Seventh
+International Workshop on Semantic Evaluation (SemEval 2013), 2013, pp.
+628–635.
+[7] W. Zheng, H. Lin, Z. Zhao, B. Xu, Y. Zhang, Z. Yang, J. Wang, A graph kernel based
+on context vectors for extracting drug-drug interactions, J. Biomed. Inform. 61
+(2016) 34–43.
+[8] M. Asada, M. Miwa, Y. Sasaki, Enhancing drug-drug interaction extraction from
+texts by molecular structure information, in: Proceedings of the 56th Annual
+Meeting of the Association for Computational Linguistics, ACL 2018, Melbourne,
+Australia, July 15–20, 2018, Volume 2: Short Papers, 2018, pp. 680–685.
+[9] S.K. Sahu, A. Anand, Drug-drug interaction extraction from biomedical text using
+long short term memory network, J. Biomed. Inform. 86 (2017) 15–24.
+[10] Y. Zhang, W. Zheng, H. Lin, J. Wang, Z. Yang, M. Dumontier, Drug-drug interaction
+extraction via hierarchical rnns on sequence and shortest dependency paths,
+Bioinformatics 34 (2017) 828–835.
+[11] X. Sun, K. Dong, L. Ma, R. Sutcliffe, F. He, S. Chen, J. Feng, Drug-drug interaction
+extraction via recurrent hybrid convolutional neural networks with an improved
+focal loss, Entropy 21 (2019) 37.
+[12] W. Zheng, H. Lin, L. Luo, Z. Zhao, Z. Li, Y. Zhang, Z. Yang, J. Wang, An attentionbased effective neural model for drug-drug interactions extraction, BMC Bioinform.
+18 (2017) 445:1–445:11.
+[13] J. Devlin, M.-W. Chang, K. Lee, K. Toutanova, BERT: Pre-training of deep bidirectional transformers for language understanding, in: Proceedings of the 2019
+Conference of the North American Chapter of the Association for Computational
+Linguistics: Human Language Technologies, Volume 1 (Long and Short Papers),
+Association for Computational Linguistics, Minneapolis, Minnesota, 2019, pp.
+4171–4186.
+[14] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A.N. Gomez, L. Kaiser, I.
+Polosukhin, Attention is all you need, in: Advances in Neural Information
+Processing Systems 30: Annual Conference on Neural Information Processing
+Systems 2017, 4–9 December 2017, Long Beach, CA, USA, pp. 5998–6008.
+[15] T. Mikolov, K. Chen, G. Corrado, J. Dean, Efficient estimation of word representations in vector space, in: 1st International Conference on Learning
+Representations, ICLR 2013, Scottsdale, Arizona, USA, May 2–4, 2013, Workshop
+Track Proceedings.
+
+For the first type of errors, we think it is mainly due to the imbalance of the number of each category in the DDIs data set (4,960
+positive DDIs and 20,101 negative DDIs in total), that inevitably lead to
+the categories with small instances misclassify into categories with
+large instances. The second type of errors are very similar to the result
+of previous works [9,10]. After our analysis, we think that the reasons
+for this kind of error are that the number of instances of Int type is too
+small, and some of the instances of Int type and Effect type have similar
+semantics. We count drug pairs of Int and Effect types in the training
+set, and find that about 10% drug pairs labeled as Int are also labeled as
+Effect. This leads to the fact that external knowledge of drugs, including
+the drug description information we proposed, cannot help to distinguish this multi-labeled drug pairs. We also pick out the instances that
+are of type Int but are classified as Effect types from the results, and
+compare them with the instances that are of type Effect. We found that
+in some instances of Effect type and Int type, the words describing drug
+relations are the same or similar in semantics. For example, in the
+sentence “Other drugs which may enhance the neuromuscular blocking
+action of nondepolarizing agents such as mivacron include certain antibiotics.” (type Int) and “When administered concomitantly with ProAmatine, cardiac glycosides may enhance or precipitate bradycardia.” (type
+Effect), the relations of two drugs are all “enhance”. While in the sentence “Thus strong inhibitors of cytochrome p4501a2, such as fluvoxamine,
+given concomitantly during administration of ropivacaine, can interact with
+ropivacaine leading to increased ropivacaine plasma levels.” (type Int) and
+“Thiazides may decrease arterial responsiveness to norepinephrine.” (Type
+Effect), “increase” and “decrease” are similar in semantics. Therefore,
+the semantic similarity between the two DDI types leads to some classification errors.
+4.4. Conclusion and further studies
+In this paper, we proposed a novel model using multiple entityaware attentions to extract DDIs from biomedical literature. The evaluation results showed that our method achieved state-of-the-art performance compared to the existing methods, which suggesting the efficacy of each sub model in our method.
+In further studies, we will try to integrate more kinds of entity information into the model, and pay more attention to the mutual information of the two drug entities.
+7
+
+Journal of Biomedical Informatics 106 (2020) 103451
+
+Y. Zhu, et al.
+[16] J. Pennington, R. Socher, C. Manning, Glove: Global vectors for word representation, Proceedings of the 2014 Conference on Empirical Methods in Natural
+Language Processing (EMNLP), Association for Computational Linguistics, Doha,
+Qatar, 2014, pp. 1532–1543.
+[17] L.L. Wang, O. Tafjord, S. Jain, A. Cohan, S. Skjonsberg, C. Schoenick, N. Botner, W.
+Ammar, Extracting evidence of supplement-drug interactions from literature, CoRR
+abs/1909.08135, 2019.
+[18] Y. Peng, S. Yan, Z. Lu, Transfer learning in biomedical natural language processing:
+An evaluation of BERT and elmo on ten benchmarking datasets, in: D. DemnerFushman, K.B. Cohen, S. Ananiadou, J. Tsujii (Eds.), Proceedings of the 18th
+BioNLP Workshop and Shared Task, BioNLP@ACL 2019, Florence, Italy, August 1,
+2019, Association for Computational Linguistics, 2019, pp. 58–65.
+[19] J. Lee, W. Yoon, S. Kim, D. Kim, S. Kim, C.H. So, J. Kang, Biobert: pre-trained
+biomedical language representation model for biomedical text mining, 2019, arXiv
+preprint arXiv:1901.08746.
+[20] D. Li, H. Ji, Syntax-aware multi-task graph convolutional networks for biomedical
+relation extraction, in: Proceedings of the Tenth International Workshop on Health
+Text Mining and Information Analysis (LOUHI 2019), Association for
+Computational Linguistics, Hong Kong, 2019, pp. 28–33.
+[21] H. Linna, Y. Zhihao, Z. Zhehuan, L. Hongfei, L. Yanpeng, Extracting drug-drug interaction from the biomedical literature using a stacked generalization-based approach, Plos One 8 (2013) e65814.
+[22] S. Liu, B. Tang, Q. Chen, X. Wang, Drug-drug interaction extraction via
+
+[23]
+
+[24]
+
+[25]
+[26]
+
+[27]
+
+8
+
+convolutional neural networks, Comp. Math. Meth. Med. 2016 (2016)
+6918381:1–6918381:8.
+V. Law, C. Knox, Y. Djoumbou, T. Jewison, A. Guo, Y. Liu, A. Maciejewski, D. Arndt,
+M. Wilson, V. Neveu, A. Tang, G. Gabriel, C. Ly, S. Adamjee, Z.T. Dame, B. Han,
+Y. Zhou, D.S. Wishart, Drugbank 4.0: shedding new light on drug metabolism,
+Nucleic Acids Res. 42 (2014) 1091–1097.
+K. Cho, B. van Merriënboer, C. Gulcehre, D. Bahdanau, F. Bougares, H. Schwenk,
+Y. Bengio, Learning phrase representations using RNN encoder–decoder for statistical machine translation, Proceedings of the 2014 Conference on Empirical
+Methods in Natural Language Processing (EMNLP), Association for Computational
+Linguistics, Doha, Qatar, 2014, pp. 1724–1734.
+J. Chung, C. Gulcehre, K. Cho, Y. Bengio, Empirical evaluation of gated recurrent
+neural networks on sequence modeling, in: NIPS 2014 Workshop on Deep Learning,
+December 2014.
+A. Santoro, D. Raposo, D.G.T. Barrett, M. Malinowski, R. Pascanu, P.W. Battaglia, T.
+Lillicrap, A simple neural network module for relational reasoning, in: Advances in
+Neural Information Processing Systems 30: Annual Conference on Neural
+Information Processing Systems 2017, 4–9 December 2017, Long Beach, CA, USA,
+2017, pp. 4967–4976.
+K. Lee, L. He, M. Lewis, L. Zettlemoyer, End-to-end neural coreference resolution,
+in: Proceedings of the 2017 Conference on Empirical Methods in Natural Language
+Processing, EMNLP 2017, Copenhagen, Denmark, September 9–11, 2017, pp.
+188–197.
+
+

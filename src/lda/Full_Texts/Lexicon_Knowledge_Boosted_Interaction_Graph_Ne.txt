@@ -1,0 +1,977 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 25, NO. 7, JULY 2021
+
+2777
+
+Lexicon Knowledge Boosted Interaction Graph
+Network for Adverse Drug Reaction Recognition
+From Social Media
+Zhiheng Li , Zhihao Yang , Lei Wang, Yin Zhang, Hongfei Lin , and Jian Wang
+
+Abstract—The World Health Organization underlines the
+significance of adverse drug reaction (ADR) reports for
+patients’ safety. Actually, many potential ADRs tend to be
+under-reported in post-market ADR surveillance. Recognizing ADRs from social media is indispensably important
+and could complement post-market ADR surveillance for
+more effective pharmacovigilance studies. However, previous approaches pose two challenges: 1) ADRs show high
+expression variability in social media, and thus, many potential ADRs are out-of-lexicon ones, which are difficult to
+be recognized, and 2) most phrasal ADRs are non-standard
+mentions and their boundaries are difficult to identify accurately. To tackle these challenges, we design three interaction graphs and propose a neural network approach, i.e.,
+Interaction Graph Network (IGN). Specifically, to recognize
+more out-of-lexicon ADRs, besides the mentions in ADR
+lexicon, noun phrases in the input sentence are regarded
+as candidate phrases and their features are taken into considerations. Moreover, in an attempt to accurately identify
+ADR boundaries, three word-phrase interaction graphs are
+designed to represent lexicon knowledge and are encoded
+using graph attention networks (GATs) to directly integrate
+various boundary and contextual information of candidate
+phrases into ADR recognition. Experimental results on two
+benchmark datasets show that IGN can recognize ADR accurately and consistently outperforms other state-of-the-art
+approaches.
+Index Terms—ADR recognition, interaction graph, graph
+attention network, social media.
+
+Manuscript received April 28, 2020; revised July 14, 2020, September
+6, 2020, and October 22, 2020; accepted December 1, 2020. Date of
+publication December 4, 2020; date of current version July 20, 2021.
+This work was supported by the National Key Research and Development Program of China (No. 2016YFC0901902). (Corresponding authors: Zhihao Yang; Lei Wang.)
+Zhiheng Li is with the College of Computer Science and Engineering, Shandong University of Science and Technology, Qingdao 266590,
+China, and also with the College of Computer Science and Technology, Dalian University of Technology, Dalian 116024, China (e-mail:
+zhihengli@mail.dlut.edu.cn).
+Zhihao Yang, Hongfei Lin, and Jian Wang are with the College of
+Computer Science and Technology, Dalian University of Technology,
+Dalian 116024, China (e-mail: yangzh@dlut.edu.cn; hflin@dlut.edu.cn;
+wangjian@dlut.edu.cn).
+Lei Wang and Yin Zhang are with the Beijing Institute of Health
+Administration and Medical Information, Beijing 100850, China (e-mail:
+wangleibihami@gmail.con; zhangyinbihami@gmail.com).
+Digital Object Identifier 10.1109/JBHI.2020.3042549
+
+I. INTRODUCTION
+DVERSE drug reactions (ADRs), known as the harmful
+reactions or dangerous injuries caused by the intake of
+drugs [1], is the fourth leading cause of death in the United
+States [2]. Since many ADRs happen to certain people in certain
+conditions after a long-time exposure, many potentially harmful
+drugs and their ADRs remain unflagged. Fortunately, due to the
+presence of a large user base on social media, a vast amount
+of health-related data, especially the comments on ADRs, in the
+form of posts or tweets gets generated and is exchanged between
+users. The free accessibility of this data presents a lucrative
+source of medical data [3] from which ADR information can
+be obtained and then used as early signals to supplement existing voluntary information systems [4]. Also, the early signals
+could potentially be used by the interested parties to validate
+or reject signals that have arisen in other reporting systems, for
+example, focusing on manufacturers’ responsibilities to provide
+accurate and quality information regarding drugs [5]. Therefore,
+it is essential for advanced approaches to accurately recognize
+penitential ADR mentions from social media.
+ADR recognition from social media can be formulated as
+a Named Entity Recognition (NER) task. Existing popular
+approaches [3], [6], [7] adopt machine learning methods to
+automatically extract ADRs. However, different from other NER
+tasks (e.g., chemical NER from literature), ADRs in social media
+are usually expressed with various informal terms, which makes
+the task more difficult. For example, in the chemical entity recognition task, despite existing in different texts, ‘lithium carbonate’
+always represents a chemical entity and its expression will not
+change with the users’ experiences. Therefore, lexicon features
+derived from databases and pre-built lexicons are effective and
+essential for recognizing chemical entities. Specifically, in the
+lexicon feature-based approaches, the longest possible matches
+between the word sequences in a sentence and the lexicon
+mentions are represented with the BIO (i.e., Begin, Inside,
+Outside) tagging scheme and are sent to an NER approach.
+However, different from other NER tasks, the expression of
+ADRs in social media various according to users’ feelings. For
+example, as shown in Fig. 1, diverse expressions are utilized
+to represent the ADR ‘sleep loss’. In Fig. 1, Case 1 shows
+the standard mention expression, Case 2 shows the expressions
+without negative words, Case 3 shows the negative expressions,
+and Case 4 shows the expressions without mentioning the word
+
+A
+
+2168-2194 © 2020 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See https://www.ieee.org/publications/rights/index.html for more information.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+2778
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 25, NO. 7, JULY 2021
+
+Fig. 1. Diverse expressions of the ADR ‘sleep loss’. The phrases
+shown in the bold text can be found in ADR lexicon.
+TABLE I
+MATCHING RESULTS BETWEEN THE LONGEST WORD SEQUENCES
+IN SENTENCES AND THE MENTIONS IN ADR LEXICON
+
+∗
+The SMM4H corpus contains training, validation, and evaluation sets. And Table I
+does not show the statistics of the evaluation set since the annotation for evaluation is
+not available for the public. There are no official splits for the CADEC dataset, and thus,
+in the statistics, we regard CADEC as one dataset.
+
+‘sleep’. Diverse non-medical phrases and phrasal ADRs framed
+with casual words are often beyond lexicons. Although there
+are also databases and lexicons such as SIDER1 and ADR
+lexicon2 are exploited to improve the performance on the ADR
+recognition task to some extent [8]–[10], most of the entities in
+social medial texts are out-of-lexicon mentions, and thus, are
+difficult to recognize. As shown in Table I, the out-of-lexicon
+mentions account for a large proportion of ADRs in datasets such
+as the Fourth Social Media Mining for Health3 (SMM4H-2019)
+dataset and CSIRO Adverse Drug Event Corpus4 (CADEC).
+Therefore, relying on the lexicon features cannot deal with
+these out-of-lexicon mentions and the performance of ADR
+recognition from social media still needs to be further improved.
+And recognizing out-of-lexicon mentions can help medical researchers discover more potential ADRs.
+In addition, it has been a difficult problem in the task of
+NER to determine the boundary of entities. It is especially
+the case for texts in social media since these health-related
+posts are generated with diverse expressions and ambiguous
+or non-standard mentions. For example, previous approaches
+tend to predict ‘headache’ rather than ‘frontal headache’ or
+‘intrusive thoughts’ rather than ‘horrid intrusive thoughts’ as
+ADRs and the modifiers in the entities will be recognized
+as irrelevant words (i.e., assigned an ‘O’ tag in the sequence
+labeling methods), which results in inaccurate boundary identification. And incorrect boundary identification may change the
+meaning of an ADR. For example, losing the modifier “lower”
+in the ADR “lower back ache”, the phrase will have a different
+
+meaning. Thereby previous research explored various methods
+on attempts to solve this problem, usually, to correct the boundaries of entities by additional post-processing steps involving
+lexicons or knowledge bases [11]–[14]. However, according to
+Table I, the statistics of overlapping ADRs (i.e., an ADR entity
+in ADR lexicon matches only a part of the ADR mention in
+the datasets) shows that despite using lexicons, many ADRs in
+the datasets have the problem of inaccurate boundary identification. Also, leveraging prior knowledge derived from lexicons
+and knowledge bases to correct the boundaries of identified
+ADRs leads to error propagation and it overlooks the boundary
+and contextual information of a candidate mention during the
+ADR recognition phase. Therefore, it is another challenge to
+accurately identify ADR boundaries.
+To solve the above challenges and benefit pharmacovigilance
+studies, we design three interaction graphs and propose an
+Interaction Graph Network (IGN) to leverage lexicon knowledge
+for ADR recognition from social media. In IGN, besides the
+mentions in ADR lexicon, noun phrases generated by parsing
+the input sentence are regarded as candidate phrases, so that
+IGN can recognize the out-of-lexicon mentions. Moreover, three
+word-phrase interaction graphs that represent the interactions
+between words and candidate phrases are designed and are encoded exploiting graph attention networks (GATs). The first one
+is a word-phrase Boundary graph (B-graph), which is designed
+for directly integrating the boundary information of a candidate
+phrase so that IGN can identify ADRs accurately. The second
+one is a word-phrase Context graph (C-graph), which builds
+the direct connection between candidate phrases and the nearest
+contextual words. It enables IGN to handle the challenge of
+integrating the contextual information of a candidate phrase
+directly. The third one is a word-phrase Semantic graph (Sgraph), which captures the semantic information of a phrase as
+well as the contextual information in a sentence. These graphs
+capture information independently and yet complement each
+other nicely.
+In summary, our main contributions are as follows:
+1) We propose IGN to directly integrate lexicon knowledge
+into ADR recognition. Compared with the approaches
+of leveraging lexicon features, IGN can recognize more
+out-of-lexicon mentions by taking noun phrases into
+consideration. And these noun phrases do not require
+additional manual annotations.
+2) We design three word-phrase interaction graphs to integrate various boundary and contextual information of
+candidate phrases and exploit GAT to encode them.
+These graphs enable IGN to identify mention boundaries
+accurately.
+3) We conduct experiments on two benchmark ADR recognition datasets and the results demonstrate that our proposed approach consistently outperforms existing stateof-the-art approaches.
+II. RELATED WORK
+
+1 http://sideeffects.embl.de/download/
+2 http://diego.asu.edu/downloads/publications/ADRMine/ADR_lexicon.tsv
+3 https://competitions.codalab.org/competitions/20798
+4 https://data.csiro.au
+
+A. ADR Recognition
+ADR recognition can be formulated as an NER task. In
+the previous works, state-of-the-art CRF-based approaches [9],
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+LI et al.: LEXICON KNOWLEDGE BOOSTED INTERACTION GRAPH NETWORK
+
+[15]–[17] rely heavily on effective feature engineering. In addition to semantic and morphological features such as n-gram and
+the suffixes and prefixes of words, Miftahutdinov et al. [9] and
+Nikfarjam et al. [17] both found that the features obtained by text
+clustering had an effect on their approaches. In the approachs
+of Karimi et al. [15] and Metke-Jimenez et al. [16], external
+resources such as SNOMED CT and MedDRA are introduced
+to improve the performance of ADR mining. Designing various
+features using natural language processing (NLP) tools and
+knowledge resources is proved to be effective, however, it is
+a skill-dependent and labor-intensive task. To reduce feature
+engineering, neural network architectures [18]–[20] have been
+proposed for ADR recognition from clinical texts and electronic
+health records (EHRs). Also, as another valuable source of
+post-marketing surveillance [21], social media has been widely
+used to find signals of potential ADRs using various neural networks [3], [7], [10]. Recently, as the development of pre-trained
+language models (e.g., Bidirectional Encoder Representations
+from Transformers (BERT) [22]), it is a clear dominance of
+neural networks using word embeddings pre-trained with BERT
+[23]. For example, in the SMM4H-2019 Shared Task, Mahata et
+al. [24], Miftahutdinov et al. [25] and Chen et al. [26] exploited
+BERT to generate word embeddings from large-scale unlabeled
+texts and fine-tuning these embeddings on the training corpora.
+Despite various architectures and pre-trained embeddings exploited, existing approaches usually leverage lexicon features to
+integrate lexicon knowledge into ADR recognition. Therefore,
+they also suffer from the inability to recognize out-of-lexicon
+mentions and identify boundaries inaccurately. Different from
+these approaches, we expand ADR lexicon with noun phrases
+and propose three word-phrase interaction graphs to integrate
+lexicon knowledge and effectively recognize ADRs from social
+media.
+B. Graph Neural Networks
+Recent years have seen a spike in the use of graph neural
+networks (GNNs) for learning over graphs [27]–[29]. And in
+the NLP domain, previous works using graph convolutional
+networks (GCNs) rely on the dependency tree generated from a
+given sentence to construct a single graph [30]–[33]. Zhang et al.
+[33] leveraged the graph convolution operation to extract entitycentric representations by encoding the dependency structure.
+Cetoli et al. [31] added a GCN layer to augment dependency
+semantic information into word representations and enhance the
+accuracy of NER. The structure of the dependency tree plays
+an essential role in these information extraction approaches in
+the process of creating graphs for GCNs to capture syntactic
+information. And it has been demonstrated by these studies that
+GCNs can be applied in parallel over dependency trees. Compared with the conventional long short-term memory (LSTM)
+networks that rely on the tree structure, GCNs are more efficient
+and can better leverage the structural information.
+As a variant of GNNs, graph attention networks (GATs) [29]
+leverage masked self-attention layers to assign different weights
+to neighboring nodes and are also widely used for NLP tasks
+[34], [35]. Guo et al. [34] integrated attention mechanism into
+
+2779
+
+Fig. 2.
+
+Word-phrase interaction graphs.
+
+GCN enabling their approach to select and discard information.
+Hu et al. [35] proposed a heterogeneous GAT with a duallevel attention mechanism, to enable their approach to learn
+the influence of different types of words in the context of the
+current word. The attention mechanism in these approaches
+enabled the nodes of the stacked layers to attend over their
+neighborhoods’ features. Discrimination features are acquired
+by weighted shortcuts between the context vector and the entire
+source input. Thus, approaches with GATs tend to better leverage
+structural information by selecting and fusing more relevant
+features.
+However, in previous approaches, generating dependency
+trees for graph construction requires clear and complete sentence
+structures. And due to the informal expressions in social media,
+it is hard to get dependency trees from user-generated texts, such
+as tweets. Therefore, the approaches based on dependency trees
+may heavily suffer from error propagation. To capture various
+boundary and contextual information, we propose IGN consisting of three word-phrase interaction graphs constructed with
+lexicon knowledge, which can alleviate the error propagation
+problem. To our best knowledge, we are the first to construct
+interaction graphs and introduce GAT to ADR recognition.
+III. MATERIALS AND METHODS
+In this section, we first introduce the construction of our
+proposed interaction graphs and then introduce the architecture
+of IGN for ADR recognition.
+A. Graph Construction
+We propose three word-phrase interaction graphs, which integrate lexicon knowledge and represent the interactions between
+words and candidate phrases: (1) a word-phrase Boundary graph
+(B-graph); (2) a word-phrase Context graph (C-graph); and (3)
+a word-phrase Semantic graph (S-graph).
+These three graphs share the same vertex set which consists
+of the words and the candidate phrases in a given sentence. For
+example, as shown in Fig. 2, the vertex set is V = {<sos>, …,
+had, the, sane, experience, the sane experience, of, …}. The
+candidate phrases, on one hand, consist of the longest matches
+between word sequences and the mentions in ADR lexicon. On
+the other hand, since most of the out-of-lexicon mentions are
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+2780
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 25, NO. 7, JULY 2021
+
+non-medical noun phrases, we construct a chunk parser through
+Natural Language Toolkit (NLTK) [36] to identify the base noun
+phrase chunks, which are treated as candidate phrases.
+The edge sets of these three graphs are substantially different
+since they emphasize different information. Therefore, three
+adjacency matrices are adopted to represent the edge sets. In
+an adjacency matrix, the element indicates whether the pair of
+vertices is connected or not in the graph. The adjacency matrices
+of these three graphs are introduced below:
+1) Word-Phrase Boundary Graph: B-graph is designed to
+emphasize the boundary information of a candidate phrase and
+the contextual information in the phrase. As shown in Fig. 2, for
+candidate phrase i, if word j matches the first or the end word
+B
+of the candidate phrase, we will assign AB
+ij = 1 and Aji = 1.
+Moreover, in a candidate phrase, if word k is a neighboring word
+of word j the (k, j)-entry of the adjacency matrix AB will be
+assigned a value of 1.
+2) Word-Phrase Context Graph (C-graph): C-graph captures
+the semantic information between a candidate phrase and the
+nearest contextual words. As shown in Fig. 2, if word j is the
+nearest preceding word of the first word in candidate phrase i
+or the nearest following word of the end word in the phrase,
+C
+we will assign AC
+ij = 1 and Aji = 1. Moreover, to capture
+the contextual word information in a sentence, if word q is a
+neighboring word of word p, the (q, p)-entry of the adjacency
+matrix AC will be assigned a value of 1.
+3) Word-Phrase Semantic Graph (S-graph): S-graph enables the word in a candidate phrase to capture the semantic
+information of the phrase. As shown in Fig. 2, if candidate phrase
+i contains word j, we will assign ASij = 1 and ASji = 1. Besides,
+to further capture the semantic information in a sentence, same
+as C-graph, if word q is a neighboring word of word p, the
+(q, p)-entry of the adjacency matrix AS will be assigned a value
+of 1.
+B. Interaction Graph Network
+As shown in Fig. 3, IGN includes a vertex representation
+module, a graph representation module, and an entity recognition module. First, the vertex representation module takes a
+sentence as an input and generates representations (features) for
+the word and candidate phrase nodes. Also, in this module, three
+interaction graphs are constructed and the adjacency matrix of
+each graph is obtained. Second, the graph representation module
+takes the node features and adjacency matrices obtained by graph
+construction as inputs, exploits GATs for modeling over three
+interaction graphs, and outputs a new representation for each
+word in the input sentence. In this module, each GAT layer takes
+three inputs, i.e., word node representations (the blue line in
+Fig. 3), candidate phrase embeddings (the green line in Fig. 3),
+and the adjacency matrix of the corresponding graph (the yellow
+line in Fig. 3). Finally, the entity recognition module fuses the
+information according to the word representations output by
+the graph representation module and then decodes tags using
+a standard Conditional Random Field (CRF) [37] layer.
+1) Vertex Representations: The vertex set of a sentence includes word nodes (i.e., words in the sentence) and phrase nodes
+(i.e., candidate phrases in the sentence).
+
+Fig. 3. Main architecture of Interaction Graph Network. In IGN, the BIO
+tagging scheme is used.
+
+Given a sentence {w1 , w2 , . . . , wn } with n words, each
+word wi is projected to corresponding embedding space, i.e.,
+wiemb . And word2vec [38] tool is employed to pre-train word
+embeddings and the dimensionality of the word embeddings is
+a hyperparameter whose value can be set as 50–200 empirically during pre-training according to the dataset. To augment
+contextual information to word nodes, long short-term memory
+(LSTM) [39] networks are usually adopted to process sequential
+text. In this study, since both forward and backward memories
+are informative, we utilize a bidirectional LSTM (BiLSTM)
+to process the sentence. And in this case, the representation
+of each word node will contain contextual information. The
+representation of each word node can be expressed as:
+
+
+(1)
+hfi = LST M f hfi−1 , wiemb
+
+
+hbi = LST M b hbi+1 , wiemb
+(2)
+hi = [hfi ||hbi ]
+
+(3)
+
+where hfi is computed by a forward LSTM using
+{w1 , w2 , . . . , wi } from left to right and hbi is computed
+by another backward LSTM using {wi , wi+1 , . . . , wn } from
+right to left. hi is the representation of the i-th word node
+in the sentence and its dimensionality is a hyperparameter.
+In our experiments, the dimensionalities of the BiLSTM
+hidden states are set to be the same as that of the pre-trained
+word embeddings in order to facilitate subsequent fusion and
+calculation. || represents the concatenate operation.
+The representation of a phrase node is simply computed by
+averaging the word vectors of the words in a candidate phrase
+{w1 , w, . . . , wk }:
+pm =
+
+k
+1  emb
+w
+k j=1 j
+
+(4)
+
+where pm is the representation of the m-th phrase node and k
+is the length of the candidate phrase. Since candidate phrases
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+LI et al.: LEXICON KNOWLEDGE BOOSTED INTERACTION GRAPH NETWORK
+
+typically consist of a small number of words (in most cases 2 or
+3), simple averaging is sufficient for phrase node representations
+comparing with complicated methods (such as LSTM) which
+tend to overfit.
+Finally, the vertex representations of a sentence with n word
+nodes and m phrase nodes can be denoted as the concatenation
+of the word node representations and the phrase node representations, i.e., Vh = {h1 , h2 , . . . , hn , p1 , p2 , . . . , pm }.
+2) Graph Representations: We adopt Graph Attention Networks (GATs) [29] to capture the lexicon knowledge from the
+three interaction graphs. In a multi-layer GAT, the input of the
+layer consists of a node feature set (i.e., vertex representation
+set) and an adjacency matrix. And the layer produces a new
+set of node features (of potentially different cardinality) as its
+output. In GATs, an attention mechanism is exploited to calculate
+the importance of node j’s features to node i. For example, in
+B-graph, the word node ‘bad’ is connected with the word node
+‘dreams’ and the phrase node ‘bad dreams’. And the attention
+mechanism will calculate the importance of ‘dreams’ and ‘bad
+dreams’ to node ‘bad’. The coefficients aij computed by the
+attention mechanism can be expressed as:
+aij = 
+
+exp(LeakyReLU (
+αT [W vi ||W vj ]))
+αT [W vi ||W vk ]))
+k∈Ni exp(LeakyReLU (
+
+(5)
+
+where α
+ ∈ R2F is a weight vector, W ∈ RF ×F is a weight matrix, and F is the dimensionality of vertex embeddings, which is a
+hyperparameter. In our experiments, the value of F is set to be the
+same as that of the dimensionality of word node embeddings in
+order to facilitate subsequent fusion and calculation; vi denotes
+the input features of the i-th node; .T represents the transposition
+operation; and Ni is the neighborhood of node i, according to
+the adjacency matrix.
+In our approach, K independent attention mechanisms are
+performed on each GAT layer and their features are concatenated, resulting in the following output feature representation:
+⎞
+⎛
+
+
+⎝
+(6)
+akij W kvj ⎠
+vi = ||K
+k=1 σ
+jNi
+
+where akij is the normalized attention coefficient computed by
+the k-th attention mechanism; W k is the corresponding trainable
+weight matrix; K is the number of heads, which is a hyperparameter. And the value of K is set according to the scale
+of training set. According to Vaswani et al. [40], single-head
+attention is worse than multi-head attention, quality also drops
+off with too many heads. σ is a nonlinear activation function.
+
+vi is the new node representation calculated according to node
+i’s neighborhood. For example, the new representation of the
+word node ‘bad’ is obtained according to the representations of
+‘dreams’ and ‘bad dreams’ and their importance to node ‘bad’
+since ‘bad’ is a boundary word of the phrase ‘bad dreams’. And
+similarly, the representation of ‘bad dreams’ will contain the information of the boundary words ‘bad’ and ‘dreams’. Therefore,
+after multiple layers of calculation, the boundary information
+of a candidate phrase will be emphasized in B-graph. Also, in
+C- and S-graphs, contextual and semantic information will be
+
+2781
+
+captured according to their adjacency matrices. Note that, the
+final output will consist of KF rather than F features. In the final
+layer of the network, we adopt an averaging operation instead
+of the concatenation one to make sure that the dimensionality of
+the final output features is F .
+⎞
+⎛
+K 
+
+1
+
+(7)
+akij W kvj ⎠
+vi = σ ⎝
+K
+k = 1 jNi
+
+Since the interaction graphs are designed to capture different
+information, we build three independent GATs for each of them.
+The output node features are calculated as:
+
+
+(8)
+VB = GATB Vh , AB
+
+
+(9)
+VC = GATC Vh , AC
+
+
+(10)
+VS = GATS Vh , AS
+where Vh is the input node feature set. Ai , i ∈ {B, C, S}
+is the adjacency matrix. Each output Vi ∈ RF ×(n+m) , i ∈
+{B, C, S}, consists of n columns of word representations and
+m columns of candidate phrase representations. We only use
+word representations to decode tags and discard the last m
+columns of the outputs.
+Hi = Vi [:, 0 : n] , i ∈ {B, C, S}
+
+(11)
+
+3) Entity Recognition: In the entity recognition module, we
+first fuse the different information captured by interaction
+graphs. Besides, the contextual information captured from the
+original sentence plays an essential role in NER tasks. Thus, the
+final representation of a sentence can be expressed as:
+
+R = W [Hh ||HB ||HC || HS ]
+
+(12)
+F ×n
+
+where W is a trainable weight matrix, Hh ∈ R
+is the word
+representations generated by the BiLSTM. Via the fusion operation, a new sentence representation is obtained for decoding
+output tags.
+We utilize a Conditional Random Field (CRF) [37] layer to
+make use of neighborhood tag information in prediction and
+yield the final prediction for each word. And Viterbi algorithm
+[41] is used to get the predict sequence with the highest score.
+IV. RESULTS AND DISCUSSION
+A. Datasets and Experimental Settings
+We evaluated our approach on two benchmark datasets, i.e.,
+SMM4H-2019 [23] and CADEC [42]. SMM4H-2019 is the
+dataset of sub-task 2 in the SMM4H-2019 shared tasks. It
+includes the tweets sampled from Twitter5 with ADR and
+Indication annotations. And in our experiments, we used the
+official train, validation and test splits for evaluation. CADEC is
+sampled from AskaPatient.com and includes 1,250 posts (which
+are split into sentences in our experiments) grouped by 12 drugs
+with ADR annotations. Since there are no official splits for
+training and evaluation, we performed 10-fold cross-validation
+5 https://twitter.com
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+2782
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 25, NO. 7, JULY 2021
+
+TABLE II
+THE STATISTICS OF THE DATASETS FOR EVALUATION
+
+for parameter optimization. The statistics of the datasets are
+shown in Table II. It can be observed that the number of instances
+is much smaller in SMM4H-2019 than that in CADEC.
+Since both of the datasets are sampled from social media, the
+sentences are largely written in colloquial language and often
+deviate from formal English grammar and punctuation rules. In
+our experiments, we preprocessed the texts in both datasets using
+the ekphrasis library6 [43]. Ekphrasis is a text processing tool,
+geared towards text from social networks, such as Twitter or
+Facebook. It performs tokenization, word normalization, word
+segmentation (for splitting hashtags, e.g., ‘#NotFeelingWell’
+was converted to ‘not feeling well’) and spell correction (replace
+a misspelled word with the most probable candidate word, e.g.,
+replace ‘gooood’ by ‘good’), using word statistics from 2 big
+corpora (English Wikipedia and English tweets). It also replaces
+‘@user’ and URL tokens with their tags.
+We used the Pytorch library [44] to implement our proposed approach. The word embeddings for SMM4H-2019 and
+CADEC are pre-trained with the texts sampled from Twitter and
+Wikipedia,7 respectively. We set both the dimensionalities of
+word embeddings and BiLSTM hidden states to 100. The number of the multi-layer GAT is 2 and, in each GAT layer, the number of the attention head is 3. The learning rate of Adam [45] is
+set as 0.001 and the mini-batch size is set as 32. The code of IGN
+is available at https://github.com/zhihengli0102/InteractionGraph-Network. For fair comparison with other baseline approaches, the performance is measured with an F1-score (F1)
+which attributes equal importance to precision (P) and recall
+(R) on test sets.
+B. Performance Comparison With Other
+Existing Approaches
+Table III lists the architectures and resource descriptions of
+the state-of-the-art systems for ADR recognition in the SMM4H2019 challenge. Klick_Health [46] calculates the similarity between each tweet and 3 different lexicon [17] sets and only
+keeps the lexicons with a 100% match. MIDAS@IIITD [24],
+THU_NGN [8] and GMU [47] exploit the architecture of the
+LSTM-CRF to predict the tags for each word in tweets. ICRC
+[26] and KFU_NLP [25] using BERT instead of the traditional
+LSTM network to capture the contextual information in a tweet.
+And all the approaches except MIDAS@IIITD leverage features
+derived from various lexicons. Also, note that most of the systems utilize pre-trained language models (e.g., BERT and Embeddings from Language Models (ELMo) [48]) to pre-train word
+
+TABLE III
+SYSTEM AND RESOURCE DESCRIPTIONS FOR ADR RECOGNITION IN
+SMM4H-2019. ‘C_’ DENOTES A CHARACTER-LEVEL ENCODER AND ‘W_’
+DENOTES A WORD LEVEL ENCODER
+
+TABLE IV
+OVERALL EXPERIMENTAL RESULTS ON SMM4H-2019
+
+embeddings or fine-tune these word embeddings on the training
+corpora. For fair comparisons, we also add an ELMo layer which
+is fine-tuned with the training set. And the pre-trained ELMo
+model (the original model) used in our experiments is proposed
+by AllenNLP.8
+Following the SMM4H-2019 share task [23], all the systems
+are evaluated using relaxed (overlapping) and standard strict
+F1-scores. Under relaxed evaluation, ADR spans are considered
+correct only if spans in predicted annotations overlap with the
+gold standard annotations. Under strict evaluation, ADR spans
+are considered correct only if both start and end indices match
+with the indices in the gold standard annotations. As shown in
+Table IV, our IGN approach outperforms all the systems in both
+relaxed and standard strict F1-scores. Specifically, IGN shows
+1.9% and 1.7% improvements in the relaxed and strict F1-scores,
+respectively, over KFU_NLP [25] which obtains the best performance in both evaluations in the SMM4H-2019 challenge. Compared with other systems, besides the mentions in ADR lexicon,
+our approach regards noun phrases in a sentence as candidate
+
+6 https://github.com/cbaziotis/ekphrasis
+7 https://github.com/jind11/word2vec-on-wikipedia
+
+8 https://allennlp.org/elmo
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+LI et al.: LEXICON KNOWLEDGE BOOSTED INTERACTION GRAPH NETWORK
+
+2783
+
+TABLE V
+OVERALL EXPERIMENTAL RESULTS ON CADEC
+
+phrases so that some non-medical terms can be taken into consideration. Hence, IGN achieves competitive recall (0.761 and
+0.543 in relaxed and strict evaluation, respectively). Besides, although lexicon features are exploited in most of the systems, the
+huge gap between the relaxed precision and the strict precision
+demonstrates the inaccurate identification of ADR boundaries.
+For example, although THU_NGN achieves the highest relaxed
+precision (0.614), the strict precision of this approach is 0.328,
+which is 10.4% lower than that of our approach (0.432). By
+contrast, due to the word-phrase interaction graphs integrating
+the boundary and contextual information directly, IGN achieves
+the highest strict precision and the gap is also reduced in our
+approach.
+In our experiments, removing ELMo results in a 4.7% decrement in the strict F1-score. Also, according to KFU_NLP, BERT
+shows a 5-7% improvement in the strict evaluation over LSTMCRF [25]. These results demonstrate the effectiveness of using
+pre-trained language models to fine-tune word embeddings on
+training data. On the other hand, when removing ELMo, IGN
+also achieves competitive performances (even higher than most
+of the performances obtained with pre-trained language models),
+which further indicates the effectiveness of our approach.
+Table V shows the comparison between our approach and
+baseline approaches on CADEC. By leveraging neural networks
+to generate word representation, the BiLSTM-CRF based approaches [7], [9], [10] achieve higher performance than the CRFbased approach [49]. Besides, the performance of Miftahutdinov
+et al. [9] demonstrates the effectiveness of introducing features
+derived from contexts and lexicons. Dai et al. [7] and Tang et
+al. [10] exploited character-level BiLSTM to expand word representations and achieve comparable performance. Compared
+with these approaches, IGN also achieves the highest performance on CADEC.
+C. Effectiveness Analysis on Small Training Sets
+To evaluate the effectiveness of our proposed approach on
+different scale of datasets, we scale the CADEC dataset and
+trained our approach on different training sets. Specifically, we
+randomly sampled 20% of CADEC as test set and 20%, 40%,
+60%, 80% and 100% of the rest of data as training sets. We
+trained the baseline W_BiLSTM-CRF+ELMo approach and
+our IGN with ELMo with five different training sets and evaluate
+the approaches on the test set, respectively. The experimental
+results are shown in Fig. 4.
+It can be observed that when adding interaction graphs and
+using GAT to encoding them, our approach consistently outperforms the baseline approaches. Besides, the improvement
+
+Fig. 4. F1-scores of the baseline W_BiLSTM-CRF+ELMo approach
+and IGN w/ ELMo training with small training sets sampled from CADEC.
+The red and blue columns indicate the F1-scores achieved by the baseline and IGN w/ ELMo, respectively.
+TABLE VI
+EXPERIMENTAL RESULTS ON SMM4H-2019 OF ADDING DIFFERENT
+FEATURES AND STRUCTURES. “+” MEANS ADDING
+FEATURES OR STRUCTURES
+
+of training with 20% training set is larger than that of training
+with 100% training set (i.e., 2.41% vs. 0.92%). The comparation
+demonstrates the effectiveness of our approach in boosting the
+performance on small training sets. Compared with the baseline
+approach, which only captures limit information from word
+sequences, our approach explicitly introduces boundary and
+contextual information by constructing word-phrase interaction
+graphs. And the boundary and contextual information is essential
+for ADR recognition and is less affected by the number of training instances. Therefore, according to Fig. 4, the less training
+data is used to train our approach, the more improvement it can
+obtained. In other words, our proposed approach can alleviate
+the limitation of the amount of training data and can be expected
+to play a supporting role in the future annotation process.
+D. Effectiveness of Different Methods for Introducing
+Lexicon Knowledge
+We compare different ways of introducing different lexicon
+knowledge on SMM4H-2019 in Table VI. The baseline approach is W_BiLSTM+CRF+ELMo that is adopted in IGN.
+Using lexicon features to represent the knowledge in ADR
+lexicon contributes a 2.9% improvement in the strict F1-score.
+By contrast, when using interaction graphs and GATs instead,
+there are 3.2% and 4.1% improvements on F1-scores in relaxed
+and strict evaluation, respectively. The results demonstrate the
+effectiveness of leveraging knowledge generated from pre-built
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+2784
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 25, NO. 7, JULY 2021
+
+TABLE VII
+ABLATION STUDY ON SMM4H-2019. THE BASELINE APPROACH IS
+W_BILSTM-CRF+ELMO. “W/” MEANS ADDING CORRESPONDING
+GRAPH(S) TO THE BASELINE APPROACH. Δ DENOTES THE
+CORRESPONDING F1-SCORE INCREASE PERCENTAGE WHEN A
+COMPONENT IS ADDED
+
+lexicons. Moreover, interaction graphs enable to directly encode the connections between the candidate mentions and the
+contextual words so that IGN benefits from their boundary and
+contextual information. Thus, there is a 1.2% improvement in the
+strict F1-score when using interaction graphs and GATs instead
+of lexicon features. Besides, expanding ADR lexicon with noun
+phrases can alleviate the out-of-lexicon mention problem, and
+therefore, further contributes 3.6% and 0.9% improvements in
+strict recall and F1-score, respectively.
+E. Effectiveness of Three Word-Phrase
+Interaction Graphs
+We conducted ablation experiments to demonstrate the effectiveness of each word-phrase interaction graph. Table VII lists
+the corresponding results on SMM4H-2019 when a graph (two
+graphs) is (are) added each time. It can be observed that adding
+any word-phrase interaction graph(s) contributes to an obvious
+performance increment. Compared with other graphs, B-graph
+contributes more to the precisions (0.591 and 0.409 in relaxed
+and strict evaluation, respectively) than others, which indicates
+that B-graph can deal with the informal expressions in social
+media better, and therefore, enables IGN to identify the ADR
+boundaries more accurately. By contrast, C- and S-graphs can
+capture contextual information of a phrase and in a sentence, and
+therefore, contribute more to recall. Adding S-graph makes the
+approach achieve the highest recall, i.e., 0.566. Therefore, when
+more ADRs need to be recognized in a task, S-graph play an
+essential role. When any two graphs are combined, the performances in the strict evaluation are further improved, especially
+for the strict precision. For example, when combining with Cand S-graphs, the approach obtains the highest strict precision,
+i.e., 0.440. And in a specific task, if it is more important to
+identify ADRs more accurately, the combination of C- and Sgraphs can be exploited to improve the precision. Also, different
+combinations of interaction graphs can benefit the approach in
+different aspects. And the improvements shown in Table VII
+demonstrate that the information captured by different graphs
+is complementary. Overall, it can be concluded from the results
+that each word-phrase interaction graph can be implemented
+independently, while combining all the three graphs can obtain
+the highest performance, indicating that all these graphs are
+
+Fig. 5. Case study. Green and red labels denote the correct and wrong
+tags, respectively.
+
+essential to ADR recognition. And according to our performed
+significance tests with p-value < 0.05 indicating significance,
+the strict evaluation for IGN was significantly greater than that
+for the baseline approach.
+F. Case Study
+To get a deeper insight into how introducing word-phrase
+interaction graphs benefits our approach, we sampled several
+tweets from the validation dataset in SMM4H-2019. A case
+study comparing the baseline W_BiLSTM-CRF approach with
+the approach of adding each graph is shown in Fig. 5.
+In these cases, all the noun phrases (e.g., ‘sugar crashes’) do
+not exist in ADR lexicon (i.e., they are out-of-lexicon mentions).
+In our approach, they are regarded as candidate phrases and
+their boundary and contextual information is represented by
+the interaction graphs. Therefore, adding interaction graphs
+enables some out-of-lexicon mentions to be recognized and
+further improves the strict recall of the ADR recognition task.
+Also, as shown in Fig. 5, adding interaction graphs correct the
+identification of mention boundaries since each of the graphs
+explicitly represents boundary and contextual information of a
+candidate phrase. Specifically, in case 1, the baseline approach
+recognizes that ‘crashes’ is an ADR mention but omits that the
+modifier ‘sugar’ should also be a part of the ADR mention.
+B-graph emphasizes the boundary information in the phrase
+‘sugar crashes’ that ‘sugar’ and ‘crashes’ are the beginning and
+the end word in the phrase, respectively. As a result, B-graph is
+capable of correcting the identification of mention boundaries.
+Cases 2 and 3 demonstrate the ability of C-graph to capture
+the contextual information of candidate phrases. For example,
+the preposition ‘with’ is the nearest preceding word of phrases
+‘frontal headache’ and ‘horrid intrusive thoughts’ and the information that the candidate phrase following the preposition
+might be a phrasal ADR is captured by C-graph. Thus, in case
+2, the phrase ‘frontal headache’ is recalled as an ADR through
+adding C-graph. And in case 3, the adjective ‘horrid’ is predicted
+as a part of the ADR ‘horrid intrusive thoughts’. These cases
+show that C-graph is capable of integrating the information into
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+LI et al.: LEXICON KNOWLEDGE BOOSTED INTERACTION GRAPH NETWORK
+
+the approach and correcting the tags of phrasal ADRs. Besides,
+in case 2, although the phrase ‘woke uo’ (‘uo’ is a misspelling
+for ‘up’ in this tweet) is extracted as a noun phrase by NLTK,
+C-graph can identify it correctly as a regular phrase rather
+than an ADR according to its contextual information. Case 4
+demonstrates the ability of S-graph to correctly identify mention
+boundaries. S-graph explicitly represents the word composition
+of a phrase including the beginning and the end word in the
+phrase. Therefore, it helps the approach recognize that ‘haze’ is
+a part of the phrase ‘drowsy haze’ and the word ‘drowsy’ and
+‘haze’ should be used together as an ADR mention. In conclusion, each interaction graph is effective in ADR recognition.
+
+V. CONCLUSION
+In this paper, we present a novel neural network approach
+(i.e., IGN) for recognizing ADRs from social media. Our approach regards noun phrases as candidate phrases to recognize
+out-of-lexicon mentions. Three word-phrase interaction graphs
+are constructed and make IGN capable of integrating boundary
+and contextual information into sentences. Experimental results
+on two benchmark datasets show that (i) our approach of introducing noun phrases to expand a lexicon can alleviate the
+out-of-lexicon mention problem and improve the recall; and
+(ii) our proposed interaction graphs that capture the boundary
+and contextual information of the candidate phrases prove to
+be effective to improve the accuracy of boundary identification.
+Besides, the ablation experimental results and case study demonstrate the effectiveness of each graph and different graphs are
+complementary to each other.
+
+REFERENCES
+[1] A. Sarker and G. Gonzalez, “Portable automatic text classification for
+adverse drug reaction detection via multi-corpus training,” J. Biomed.
+Informat., vol. 53, pp. 196–207, 2015.
+[2] B. W. Chee, R. Berlin, and B. Schatz, “Predicting adverse drug events from
+personal health messages,” in Proc. AMIA Annu. Symp., 2011, vol. 2011,
+pp. 217–226, American Medical Informatics Association.
+[3] S. Chowdhury, C. Zhang, and P. S. Yu, “Multi-task pharmacovigilance
+mining from social media posts,” in Proc. World Wide Web Conf., 2018,
+pp. 117–126.
+[4] A. Sarker et al., “Utilizing social media data for pharmacovigilance: A
+review,” J. Biomed. Informat., vol. 54, pp. 202–212, 2015.
+[5] White Paper: Social Media in the Pharmaceutical Industry.
+Available:
+https://cdn.technologynetworks.com/TN/Resources/PDF/
+AZ_Social_Media_White_Paper(2).pdf
+[6] I. Alimova and E. Tutubalina, “Automated detection of adverse drug
+reactions from social media posts with machine learning,” in Proc. Int.
+Conf. Anal. Images, Soc. Netw. Texts, 2017, pp. 3–15.
+[7] X. Dai, S. Karimi, and C. Paris, “Medication and adverse event extraction
+from noisy text,” in Proc. Australasian Lang. Technol. Assoc. Workshop,
+2017, pp. 79–87.
+[8] S. Ge, T. Qi, C. Wu, and Y. Huang, “Detecting and extracting of adverse drug reaction mentioning tweets with multi-head self attention,” in
+Proc. 4th Soc. Media Mining Health Appl. Workshop Shared Task, 2019,
+pp. 96–98.
+[9] M. Z. Sh., T. E. V., and T. A. E., “Identifying disease-related expressions
+in reviews using conditional random fields,” in Proc. Comput. Linguist.
+Intellectual Technol., 2017, pp. 155–166.
+[10] B. Tang, J. Hu, X. Wang, and Q. Chen, “Recognizing continuous and
+discontinuous adverse drug reaction mentions from social media using
+LSTM-CRF,” Wireless Commun. Mobile Comput., vol. 2018, pp. 1–8,
+2018.
+
+2785
+
+[11] B. Ji et al., “A hybrid approach for named entity recognition in chinese
+electronic medical record,” BMC Med. Informat. Decis. Making, vol. 19,
+no. 2, pp. 149–158, 2019.
+[12] J. Ni and R. Florian, “Improving multilingual named entity recognition
+with wikipedia entity type mapping,” in Proc. Conf. Empir. Methods Nat.
+Lang. Process., 2016, pp. 1275–1284.
+[13] D. M. Lowe and R. A. Sayle, “LeadMine: A grammar and dictionary driven
+approach to entity recognition,” J. Cheminformatics, vol. 7, no. 1, pp. 1–9,
+2015.
+[14] D. Caliano, E. Fersini, P. Manchanda, M. Palmonari, and E. Messina,
+“UniMiB: Entity linking in tweets using jaro-winkler distance, popularity
+and coherence,” in Proc. ‘Making Sense of Microposts’ co-located with
+25th Int. World Wide Web Conf. (WWW), 2016, vol. 1691, pp. 70–72.
+[15] S. Karimi, A. Metke-Jimenez, and A. Nguyen, “CADEminer: A system for
+mining consumer reports on adverse drug side effects,” in Proc. 8th Workshop Exploiting Semantic Annotations Inf. Retrieval, 2015, pp. 47–50.
+[16] A. Metke-Jimenez and S. Karimi, “Concept identification and normalisation for adverse drug event discovery in medical forums,” in Proc.
+Workshop Biomed. Data Integr. Discover., 2016, pp. 1–6.
+[17] A. Nikfarjam, A. Sarker, K. O’connor, R. Ginn, and G. Gonzalez, “Pharmacovigilance from social media: Mining adverse drug reaction mentions
+using sequence labeling with word embedding cluster features,” J. Amer.
+Med. Informat. Assoc., vol. 22, no. 3, pp. 671–681, 2015.
+[18] E. Florez, F. Precioso, M. Riveill, and R. Pighetti, “Named entity recognition using neural networks for clinical notes,” in Proc. Int. Workshop
+Medication Adverse Drug Event Detection, 2018, pp. 7–15.
+[19] C. Pandey, Z. Ibrahim, H. Wu, E. Iqbal, and R. Dobson, “Improving RNN
+with attention and embedding for adverse drug reactions,” in Proc. 2017
+Int. Conf. Digital Health, 2017, pp. 67–71.
+[20] S. Wunnava, X. Qin, T. Kakar, E. A. Rundensteiner, and X. Kong,
+“Bidirectional LSTM-CRF for adverse drug event tagging in electronic
+health records,” in Proc. Int. Workshop Medication Adverse Drug Event
+Detection, 2018, pp. 48–56.
+[21] A. Benton et al., “Identifying potential adverse effects using the web: A
+new approach to medical hypothesis generation,” J. Biomed. Informat.,
+vol. 44, no. 6, pp. 989–996, 2011.
+[22] J. Devlin, M.-W. Chang, K. Lee, and K. Toutanova, “Bert: Pre-training
+of deep bidirectional transformers for language understanding,” 2019,
+arXiv:1810.04805v2.
+[23] D. Weissenbacher et al., “Overview of the fourth social media mining
+for health (SMM4H) shared tasks at ACL 2019,” in Proc. 4th Soc. Media
+Mining Health Appl. (# SMM4H) Workshop Shared Task, 2019, pp. 21–30.
+[24] D. Mahata et al., “MIDAS@ SMM4H-2019: Identifying adverse drug
+reactions and personal health experience mentions from twitter,” in Proc.
+4th Soc. Media Mining Health Appl. (# SMM4H) Workshop Shared Task,
+2019, pp. 127–132.
+[25] Z. Miftahutdinov, I. Alimova, and E. Tutubalina, “KFU NLP team at
+SMM4H 2019 tasks: Want to extract adverse drugs reactions from tweets?
+BERT to the rescue,” in Proc. 4th Soc. Media Mining Health Appl. (#
+SMM4H) Workshop Shared Task, 2019, pp. 52–57.
+[26] S. Chen, Y. Huang, X. Huang, H. Qin, J. Yan, and B. Tang, “HITSZICRC: A report for SMM4H shared task 2019-Automatic classification and
+extraction of adverse drug reactions in tweets,” in ACL, 2019, pp. 47–51.
+[27] W. Hamilton, Z. Ying, and J. Leskovec, “Inductive representation learning on large graphs,” in Proc. Adv. Neural Inf. Process. Syst., 2017,
+pp. 1024–1034.
+[28] T. N. Kipf and M. Welling, “Semi-supervised classification with graph
+convolutional networks,” 2017, arXiv:1609.02907v4.
+[29] P. Veličković, G. Cucurull, A. Casanova, A. Romero, P. Lio, and Y. Bengio,
+“Graph attention networks,” 2018, arXiv:1710.10903v3.
+[30] J. Bastings, I. Titov, W. Aziz, D. Marcheggiani, and K. Sima’an, “Graph
+convolutional encoders for syntax-aware neural machine translation,”
+2020, arXiv:1704.04675v4.
+[31] A. Cetoli, S. Bragaglia, A. D. O’Harney, and M. Sloan, “Graph convolutional networks for named entity recognition,” 2017, arXiv:.10053.
+[32] D. Marcheggiani and I. Titov, “Encoding sentences with graph convolutional networks for semantic role labeling,” 2018, arXiv:1709.10053v2.
+[33] Y. Zhang, P. Qi, and C. D. Manning, “Graph convolution over pruned
+dependency trees improves relation extraction,” 2018, arXiv:.10185.
+[34] Z. Guo, Y. Zhang, and W. Lu, “Attention guided graph convolutional
+networks for relation extraction,” 2019, arXiv:.07510.
+[35] L. Hu, T. Yang, C. Shi, H. Ji, and X. Li, “Heterogeneous graph attention
+networks for semi-supervised short text classification,” in Proc. Conf.
+Empirical Methods Natural Lang. Process. 9th Int. Joint Conf. Natural
+Lang. Process., 2019, pp. 4823–4832.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+2786
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 25, NO. 7, JULY 2021
+
+[36] S. Paramkusham, “NLTK: The natural language toolkit,” Int. J. Technol.
+Res. Eng, 2017, vol. 5, pp. 2845–2847.
+[37] J. Lafferty, A. McCallum, and F. C. Pereira, “Conditional random fields:
+Probabilistic models for segmenting and labeling sequence data,” in Proc.
+ICML, pp. 282–289, 2001.
+[38] T. Mikolov, K. Chen, G. Corrado, and J. Dean, “Efficient estimation of
+word representations in vector space,” 2013, arXiv:1301.3781.
+[39] S. Hochreiter and J. Schmidhuber, “Long short-term memory,” Neural
+Comput., vol. 9, no. 8, pp. 1735–1780, 1997.
+[40] A. Vaswani et al., “Attention is all you need,” in Proc. Adv. Neural Inf.
+Process. Syst., 2017, pp. 5998–6008.
+[41] A. Viterbi, “Error bounds for convolutional codes and an asymptotically
+optimum decoding algorithm,” IEEE Trans. Inf. Theory, vol. 13, no. 2,
+pp. 260–269, Apr. 1967.
+[42] S. Karimi, A. Metke-Jimenez, M. Kemp, and C. Wang, “Cadec: A corpus of
+adverse drug event annotations,” J. Biomed. Informat., vol. 55, pp. 73–81,
+2015.
+[43] C. Baziotis, N. Pelekis, and C. Doulkeridis, “Datastories at semeval-2017
+task 4: Deep lstm with attention for message-level and topic-based sentiment analysis,” in Proc. 11th Int. Workshop Semantic Eval. (SemEval2017), 2017, pp. 747–754.
+
+[44] A. Paszke et al., “Automatic differentiation in pytorch,” in Proc. NIPS
+Workshop, 2017, pp. 1–4.
+[45] D. P. Kingma and J. Ba, “Adam: A method for stochastic optimization,”
+2017, arXiv:1412.6980v9.
+[46] S. Sarabadani, “Detection of adverse drug reaction mentions in tweets
+using ELMo,” in Proc. 4th Soc. Media Mining Health Appl. Workshop
+Shared Task, 2019, pp. 120–122.
+[47] P. Barry and O. Uzuner, “Deep learning for identification of adverse effect
+mentions in twitter data,” in Proc. 4th Social Media Mining Health Appl.
+(# SMM4H) Workshop Shared Task, 2019, pp. 99–101.
+[48] M. E. Peters et al., “Deep contextualized word representations,” 2018,
+arXiv:1802.05365v2.
+[49] A. Metke-Jimenez and S. Karimi, “Concept extraction to identify adverse
+drug reactions in medical forums: A comparison of algorithms,” 2015,
+arXiv:1504.06936v1.
+
+Authorized licensed use limited to: Harvard Library. Downloaded on October 01,2021 at 16:59:15 UTC from IEEE Xplore. Restrictions apply.
+
+

@@ -1,0 +1,2145 @@
+Drug Saf (2017) 40:571–582
+DOI 10.1007/s40264-017-0523-4
+
+ORIGINAL RESEARCH ARTICLE
+
+Using Probabilistic Record Linkage of Structured
+and Unstructured Data to Identify Duplicate Cases
+in Spontaneous Adverse Event Reporting Systems
+Kory Kreimeyer1 • David Menschik1 • Scott Winiecki1 • Wendy Paul1 •
+Faith Barash1 • Emily Jane Woo1 • Meghna Alimchandani1 • Deepa Arya1
+Craig Zinderman1 • Richard Forshee1 • Taxiarchis Botsis1
+
+•
+
+Published online: 14 March 2017
+ Springer International Publishing Switzerland 2017(outside the USA) 2017
+
+Abstract
+Introduction Duplicate case reports in spontaneous
+adverse event reporting systems pose a challenge for
+medical reviewers to efficiently perform individual and
+aggregate safety analyses. Duplicate cases can bias data
+mining by generating spurious signals of disproportional
+reporting of product-adverse event pairs.
+Objective We have developed a probabilistic record linkage algorithm for identifying duplicate cases in the US
+Vaccine Adverse Event Reporting System (VAERS) and
+the US Food and Drug Administration Adverse Event
+Reporting System (FAERS).
+Methods In addition to using structured field data, the
+algorithm incorporates the non-structured narrative text of
+adverse event reports by examining clinical and temporal
+information extracted by the Event-based Text-mining of
+Health Electronic Records system, a natural language
+processing tool. The final component of the algorithm is a
+novel duplicate confidence value that is calculated by a
+rule-based empirical approach that looks for similarities in
+a number of criteria between two case reports.
+Results For VAERS, the algorithm identified 77% of
+known duplicate pairs with a precision (or positive predictive value) of 95%. For FAERS, it identified 13% of
+
+Electronic supplementary material The online version of this
+article (doi:10.1007/s40264-017-0523-4) contains supplementary
+material, which is available to authorized users.
+& Kory Kreimeyer
+Kory.Kreimeyer@fda.hhs.gov
+1
+
+Office of Biostatistics and Epidemiology, Center for
+Biologics Evaluation and Research, US Food and Drug
+Administration, 10903 New Hampshire Ave, Silver Spring,
+MD 20993-0002, USA
+
+known duplicate pairs with a precision of 100%. The textual information did not improve the algorithm’s automated
+classification for VAERS or FAERS. The empirical
+duplicate confidence value increased performance on both
+VAERS and FAERS, mainly by reducing the occurrence of
+false-positives.
+Conclusions The algorithm was shown to be effective at
+identifying pre-linked duplicate VAERS reports. The narrative text was not shown to be a key component in the
+automated detection evaluation; however, it is essential for
+supporting the semi-automated approach that is likely to be
+deployed at the Food and Drug Administration, where
+medical reviewers will perform some manual review of the
+most highly ranked reports identified by the algorithm.
+
+Key Points
+Duplicate cases in spontaneous reporting systems
+have a negative impact on data mining analyses and
+can be difficult to identify.
+We have implemented a probabilistic approach that
+examines individual information fields in case
+reports and identifies pairs of cases that are likely to
+be duplicates.
+A semi-automated approach is likely to be used at
+the US Food and Drug Administration where
+suspected duplicates identified by the algorithm are
+examined by a medical reviewer.
+
+572
+
+1 Introduction
+Spontaneous reporting systems (SRSs) that enable healthcare professionals, manufacturers, and patients or their
+representatives to report suspected adverse reactions for
+licensed medical products are a vital component of national
+and international passive pharmacovigilance. Though they
+have limitations, these passive surveillance systems possess a number of attributes (e.g., broad scope, inclusivity,
+and timeliness), which can lead to the identification of
+unexpected adverse events (AEs) that might not have been
+observed from pre-marketing clinical trial data [1].
+The US Food and Drug Administration (FDA) monitors
+the Vaccine Adverse Event Reporting System (VAERS),
+which accepts reports describing AEs following immunization, and the FDA Adverse Event Reporting System
+(FAERS), which accepts reports describing AEs experienced after the administration of drugs or non-vaccine
+biological products. In both systems, when a new AE
+report is submitted, it is assigned a new case identification
+number unless the report is known to be associated with an
+existing case in the database. Such reports are typically
+assigned the same identification number with an extension
+indicating they are the second, third, or nth report for that
+case.
+As with other SRSs, VAERS and FAERS suffer from
+several well-known limitations, such as under-reporting,
+incomplete data entry, and reporting biases [2–4]. Of particular interest for this work is the issue of case duplication
+within these systems. Throughout this article, we define
+duplicate cases as
+two or more reports describing the same occurrence
+of one or more AEs for the same patient that are
+assigned different case numbers instead of being
+linked as the same case.
+Notably, with this definition, two reports can be considered duplicates even if they do not contain exactly the
+same information, possibly owing to inaccuracies or
+incompleteness.
+There are two main reasons for duplicate cases to appear
+in passive surveillance systems: (1) reporting of the same
+event from more than one source (e.g., a patient, healthcare
+provider, drug/vaccine manufacturer), and (2) follow-up
+reports or repeated reports from the same source that are
+not properly linked to the original or initial report. The
+former is a known complication of SRSs in general. The
+latter can arise from simple errors, such as the reporter
+omitting or mistyping the identifying control number that
+was used for the original submission. Both VAERS and
+FAERS allow and encourage reporting of serious AEs by
+patients and healthcare professionals, and mandate
+
+K. Kreimeyer et al.
+
+reporting by product manufacturers [5, 6]. For patients
+receiving multiple concomitant medications, several different manufacturers may be required to submit reports
+describing the AEs experienced, and also to notify the
+other manufacturers [6]. Further, if a publication associates
+a generic product with an AE, any manufacturer of that
+product class can be obligated to file an AE report (or more
+than one, if multiple patients can be identified) based on the
+literature report [6]. The VAERS database has a systematic
+deduplication process based on input from the contractor
+managing the system; however, there is no such formal
+process for FAERS.
+Case duplication can have deleterious effects on quantitative analyses and output [7], such as leading to spurious
+data mining findings of disproportionate reporting and the
+potential identification of false safety signals [8]. Duplicate
+reports can also hamper the review process by compelling
+reviewers to read extra reports and diverting time from
+other key tasks. Identification and correction of duplicate
+cases is an important preprocessing step for many types of
+analyses, but can be a very labor-intensive task [9].
+The simplest approach to identifying duplicate cases is a
+deterministic one, in which two reports are matched if all
+of their data fields match. This can be problematic if some
+fields are missing information, which is frequently the case
+in SRSs, or if the data contain errors. A probabilistic record
+linkage approach has generally been shown to produce
+more useful results as well as provide better control over
+the trade-off between sensitivity and specificity [10, 11]. In
+probabilistic record linkage, each pair of records is compared on a number of data fields to determine if the
+information in the records matches or mismatches. If the
+two records’ values match in a particular field, they receive
+an increased weight (which acts as a score), and if the
+values mismatch, the total weight for the records is
+decreased [12]. After each data field has been compared,
+the final weight for the pair will correspond to how likely it
+is that the pair of records actually represent the same realworld event. The amount of the weight increase or decrease
+for each field is different, depending on how much discriminative power that field has in identifying true links,
+which in turn depends on the distribution of possible values
+for that field among the population and the rate of
+recording errors.
+A number of studies have demonstrated the ability of
+the probabilistic approach to link or deduplicate databases
+of clinical information [13–18]. These studies have
+focused on structured information only. We believe that
+this is a significant limitation; text-based information is a
+useful supplement to the record linkage process because
+of its syntax (specific phrasing) and especially its content.
+The text may enhance the structured information (e.g., by
+
+Using Probabilistic Record Linkage to Identify Duplicate Cases in Spontaneous Reporting Systems
+
+filling patient demographic values that are missing from
+the structured data fields), and it may also add information
+about certain parameters, such as medical and family
+history, that are found only in the narratives. Our text
+mining tool, the Event-based Text-mining of Health
+Electronic Records (ETHER) system extracts key features
+(diagnostic features, exposure-related features, and causal
+and temporal features) from AE report narratives [19–21];
+we used a probabilistic approach with structured data
+fields and narrative information extracted by ETHER to
+identify duplicate cases. We also calculated a novel
+duplicate confidence value (described in Sect. 2 and
+Electronic Supplementary Material) for each pair via a
+series of tests based on empirical observation of the
+structured and free-text information likely to best distinguish duplicates from non-duplicates.
+
+2 Methods
+2.1 Probabilistic Record Linkage
+The technique of probabilistic record linkage for finding
+matching entries in two databases was first described by
+Fellegi and Sunter [12], and has been applied previously
+for deduplicating medical or surveillance records [13–18].
+This model considers records (each record would represent
+a report in either VAERS or FAERS) on a field-by-field
+basis to determine how similar they are and whether the
+amount of similarity stems from chance or from duplication. Assuming that the fields are independent of each
+other, each field can be treated separately when calculating
+the log-likelihood ratio of a pair of records being duplicates
+to the pair being non-duplicates. That is, for field i, the
+component of the log-likelihood ratio (representing the
+field weight) is either
+ 
+mi
+match
+wi
+¼ log
+;
+ui
+or
+wmismatch
+i
+
+
+
+1  mi
+¼ log
+;
+1  ui
+
+when the two field values match or mismatch, respectively,
+where mi is the probability that field i matches for a true
+duplicate pair and ui is the probability that field i matches
+for a non-duplicate pair (by chance). These probabilities
+were estimated using relative frequencies observed in
+training data. The final log-likelihood ratio (weight) for the
+record pair is the sum of all the appropriate wi values
+(match or mismatch) for the fields.
+
+573
+
+For fields that can contain multiple values and thus are
+not conducive to a binary match or mismatch classification
+(e.g., a patient’s vaccines list), we applied the approximate
+comparator extension to the Fellegi–Sunter model proposed by DuVall et al. [22]. This replaced mi and ui with
+mi ðdÞ and ui ðdÞ, which are the probabilities for two
+duplicate or non-duplicate records to differ in a field by
+some amount d. Then, there were no longer separate match
+and mismatch weights, and the weight to assign to the pair
+when field i differed by d was given by the single equation:
+
+
+mi ðdÞ
+wi ðdÞ ¼ log
+:
+ui ðdÞ
+The choice of formula for d was informed by the
+particular multi-valued fields under consideration. Each
+field consisted of a set of terms, and each set was
+represented as a binary vector, containing a 1 in the
+positions corresponding to the terms that exist in the set
+and a 0 in all other positions. Each vector was, in principle,
+quite long, containing space for every term observed from
+any report. We selected the cosine similarity metric to
+determine the similarity between two sets of terms
+(represented as the binary vectors A and B) because it
+prioritizes only the matching terms in the sets. As we need
+to use a dissimilarity value for d, we define a cosine
+distance as
+Pn
+j¼1 Aj Bj
+ﬃ qP
+ﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃ ;
+dcos ¼ 1  similaritycos ¼ 1  qﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃ
+Pn
+n
+2
+2
+j¼1 Aj
+j¼1 Bj
+where n is the total number of unique terms observed.
+Because this is a continuous value between 0 and 1, we
+discretized the interval ½0; 1 into bins and estimated
+weights for each bin. We gave special treatment to complete matching (d ¼ 0) and complete mismatching (d ¼ 1)
+and divided the remaining open interval ð0; 1Þ into four
+equal-size bins: (0.0, 0.25], (0.25, 0.5], (0.5, 0.75], and
+(0.75, 1.0). The d values falling into each bin were all
+treated as being the same, for both weight estimation and
+weight calculation.
+2.2 Model Parameters
+The VAERS structured fields that received weights were
+age, birth date, location, sex, vaccination date, onset date,
+and vaccine name, and the FAERS fields were age, birth
+date, reporter country, sex, and product name. These fields
+were selected based on the opinions of experienced
+reviewers who regarded them as the most informative and
+reliable sources for the purposes of this work. All information was retrieved directly from the corresponding
+entries in the databases.
+
+574
+
+K. Kreimeyer et al.
+
+To extract information from the report narratives, we
+used the ETHER system. As mentioned above, ETHER is a
+rule-based, natural language processing system that
+extracts key clinical and temporal information from safety
+surveillance reports [19–21]. The extracted clinical information is in the form of features, which are snippets of text
+with an associated feature type and, when possible, an
+assigned date. Medical reviewers found ETHER correctly
+extracted the feature(s) representing the outcome of interest
+(i.e., the primary or secondary diagnosis or cause of death)
+for 93% of reports [23]. In a recent evaluation of temporal
+assignment, ETHER assigned an inappropriate time to only
+25% of events and outperformed existing tools [20]. The
+specific feature types assigned by ETHER and their use in
+this study are as follows:
+•
+•
+
+•
+
+Drug and vaccine: added to set in dated product or
+undated product field
+Symptom, second level diagnosis, cause of death, and
+rule out: added to set in dated feature or undated feature
+field
+Primary diagnosis, medical history, and family history:
+treated as separate fields with binary matching if any
+specific feature under that type matches a feature from
+a different case
+
+The dated and undated sets were treated entirely separately (i.e., no similarity was gained between reports that had
+an undated mention of ‘aspirin’ and a mention with a
+specific date). All of these sets (dated product, undated
+product, dated feature, undated feature), as well as the
+vaccine name or product name structured field sets, used the
+approximate comparator extension with the cosine distance
+dissimilarity value. For dated sets, only terms with exactly
+matching text and dates were used in the calculation of d.
+2.3 Empirical Duplicate Confidence
+The algorithm also made use of a duplicate confidence
+value derived for each pair of cases using an empirical rulebased procedure that assessed several similarity criteria
+from both the narrative text and structured fields. The
+specific tests used to evaluate these criteria were developed
+after reviewing a large number of reports and duplicates
+(not obtained from the datasets described below) and were
+informed by conversations with the medical experts at the
+FDA. Each test returned one of nine intermediate values
+corresponding to the amount of evidence found, either for
+or against the pair being a duplicate, and these values were
+then logically combined to produce a final confidence value
+between 1 and 10. The confidence values were then used in
+conjunction with the probabilistic record linkage weight to
+allow the algorithm to make a judgment on the pair’s
+duplicate status.
+
+The first two confidence value tests were applied to both
+VAERS and FAERS reports. These tests searched the
+narratives for two criteria: additional age information and a
+patient or case number (e.g., ‘Patient 7’), which is helpful
+in distinguishing reports describing different patients participating in the same clinical trial. In VAERS, a further
+test evaluates criteria from the structured fields for the
+patient’s first and last name and middle initial, allowing for
+slight spelling variations. FAERS reports do not record a
+patient’s name, but two other tests were developed to
+compare criteria in two other fields because they provide
+useful identifying information. The Patient ID field typically contains a patient’s initials, and the manufacturer
+control number field is intended for a unique identifier from
+the manufacturer that submits the report. Additional details
+about each test and the specific criteria they evaluate, as
+well as the calculation of the final confidence value can be
+found in the Electronic Supplementary Material. The criteria used in these tests were not used as weighted features
+in the record linkage component because of their generally
+complex and non-uniform matching logic and their absence
+in a large number of reports, which would have made
+weight estimation challenging.
+2.4 Data and Analysis
+For VAERS, a large training set containing pre-linked
+duplicate reports (10,438 reports with 900 duplicate pairs)
+was obtained to calculate weights for each field, and three
+additional datasets were obtained for evaluation, based on
+three different products. These three datasets contained
+2166, 933, and 1867 reports with 197, 70, and 128 duplicate pairs, respectively. The selection of all these datasets
+is described in the Electronic Supplementary Material. The
+reports linked together as corresponding to the same case
+by the systematic VAERS review process were treated as
+gold standard duplicates. For each evaluation dataset, every
+case was assigned to the training or testing set with a 75 or
+25% probability, respectively, and linked reports that made
+up a single case were placed together.
+For FAERS, several experienced medical reviewers
+(DM, SW, WP, FB, EJW, MA) in the Office of Biostatistics and Epidemiology, Center for Biologics Evaluation
+and Research participated in a prospective duplicate identification process. Each reviewer is assigned to monitor a
+number of biologic and therapeutic products, and new
+reports about those products are forwarded to the reviewer
+on at least a weekly basis. For a period of 2 months (14
+March to 16 May, 2016), each reviewer tracked the reports
+for each of their non-vaccine products and attempted to
+identify any duplicate cases. The cases provided directly by
+the medical reviewers, with duplicate and non-duplicate
+designations were used as the gold standard. At the end of
+
+Using Probabilistic Record Linkage to Identify Duplicate Cases in Spontaneous Reporting Systems
+
+the 2-month period, we examined only the ‘best representative’ report for each case, which is the most up-to-date
+version of the initially submitted case report including any
+follow-up information. This produced a dataset of 1620
+reports with 75 duplicate pairs. The reports and the known
+duplicates were divided into training and testing sets with a
+75/25% split (once again keeping known duplicates together), and the training set was used for both weight determination and threshold selection.
+To evaluate the algorithm’s performance in detecting
+the known duplicates, we used the metrics recall (i.e.,
+sensitivity), precision (i.e., positive predictive value), and
+F1 score [24], defined as follows (note that the F1 score is
+the harmonic mean of recall and precision):
+recall ¼ sensitivity ¼
+
+true positive
+;
+true positive þ false negative
+
+precision ¼ positive predictive value
+true positive
+¼
+;
+true positive þ false positive
+F1 ¼ 2 
+
+precision  recall
+:
+precision þ recall
+
+For each training set, we selected the weight threshold
+and duplicate confidence value that divided the report pairs
+into the classification with the best F1 score (see Electronic
+Supplementary Material). We also repeated the selection
+and evaluation steps with all contributions from the
+narrative text excluded. After the evaluation of the
+testing sets, an experienced medical reviewer examined
+the pairs of reports the algorithm incorrectly identified as
+duplicates to assess whether they might truly be duplicates
+that were not previously known. However, the falsepositive (FP) status of these pairs was not changed, even if
+they were found to be true duplicates.
+
+3 Results
+Each VAERS and FAERS dataset was divided into a
+training set for refining the algorithm and a testing set for
+validating its performance. Report completeness by data
+field can be found in Table 1. The data fields were
+described in Sect. 2.
+The fields checked for matching and mismatching were
+different between VAERS and FAERS owing to the
+slightly different structure of the two systems. For VAERS,
+we were able to use a large training set with pre-linked
+duplicates (see Electronic Supplementary Material) to
+assign data field weights. For FAERS, this weighting was
+based on a smaller training set with duplicates pre-identified by medical review. In the FAERS training set, there
+were not enough known duplicate cases to estimate
+
+575
+
+matching frequencies for certain data elements (e.g.,
+Family History). The field weights determined for VAERS
+and FAERS reports are shown in Table 2, where the d
+difference value between two reports indicates how dissimilar the reports were in that particular field.
+As an example, consider two VAERS reports with the
+same patient age and birth date but different locations. One
+of the reports is also missing a patient sex value, vaccination date, and onset date. In addition, one of the reports
+contains a single vaccine name, and the other report contains two, one of which is the same vaccine as the first
+report, giving a difference value of d ¼ 0:5 (see Sect. 2 for
+calculation of d). Then, the total weight calculation for the
+two VAERS reports would begin with
+Wtotal ¼ 6:693 þ 13:362 þ ð0:650Þ þ 0:0 þ 0:0 þ 0:0
+þ 1:325 þ   
+and the contribution from each remaining field, depending
+on whether and how closely it matched, would also be
+added. Note that the missing values for sex, vaccination
+date, and onset date in the report resulted in weights of zero
+for those fields. The maximum/minimum possible weight
+for any pair of reports is 122.327/-19.568 for VAERS and
+93.812/-15.371 for FAERS.
+Based on each training set, we ascertained the best total
+weight and duplicate confidence parameters for classifying
+pairs of reports as duplicates (see Sect. 2 and Electronic
+Supplementary Material). In every dataset, a large weight
+(see Table 3 for values) and duplicate confidence value of
+6 or higher were empirically chosen as an appropriate
+duplicate threshold. In the VAERS datasets only, a duplicate confidence value of 8 or more with any positive weight
+was highly reliable (94% of pairs with these scores were
+known duplicates), thus all such pairs were also classified
+as duplicates. We then applied these classification rules to
+the testing sets (Table 3) and characterized the algorithm’s
+performance.
+In the yellow fever vaccine testing set, the algorithm
+detected all 16 of the known duplicate pairs with a single
+FP. For the influenza vaccine testing set, 28 known
+duplicate pairs were detected, six were missed, and two
+FPs were identified. The Haemophilus influenzae type b
+vaccine testing set had the lowest overall algorithm performance with 42 detected duplicate pairs, 19 missed
+duplicate pairs, and two FPs. In the FAERS evaluation,
+when using the aforementioned weight and duplicate confidence thresholds, the algorithm returned only two of the
+15 previously identified duplicate case pairs in the testing
+set and had no FPs. Lowering the weight threshold
+(Table 3) resulted in the detection of nine additional true
+duplicates and only three FP classifications.
+When we removed the narrative text, including the data
+fields and confidence value tests based on text features,
+
+576
+
+K. Kreimeyer et al.
+
+Table 1 Percentage of reports with information present in each field for both the Vaccine Adverse Event Reporting System (VAERS) and the
+US Food and Drug Administration Adverse Event Reporting System (FAERS)
+VAERS field
+
+Training set
+
+Age
+
+92.8
+
+Testing set
+
+47.2
+
+Birth date
+
+74.3
+
+70.6
+
+Reporter country
+
+99.8
+
+100.0
+
+Sex
+
+93.8
+
+92.6
+
+Patient ID
+Manufacturer control number
+
+78.9
+96.7
+
+77.7
+98.5
+
+100.0
+
+100.0
+
+14.5
+
+12.5
+25.1
+
+79.7
+
+76.6
+
+100.0
+
+100.0
+
+Sex
+
+87.6
+
+86.1
+
+Vaccination date
+
+90.7
+
+88.9
+
+Onset date
+
+83.7
+
+80.3
+
+Patient first name
+Patient middle initial
+
+79.3
+28.8
+
+77.6
+27.0
+
+Diagnosisa
+Medical history
+
+a
+
+Testing set
+
+Age
+
+Location
+
+Vaccine name
+
+Training set
+
+92.3
+
+Birth date
+
+Patient last name
+
+FAERS field
+
+79.6
+
+77.6
+
+100.0
+
+100.0
+
+16.2
+
+16.2
+
+Product name
+Diagnosisa
+a
+
+46.3
+
+14.1
+
+12.6
+
+Medical history
+
+24.8
+
+Family historya
+
+1.1
+
+1.1
+
+Family historya
+
+0.4
+
+1.0
+
+Dated featurea
+
+90.3
+
+89.0
+
+Dated featurea
+
+69.6
+
+68.5
+
+Undated featurea
+
+38.7
+
+40.0
+
+Undated featurea
+
+98.4
+
+98.0
+
+56.5
+
+56.2
+
+Dated producta
+
+29.9
+
+31.5
+
+23.5
+
+24.1
+
+Undated producta
+
+60.8
+
+62.7
+
+Dated product
+
+a
+
+Undated producta
+a
+
+Information for these fields was extracted from the narrative text of reports by the Event-based Text-mining of Health Electronic Records
+system. See Sect. 2.2 for a description of the types of text features for each field
+
+from the algorithm, the performance was essentially
+unchanged for the VAERS testing sets (Table 4), with only
+the influenza vaccine dataset having slightly lower recall
+and slightly higher precision. For the FAERS reports, upon
+removing the narrative text, the algorithm identified two
+extra known duplicate pairs but found two additional FP
+duplicates; however, when applying the Post-Hoc Threshold, which was selected based on the very best F1 score
+possible in the testing set, the maximum performance (F1)
+dropped from 0.759 to 0.500 without the narrative text. It
+should be noted that FAERS report narratives are considerably longer on average than VAERS narratives (median
+278 words, standard deviation 179 for the FAERS testing
+set compared with 54 words, standard deviation 115 for
+VAERS) with more extractable clinical information (see
+Fig. 1).
+In the final evaluation, where narrative text was included
+but weight thresholds (kept at their original levels) were
+used alone without the duplicate confidence values, the
+performance of the algorithm across the VAERS and
+FAERS datasets worsened, largely driven by a drop in
+precision, as shown in Table 5. The most prominent precision drop was in the FAERS testing set, in which the
+number of FPs jumped from zero to 13 (precision from 1.0
+to 0.133). All 13 of these pairs were for various combinations of reports pertaining to a 27-patient study, which
+had been excluded by one of the confidence value tests.
+
+After medical review of the five identified FP pairs from
+the three VAERS testing sets, one pair was judged to be an
+actual duplicate that had not been previously labeled, three
+other pairs were definitively determined not to be duplicates, and the final pair did not contain enough information
+to make an informed determination. In the FAERS dataset,
+there were no FPs identified using the original threshold
+classification; however, the three pairs classified as duplicates by the Post-Hoc Threshold classification were medically reviewed. One pair was found to be a true duplicate.
+In both of the other two pairs, the two cases described the
+same patient but for different minor AEs experienced over
+a month apart and thus neither pair should be considered
+duplicates.
+
+4 Discussion
+The results of our VAERS evaluation indicate that the
+probabilistic record linkage algorithm was effective at
+identifying many of the known duplicate cases, recall
+(sensitivity) was 0.77, while avoiding the identification of
+FP duplicates—precision (positive predictive value) was
+0.945. The FAERS evaluation was not as promising, with
+the best automated performance on the testing set—four of
+15 true duplicates detected (recall of 0.267) with two FPs
+(precision of 0.667)—coming from the version of the
+
+Using Probabilistic Record Linkage to Identify Duplicate Cases in Spontaneous Reporting Systems
+Table 2 Field weights for the
+Vaccine Adverse Event
+Reporting System (VAERS) and
+the US Food and Drug
+Administration Adverse Event
+Reporting System (FAERS)
+
+577
+
+Difference (d) range
+0.0
+
+(0.0, 0.25]
+
+(0.25, 0.5]
+
+(0.5, 0.75]
+
+(0.75, 1.0)
+
+1.0
+
+Age
+
+6.693
+
+–
+
+–
+
+–
+
+–
+
+-3.143
+
+Birth date
+
+13.362
+
+–
+
+–
+
+–
+
+–
+
+-0.450
+
+Location
+
+2.026
+
+–
+
+–
+
+–
+
+–
+
+-0.650
+
+Sex
+
+1.337
+
+–
+
+–
+
+–
+
+–
+
+-3.842
+
+Vaccination date
+
+8.847
+
+–
+
+–
+
+–
+
+–
+
+-3.097
+
+Onset date
+
+8.871
+
+–
+
+–
+
+–
+
+–
+
+-1.795
+
+Vaccine name
+
+4.645
+
+5.855
+
+1.325
+
+1.774
+
+1.268
+
+-3.806
+
+Diagnosisa
+
+10.681
+
+–
+
+–
+
+–
+
+–
+
+-0.052
+
+Medical historya
+
+6.501
+
+–
+
+–
+
+–
+
+–
+
+-0.065
+
+Family history
+Dated featurea
+
+11.885
+11.436
+
+–
+11.351
+
+–
+13.146
+
+–
+12.002
+
+–
+9.913
+
+-0.003
+-0.563
+
+Undated featurea
+
+5.079
+
+8.679
+
+3.772
+
+4.199
+
+3.563
+
+-0.251
+
+Dated producta
+
+11.835
+
+13.981
+
+12.025
+
+11.195
+
+11.062
+
+-0.885
+
+Undated producta
+
+3.782
+
+10.463
+
+4.182
+
+4.769
+
+5.432
+
+-0.966
+
+Age
+
+10.678
+
+–
+
+–
+
+–
+
+–
+
+-1.584
+
+Birth date
+
+10.720
+
+–
+
+–
+
+–
+
+–
+
+-0.292
+
+Reporter country
+
+0.706
+
+–
+
+–
+
+–
+
+–
+
+-3.611
+
+Sex
+
+0.696
+
+–
+
+–
+
+–
+
+–
+
+VAERS field
+
+a
+
+FAERS field
+
+-1.339
+b
+
+Product name
+
+3.339
+
+9.091
+
+4.292
+
+-0.443
+
+-1.853
+
+-3.264
+
+Diagnosisa
+
+5.799
+
+–
+
+–
+
+–
+
+–
+
+-0.287
+
+Medical historya
+
+9.649
+
+–
+
+–
+
+–
+
+–
+
+-0.415
+
+Family historya,c
+
+–
+
+–
+
+–
+
+–
+
+–
+
+–
+
+Dated featurea
+
+8.542
+
+13.618
+
+9.731
+
+10.485
+
+10.209
+
+-0.465
+
+Undated featurea
+
+13.448
+
+7.116
+
+4.534
+
+0.821
+
+-2.087
+
+-1.147
+
+12.618
+6.421
+
+12.881
+6.526
+
+12.355
+3.414
+
+10.994
+2.410
+
+11.994
+0.632
+
+1.493
+-2.027
+
+a
+
+Dated product
+Undated producta
+a
+
+Information for these fields was extracted from the narrative text of reports by the Event-based Textmining of Health Electronic Records system. See Sect. 2.2 for a description of the types of text features for
+each field
+b
+This value was linearly interpolated from the weights of the d ranges on either side
+c
+
+No weights could be assessed for this field because of small sample limitations
+
+algorithm that did not incorporate the narrative text.
+However, if an expert reviewer were to manually inspect
+the highly ranked pairs from the full version of the algorithm (including the textual features), 11 of the 15 true
+duplicates could be identified through review of just the top
+14 pairs. The empirically derived duplicate confidence
+value improved the performance of the algorithm for both
+databases. Among the VAERS datasets, the Haemophilus
+influenzae type b vaccine product had the lowest recall
+(0.689) at its selected threshold, and the algorithm’s performance on FAERS reports was in general lower than for
+VAERS reports.
+Our study has some limitations. First, spontaneous
+reports are often missing one or more important pieces of
+
+information in structured fields and/or the narrative text
+(see Table 1), posing a difficult challenge for identifying
+duplicates. Second, the assumption of independence
+between all data fields in reports is unlikely to hold. For
+example, the vaccination date and onset date for many
+VAERS reports will occur on the same day because some
+highly reported adverse reactions (such as anaphylaxis)
+tend to occur very quickly. Third, our method of selecting
+thresholds relied only on estimates of the best F1 scores in
+the training sets. We emphasize, though, that the final
+implementation for FDA reviewers will not use fixed
+thresholds but will present a ranked list of likely duplicate
+pairs for their review, with the medical reviewer making
+the ultimate adjudication. Fourth, our treatment of certain
+
+452
+
+1239
+
+FLU testing
+
+VAERS total testing
+
+391
+391
+
+FAERS testing: post-hoc threshold
+
+76,245
+
+76,245
+
+754,606
+
+Possible pairwise comparisons
+
+286,825
+
+101,926
+
+1,000,405
+
+23,871
+
+254,541
+
+161,028
+
+1,276,003
+
+Possible pairwise comparisons
+
+111
+
+34
+
+94
+
+16
+
+54
+
+61
+
+136
+
+15
+
+15
+
+60
+
+W C 15 and C C 6
+
+W C 31 and C C 6
+
+W C 31 and C C 6
+
+Threshold
+
+Separate for each testing set
+
+0.733
+
+0.133
+
+0.583
+
+Recall
+
+W C 28 and C C 6 or W C 0 and C C 8
+
+W C 28 and C C 6 or W C 0 and C C 8
+
+W C 20 and C C 6 or W C 0 and C C 8
+
+W C 20 and C C 6 or W C 0 and C C 8
+
+W C 40 and C C 6 or W C 0 and C C 8
+
+W C 40 and C C 6 or W C 0 and C C 8
+
+Threshold
+
+Known duplicate pairs
+
+Known duplicate pairs
+
+0.945
+
+0.933
+
+0.838
+
+0.941
+
+0.980
+
+0.955
+
+0.696
+
+Precision
+
+0.786
+
+1.0
+
+0.574
+
+Precision
+
+0.775
+
+0.824
+
+0.936
+
+1.0
+
+0.889
+
+0.689
+
+0.809
+
+Recall
+
+0.759
+
+0.235
+
+0.579
+
+F1
+
+0.851
+
+0.875
+
+0.884
+
+0.970
+
+0.932
+
+0.800
+
+0.748
+
+F1
+
+568
+
+714
+
+219
+
+1415
+
+452
+
+1239
+
+YFV training
+
+YFV testing
+
+FLU training
+
+FLU testing
+
+VAERS total testing
+
+391
+391
+
+FAERS testing: post-hoc threshold
+
+76,245
+
+76,245
+
+754,606
+
+Possible pairwise comparisons
+
+286,825
+
+101,926
+
+1,000,405
+
+23,871
+
+254,541
+
+161,028
+
+1,276,003
+
+Possible pairwise comparisons
+
+111
+
+34
+
+94
+
+16
+
+54
+
+61
+
+136
+
+15
+
+15
+
+60
+
+W C 8 and C C 6
+
+W C 14 and C C 6
+
+W C 14 and C C 6
+
+Threshold
+
+Separate for each testing set
+
+0.467
+
+0.267
+
+0.650
+
+Recall
+
+W C 28 and C C 6 or W C 0 and C C 8
+
+W C 28 and C C 6 or W C 0 and C C 8
+
+W C 15 and C C 6 or W C 0 and C C 8
+
+W C 15 and C C 6 or W C 0 and C C 8
+
+W C 28 and C C 7 or W C 0 and C C 8
+
+W C 28 and C C 7 or W C 0 and C C 8
+
+Threshold
+
+Known duplicate pairs
+
+Known duplicate pairs
+
+0.966
+
+1.0
+
+0.896
+
+0.941
+
+0.979
+
+0.955
+
+0.777
+
+Precision
+
+0.538
+
+0.667
+
+0.333
+
+Precision
+
+0.757
+
+0.765
+
+0.915
+
+1.0
+
+0.870
+
+0.689
+
+0.794
+
+Recall
+
+0.500
+
+0.381
+
+0.441
+
+F1
+
+0.848
+
+0.867
+
+0.905
+
+0.970
+
+0.922
+
+0.800
+
+0.785
+
+F1
+
+C duplicate confidence value, FAERS Food and Drug Administration Adverse Event Reporting System, FLU influenza, HIB Haemophilus influenzae type b, VAERS Vaccine Adverse Event
+Reporting System, YFV yellow fever, W weight
+
+1229
+
+FAERS testing
+
+Total cases
+
+FAERS training
+
+FAERS dataset
+
+1598
+
+HIB testing
+
+Unique reports (treated as cases)
+
+HIB training
+
+VAERS dataset
+
+Table 4 Performance metrics for the duplicate detection algorithm using structured field data only
+
+C duplicate confidence value, FAERS Food and Drug Administration Adverse Event Reporting System, FLU influenza, HIB Haemophilus influenzae type b, VAERS Vaccine Adverse Event
+Reporting System, YFV yellow fever, W weight
+
+1229
+
+FAERS testing
+
+Total cases
+
+FAERS training
+
+FAERS dataset
+
+219
+
+1415
+
+714
+
+YFV training
+
+FLU training
+
+568
+
+YFV testing
+
+1598
+
+HIB testing
+
+Unique reports (treated as cases)
+
+HIB training
+
+VAERS dataset
+
+Table 3 Performance metrics for the duplicate detection algorithm
+
+578
+K. Kreimeyer et al.
+
+0.375
+
+0.133
+
+0.142
+
+Precision
+
+0.800
+W C 15
+15
+
+0.617
+
+Recall
+
+0.133
+W C 31
+
+W C 31
+60
+
+15
+
+76,245
+391
+FAERS testing: post-hoc threshold
+
+76,245
+391
+
+754,606
+1229
+
+FAERS testing
+
+452
+FLU testing
+
+FAERS training
+
+1415
+FLU training
+
+FAERS dataset
+
+219
+YFV testing
+
+1239
+
+714
+YFV training
+
+VAERS total testing
+
+568
+HIB testing
+
+Total cases
+
+Possible pairwise comparisons
+
+34
+
+111
+286,825
+
+101,926
+
+94
+1,000,405
+
+16
+23,871
+
+254,541
+
+54
+
+Known duplicate pairs
+
+Separate for each testing set
+
+W C 28
+
+W C 28
+
+W C 20
+
+W C 20
+
+W C 40
+
+W C 40
+136
+
+61
+161,028
+
+1,276,003
+1598
+HIB training
+
+Threshold
+Known duplicate pairs
+Possible pairwise comparisons
+
+data fields and certain confidence tests might be criticized
+for robustness in capturing all possible useful information.
+It should be noted that this is the first evaluation of the
+algorithm and we intend to refine the handling of these
+structured data fields in the future, for example, with fieldspecific learnable string similarity metrics [25].
+There were many challenges specific to the FAERS
+dataset. As we did not have the resources to perform a
+large-scale, manual duplicate identification project, the
+FAERS training set was substantially smaller than the
+VAERS weight determination set, meaning the weights
+that were calculated based on the known duplicates might
+not adequately represent FAERS as a whole. In addition,
+the duplicate identification process for the FAERS gold
+standard involved only a single medical reviewer and in
+general, medical review can miss duplicates that an algorithm might detect. However, the VAERS deduplication
+process involves a semi-automated review by the database
+contractor in addition to a medical review. We believe this
+process to be thorough, which is why we used this judgment in defining a gold standard; however, we cannot rule
+out a bias in the types of duplicates detected by the systematic process, which, in turn, could mean the performance of our algorithm for previously undetected
+duplicates would be different.
+An additional difficulty faced by the FAERS, Haemophilus influenzae type b vaccine, and influenza vaccine
+datasets was the number of FPs produced by the sheer
+number of pairwise comparisons. Because we used the F1
+balance point between recall and precision in the training
+set when selecting weight and confidence thresholds (see
+
+Unique reports (treated as cases)
+
+Fig. 1 Median number of features extracted by the Event-based
+Text-mining of Health Electronic Records system and placed under
+each field for the testing set(s) of the Vaccine Adverse Event
+Reporting System (VAERS) and the US Food and Drug Administration Adverse Event Reporting System (FAERS). The median for
+each field is calculated using only reports having at least one
+extracted feature in that field
+
+VAERS dataset
+
+Field
+
+Table 5 Performance metrics for the duplicate detection algorithm using weight thresholds only (without empirical duplicate confidence value thresholds)
+
+uc
+t
+Pr
+od
+
+uc
+t
+
+at
+ed
+
+Pr
+od
+nd
+U
+
+at
+ed
+
+Fe
+at
+ur
+e
+D
+
+at
+ed
+
+Fe
+at
+ur
+e
+nd
+U
+
+at
+ed
+D
+
+ily
+
+H
+
+is
+to
+ry
+Fa
+m
+
+ed
+ic
+al
+H
+
+ia
+gn
+
+M
+
+D
+
+is
+to
+ry
+
+0
+
+Threshold
+
+0.533
+
+0.752
+0.712
+
+0.706
+
+0.291
+0.766
+
+0.833
+0.938
+
+0.952
+
+0.625
+
+0.873
+0.889
+
+3
+
+0.656
+
+Recall
+
+6
+
+0.699
+
+Precision
+
+VAERS
+
+9
+
+C duplicate confidence value, FAERS Food and Drug Administration Adverse Event Reporting System, FLU influenza, HIB Haemophilus influenzae type b, VAERS Vaccine Adverse Event
+Reporting System, YFV yellow fever, W weight
+
+0.511
+
+0.133
+
+0.231
+
+F1
+
+0.731
+
+0.608
+
+0.422
+
+0.882
+
+0.881
+
+0.777
+
+F1
+
+579
+
+FAERS
+
+os
+is
+
+Median Features Extracted
+
+Median Number of Text Features Extracted
+12
+
+0.660
+
+Using Probabilistic Record Linkage to Identify Duplicate Cases in Spontaneous Reporting Systems
+
+580
+
+Initial information regarding this unsolicited case was received
+from a physician on 01-APR-2011.
+This case involves a 38 year old male patient who experienced
+acute cellular rejection and pyrexia whilst receiving treatment with
+drug A ([Brand Name]) for treatment of acute rejection after liver
+transplantation.
+The patient had a medical history of asthma, thromboembolism
+(16-OCT-2001), previous use of opioids (26-OCT-2001 to 18-FEB2002), appendectomy, and liver biopsy. Patient also had history of
+acute myocardial infarction (in MAR-2009). Concomitant
+medications included drug B ([specific brand] ), and drug C
+([other brand]).
+On 13-JUN-2009, patients liver enzymes were found to be
+increased along with palpitations. The same day, patient received
+treatment with drug A (route of administration, dosage regimen,
+lot number and expiration date not provided).
+On 14-JUN-2009, liver enzymes were still increased on admission
+to hospital. On 17-JUN-2009, liver biopsy was performed but only
+slight improvement in hepatic function was observed. On 18-JUN2009, the hepatic function worsened and another liver biopsy was
+performed which showed resolving. Unspecified tests were
+performed which were found negative for infection. The same
+day, the patient also developed itching. On 27-Jun-2009, the
+patient developed pyrexia. On 31-JUN-2009, liver biopsy showed
+improving liver enzymes. The same day, patient received last
+dose of drug A. On 23-JUL-2009, hepatic function returned to
+normal. The Company assessed the event of worsening of disease
+as medically significant.
+Action taken: unknown. Corrective treatment : unknown.
+Outcome: On O1-Jul-2009, the patient recovered from the event
+of pyrexia. The outcome for the event of worsening of disease
+was unknown.
+Reporting physician's causality: The reporting physician assessed
+the relationship of drug A with pyrexia as possible and did not
+provide the relationship with the event of worsening of disease.
+The reporting physician assessed the event of pyrexia as nonserious.
+Additional information was received on 13-MAY-2011 from the
+physician. Both information were processed together.
+The onset date and outcome of the event of pyrexia updated.
+Narrative updated
+Pharmacovigilance Comment:
+j Manufacturer's Comment: The benefit-risk relationship of [Brand
+Name] is not affected by this report.
+
+K. Kreimeyer et al.
+
+Spontaneous report was received on 01-APR-2011 from a
+physician regarding a 38 year old male patient, initials unknown.
+The patient's medical history was significant for asthma,
+thromboembolism (16-OCT-2001), previous use of opioids (26OCT-2001 to 18-FEB-2002), appendectomy and liver biopsy.
+Patient also had history of acute myocardial infarction (in MAR2009). On 13-JUN-2009, patients liver enzymes were found to be
+increased along with palpitations. The same day, patient received
+treatment with [Brand Name] (route of administration and dosage
+regimen not provided). The lot number for [Brand Name] was not
+provided. On 14-JUN-2009, liver enzymes were still increased on
+admission to hospital. On 17-JUN-2009, liver biopsy was
+performed but only slight improvement in hepatic function was
+observed. On 18-JUN-2009, the hepatic function worsened and
+another liver biopsy was performed which showed resolving.
+Unspecified tests were performed which were found negative for
+infection. The same day, the patient also developed itching. On an
+unspecified date, the patient developed pyrexia. On 31-JUN-2009,
+liver biopsy showed improving liver enzymes. The same day,
+patient received last dose of [Brand Name]. On 23-JUL-2009,
+hepatic function returned to normal. The action taken with [Brand
+Name] treatment was not provided. The Company assessed the
+event of worsening of disease as medically significant. The
+outcome for the event of worsening of disease was not provided.
+The event of pyrexia was not yet recovered. Relevant concomitant
+medications reported include [specific brand] (drug B) and [other
+brand] (drug C). The intensity for the event of pyrexia was mild.
+The intensity for the event of worsening of disease was not
+provided. The reporting physician assessed the relationship of
+[Brand Name] with Pyrexia as possible and did not provide the
+relationship with the event of worsening of disease.
+
+Fig. 2 Example of the results produced by the CopyFind software
+(http://plagiarism.bloomfieldmedia.com/wordpress/software/copyfind/)
+when comparing the narrative text of two reports from the US Food and
+Drug Administration Adverse Event Reporting System. Identical passages are indicated with red underlined text. CopyFind can be customized
+
+in many ways, including allowing minor differences within a text match,
+such as the words ‘‘outcome’’ and ‘‘intensity’’ in the figure; these differences are indicated with green italicized text. Patient details, dates,
+events, and products have all been altered or omitted to protect patient
+privacy
+
+Electronic Supplementary Material), the chosen thresholds
+were affected by the different sample sizes between the
+training and testing sets. Semi-automated uses of the
+algorithm, such as the expected implementation at the
+FDA, can avoid some of the difficulty of selecting firm
+thresholds by having reviewers examine the most highly
+suspect pairs and use their own judgment to determine
+when the majority of true duplicates have been identified.
+We have not thoroughly evaluated the computational speed
+of the algorithm, but in an initial testing, an enterprise workstation with an Intel Xeon X5677 processor and 24 GB of
+RAM processed the 1 million pairs for the 1415 reports in the
+influenza vaccine training set in about 2 min and 45 s. This
+time could be reduced greatly with optimizations, such as the
+common technique of ‘blocking’ for certain data fields. We
+
+have not yet focused on these optimizations because we
+expect medical reviewers at the FDA, who generally focus on
+a single product at a time, to employ the algorithm on datasets
+of a similar size to those presented here.
+For several of the fields that allow approximate matching for difference values (d) between 0 and 1, we note that
+the greatest weight is given to pairs of reports that have
+some non-zero amount of dissimilarity. We believe this is
+related to our binning scheme for the difference metric
+because only reports with multiple entries in the corresponding field can produce a difference value different
+from zero or one when compared using the cosine similarity (see Sect. 2).
+Previous studies using probabilistic record linkage in
+matching records have described other approaches that
+
+Using Probabilistic Record Linkage to Identify Duplicate Cases in Spontaneous Reporting Systems
+
+could potentially be incorporated to enhance our algorithm.
+For example, certain methods will allow for different
+matching weights based on a field’s actual value—matching on common entities such as ‘‘Last Name = Smith’’
+would be less significant than on rare ones—or allow some
+forgiveness for dates or numerical values with small discrepancies, which might be the result of transcription errors
+[12, 14, 16]. As we collect more data on duplicate cases in
+VAERS and FAERS, we will have a better handle on the
+frequency of specific values and of errors in these fields,
+which will make it easier to apply these techniques.
+We chose to compare sets of clinical features extracted
+by a clinical natural language processing system, but this is
+not the only way to incorporate the narrative text. For
+example, we have begun an investigation into using the
+plagiarism detection software CopyFind1 to analyze the
+narrative text of reports. Because AE reports can be
+phrased very differently by different reporters, this tool
+would not be a stand-alone solution for AE report deduplication, but might be a useful supplement to our current
+algorithm. We believe that CopyFind may improve the
+manual duplicate review process by highlighting matching
+text and guiding the attention of the reviewer to similar
+passages (see Fig. 2 for an example).
+
+5 Conclusions
+We have demonstrated the validity of the probabilistic
+record linkage approach in finding duplicate cases in
+VAERS and FAERS. The evaluation has highlighted some
+of the challenges in implementing automated duplicate
+classification, which only reinforces the intention to deploy
+the initial version of the algorithm in a semi-automated
+fashion where medical reviewers at the FDA will be provided with lists of cases worth considering for potential
+linkage in advance of aggregate analyses. Though the
+addition of narrative text to the algorithm did not help the
+automated detection of duplicates in these evaluations, this
+text is vital for supporting the manual review process and
+providing the best possible lists of suspected duplicates to
+medical reviewers. We are continuing to refine the algorithm
+based on confirmed duplicates. While currently evolving,
+the algorithm in its present state is being integrated into our
+new Decision Support Environment [21] for medical
+reviewers to confirm duplicate cases and is expected to
+meaningfully improve the efficiency and precision of
+downstream aggregate data analyses. We hope to evaluate
+and quantify these improvements in a further study when the
+deployment of the algorithm is complete.
+1
+
+Available from http://plagiarism.bloomfieldmedia.com/wordpress/
+software/copyfind/.
+
+581
+
+Acknowledgements The authors thank Ezekiel Maier for several
+conversations and suggestions that have enhanced the technical
+aspects of this work.
+Compliance with ethical standards
+Funding This work was supported in part by the appointment of
+Kory Kreimeyer to the Research Participation Program administered
+by the Oak Ridge Institute for Science and Education through an
+interagency agreement between the US Department of Energy and the
+US Food and Drug Administration.
+Conflict of interest Kory Kreimeyer, David Menschik, Scott
+Winiecki, Wendy Paul, Faith Barash, Emily Jane Woo, Meghna
+Alimchandani, Deepa Arya, Craig Zinderman, Richard Forshee, and
+Taxiarchis Botsis have no conflicts of interest directly relevant to the
+content of this article.
+
+References
+1. World Health Organization. A guide to detecting and reporting
+adverse drug reactions. Geneva: World Health Organization;
+2002: Contract No. WHO/EDM/QSM/2002.2.
+2. Hazell L, Shakir SAW. Under-reporting of adverse drug reactions. Drug Saf. 2006;29(5):385–96. doi:10.2165/00002018200629050-00003.
+3. Moore TJ, Furber CD, Mattison DR, et al. A critique of a key
+drug safety reporting system. QuarterWatch. Horsham, PA:
+Institute for Safe Medication Practices; 2015.
+4. Varricchio F, Iskander J, Destefano F, et al. Understanding vaccine safety information from the Vaccine Adverse Event
+Reporting System. Pediatr Infect Dis J. 2004;23(4):287–94.
+5. US Food and Drug Administration. Reporting serious problems to
+FDA. 2016. http://www.fda.gov/Safety/MedWatch/HowToReport/
+default.htm. Accessed 9 June 2016.
+6. Guidance for industry: postmarketing safety reporting for human
+drug and biological products including vaccines. Rockville, MD:
+Food and Drug Administration; 2001.
+7. Hauben M, Reich L, De Micco J, Kim K. ‘Extreme duplication’
+in the US FDA Adverse Events Reporting System Database. Drug
+Saf.
+2007;30(6):551–4.
+doi:10.2165/00002018-20073006000009.
+8. Poluzzi E, Raschi E, Piccinni C, De F. Data mining techniques in
+pharmacovigilance: analysis of the publicly accessible FDA
+Adverse Event Reporting System (AERS). In: Karahoca A, editor. Data mining applications in engineering and medicine.
+Rijeka, Croatia: InTech; 2012.
+9. Committee for medicinal products for human use guideline on
+detection and management of duplicate individual cases and
+individual case safety reports (ICSRs). London: European
+Medicines Agency; 2012.
+10. Tromp M, Ravelli AC, Bonsel GJ, et al. Results from simulated
+data sets: probabilistic record linkage outperforms deterministic
+record linkage. J Clin Epidemiol. 2011;64(5):565–72. doi:10.
+1016/j.jclinepi.2010.05.008.
+11. Baldwin E, Johnson K, Berthoud H, Dublin S. Linking mothers
+and infants within electronic health records: a comparison of
+deterministic and probabilistic algorithms. Pharmacoepidemiol
+Drug Saf. 2015;24(1):45–51. doi:10.1002/pds.3728.
+12. Fellegi IP, Sunter AB. A theory for record linkage. J Am Stat Assoc.
+1969;64(328):1183–210. doi:10.1080/01621459.1969.10501049.
+13. Aldridge RW, Shaji K, Hayward AC, Abubakar I. Accuracy of
+probabilistic linkage using the enhanced matching system for
+
+582
+
+14.
+
+15.
+
+16.
+
+17.
+
+18.
+
+19.
+
+K. Kreimeyer et al.
+public health and epidemiological studies. PLoS One.
+2015;10(8):e0136179. doi:10.1371/journal.pone.0136179.
+Tregunno PM, Fink DB, Fernandez-Fernandez C, et al. Performance of probabilistic method to detect duplicate individual case
+safety reports. Drug Saf. 2014;37(4):249–58. doi:10.1007/
+s40264-014-0146-y.
+DuVall SL, Fraser AM, Rowe K, et al. Evaluation of record
+linkage between a large healthcare provider and the Utah Population Database. J Am Med Inform Assoc. 2012;19(e1):e54.
+Norén GN, Orre R, Bate A, Edwards IR. Duplicate detection in
+adverse drug reaction surveillance. Data Min Knowl Discov.
+2007;14(3):305–28. doi:10.1007/s10618-006-0052-8.
+Méray N, Reitsma JB, Ravelli ACJ, Bonsel GJ. Probabilistic
+record linkage is a valid and transparent tool to combine databases without a patient identification number. J Clin Epidemiol.
+2007;60(9):883.e1–11. doi:10.1016/j.jclinepi.2006.11.021.
+Grannis SJ, Overhage JM, Hui S, McDonald CJ. Analysis of a
+probabilistic record linkage technique without human review.
+AMIA Annu Symp Proc. 2003;2003:259–63.
+Botsis T, Buttolph T, Nguyen MD, et al. Vaccine adverse event
+text mining system for extracting features from vaccine safety
+reports. J Am Med Inform Assoc. 2012;19(6):1011–8. doi:10.
+1136/amiajnl-2012-000881.
+
+20. Wang W, Kreimeyer K, Woo EJ, et al. A new algorithmic
+approach for the extraction of temporal associations from clinical
+narratives with an application to medical product safety surveillance reports. J Biomed Inform. 2016;62:78–89. doi:10.1016/j.
+jbi.2016.06.006.
+21. Botsis T, Jankosky C, Arya D, et al. Decision support environment for medical product safety surveillance. J Biomed Inform.
+2016;64:354–62. doi:10.1016/j.jbi.2016.07.023.
+22. DuVall SL, Kerber RA, Thomas A. Extending the Fellegi-Sunter
+probabilistic record linkage method for approximate field comparators. J Biomed Inform. 2010;43(1):24–30. doi:10.1016/j.jbi.
+2009.08.004.
+23. Baer B, Nguyen M, Woo EJ, et al. Can natural language processing improve the efficiency of vaccine adverse event report
+review? Methods Inf Med. 2016;55(2):144–50. doi:10.3414/
+me14-01-0066.
+24. van Rijsbergen CJ. Information retrieval. 2nd ed. Newton, MA:
+Butterworth-Heinemann; 1979.
+25. Bilenko M, Mooney RJ. Adaptive duplicate detection using
+learnable string similarity measures. Proceedings of the Ninth
+ACM SIGKDD International Conference on Knowledge discovery and data mining, Washington, DC, 2003, 956759 ACM,
+p. 39–48.
+
+

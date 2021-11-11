@@ -1,0 +1,691 @@
+452
+
+MEDINFO 2019: Health and Wellbeing e-Networks for All
+L. Ohno-Machado and B. Séroussi (Eds.)
+© 2019 International Medical Informatics Association (IMIA) and IOS Press.
+This article is published online with Open Access by IOS Press and distributed under the terms
+of the Creative Commons Attribution Non-Commercial License 4.0 (CC BY-NC 4.0).
+doi:10.3233/SHTI190262
+
+A Proficient Spelling Analysis Method Applied to a Pharmacovigilance Task
+T. Elizabeth Workman a, Guy Divita b, Yijun Shao a, Qing Zeng-Treitler a
+a
+
+Biomedical Informatics Center, George Washington University, and Washington DC VA Medical Center, Washington, D.C.
+b
+University of Utah School of Medicine, Division of Epidemiology, and VA Medical Center, Salt Lake City, UT
+
+Abstract
+Misspellings in clinical free text present potential challenges to
+pharmacovigilance tasks, such as monitoring for potential
+ineffective treatment of drug-resistant infections. We developed
+a novel method using Word2Vec, Levenshtein edit distance
+constraints, and a customized lexicon to identify correct and
+misspelled pharmaceutical word forms. We processed a large
+corpus of clinical notes in a real-world pharmacovigilance
+task, achieving positive predictive values of 0.929 and 0.909 in
+identifying valid misspellings and correct spellings,
+respectively, and negative predictive values of 0.994 and 0.333
+as assessments where the program did not produce output. In
+a specific Methicillin-Resistant Staphylococcus Aureus use
+case, the method identified 9,815 additional instances in the
+corpus for potential inaffective drug administration inspection.
+The findings suggest that this method could potentially achieve
+satisfactory results for other pharmacovigilance tasks.
+Keywords:
+Natural Language Processing; Machine Learning
+
+Introduction
+Pharmacovigilance is “The process and science of monitoring
+the safety of medicines and taking action to reduce the risks and
+increase the benefits of medicines” [1]. Pharmacovigilance is
+“relevant for everyone whose life is touched in any way by
+medical interventions” [2] and was initiated in a systemic
+method on a global level by the World Health Organization in
+1961 in response to manifested congenital deformities in infants
+caused by thalidomide.
+In the United States,
+pharmacovigilance efforts are conducted by many agencies,
+including the Food and Drug Administration (FDA) (e.g., [3]),
+the Centers for Disease Control (CDC) (e.g., [4; 5]), and many
+state and regional organizations.
+An example
+pharmacovigilance task is monitering for the use of ineffective
+treatments for pathogens like Methicillin-Resistant
+Staphylococcus Aureus (MRSA). Treating MRSA with
+antibiotics to which there is an established resistance can
+exacerbate infections, thus compounding an already serious
+condition [6].
+EMR data is a common source of information for
+pharmacovigilance efforts. Text mining this data typically
+consists of rule-based systems that utilize vocabularies from
+sources such as the Unified Medical Language System (UMLS)
+to locate named entities, comparing terms from the clinical
+narrative to vocabulary entries [7]. One shortcoming of this
+approach is that UMLS vocabularies generally consist of drug
+terms in a standard form, yet clinical text is often rife with
+misspellings, in some instances constituting 5% of all content
+
+[8], and over 17% of content addressing the pharmaceutical
+domain [9]. Misspellings of drug terms have a proportional
+relationship to the character length of their respective standard
+forms [10]. Differences between the correct and misspelled
+forms can be measured by the Levenshtein edit distance [11],
+which is the quantitative difference between two strings or
+words in terms of their characters. For example, the
+Levenshtein
+distance
+between
+“amoxicillin”
+and
+“amoxycilline” is 2, because there is a “y” in the second form
+where there is an “i” in the first, plus the second form has an
+added “e” on the end.
+Related Work
+Several groups have addressed misspellings in electronic
+medical record (EMR) data. Danielsson-Ojala analyzed ICU
+Finnish clinical text addressing wound care [12], finding many
+instances of misspellings, and abbreviations. Ruch, Baud, and
+Geissbühler built a spellchecker consisting of three modules
+[13]. These modules sequentially applied edit distance
+analysis, part of speech tagging, contextual morpho-syntactic
+analysis, and word sense filtering (utilizing UMLS) in assessing
+misspelled terms and candidate corrections. As part of an
+ontology mapping task, Dziadek et al. used journal articles and
+EMR text in Swedish as input for a system that employed a
+commercial spell checker, Levenshtein distance, and trigrams
+to identify and correct misspellings [14]. Meystre et al. used
+fuzzy string matching and a constrained Levenshtein edit
+distance to identify misspelled medications in 3000 randomly
+selected clinical notes from a larger annotated corpus [15].
+Levin et al. annotated clinical text to train and test an algorithm
+for normalizing misspelled drug terms in clinical text [16]
+utilizing RxNorm and LVG Metaphone, NLP products from the
+National Library of Medicine.
+Word Embedding (a technique mapping words to real number
+vectors) facilitated by Word2Vec models [17], holds promise
+in identifying words with both correct and incorrect spellings.
+Word2Vec models implement simple neural networks to create
+word vectors, using either a skip-gram or continuous bag of
+words (CBOW) approach. The skip-gram approach identifies
+multiple words in a contextual window, given a single word.
+The CBOW approach applies the opposite logic, identifying a
+single word given the other words in the window. The endproducts of either method are word embedding vectors that can
+be used to identify words that have similar word embeddings,
+or that are found in similar contexts. Word embeddings and
+similar methodologies have been used as one of several
+components in identifying spelling errors in consumergenerated text [18]. They could potentially contribute to
+spelling analysis research involving EMR data.
+
+T.E. Workman et al. / A Proficient Spelling Analysis Method Applied to a Pharmacovigilance Task
+
+The Veterans Health Administration (VHA) is one of the largest
+integrated health care systems in the world [19], providing care
+to over 9 million patients each year, at 1,243 facilities [20].
+Efforts to computerize VHA data began in the 1970’s, resulting
+in the creation of VistA, one of the first EMR systems [21]. This
+has resulted in the creation of a vast electronic clinical data
+resource, which VHA maintains in their Corporate Data
+Warehouse (CDW). These data are made available for research
+activities through the Veterans Affairs Informatics and
+Computing Infrastructure (VINCI), a secure platform enabling
+data research.
+Goals of this Work
+The primary goal of this study was to identify misspellings of
+drug names for a specific pharmacovigilance task, namely to
+identify the potential use of antibiotics for which certain
+infections have developed a resistance. As an additional
+exploratory task, we sought to identify the corrected forms of
+misspellings also used in such a task. We created an application
+(see https://qtzeng.smhs.gwu.edu/redmine/projects/drug-termword-analysis for documentation) that identifies misspellings
+and correct spellings of words in clinical text. This approach
+leverages the hypothesis that comparing words that share the
+same contexts in text, utilizing Levenshtein edit distance [11]
+constraints and a lexicon containing the correctly spelled terms
+could enable identification of misspellings or correct spellings,
+depending on the need. By operationalizing this hypothesis, our
+system identified both the correct and incorrect spellings of
+terms used in the pharmacovigilance task, given the original
+input forms, according to predictive value, the evaluative focus
+of this work
+As a test case, we used a list of both correct spellings and
+misspellings of antibiotic terms. This list had previously been
+used in a CDC drug-resistance pharmacovigilance task. Two
+annotators evaluated the results, measuring positive predictive
+value (PPV) for application output, and negative predictive
+value (NPV) for when the application produced no output.
+
+Methods
+Data Procurement
+We used a corpus of 400,000 clinical notes randomly pulled
+from the VA’s TIU tables (i.e. text note tables) through VINCI,
+of document types addressing infectious diseases. These
+records were created from October 1999 to May 2018,
+representing 138190 patients, 131681 males, and 6509 females.
+The mean age was 65.4 years old.
+We obtained a list of 112 antibiotic terms and phrases from the
+CDC that are regularly monitored in an antibiotic resistance
+surveillance task to use as input. This list contained both
+numerous misspellings and a select number of correct spellings
+of antibiotic terms. Because the focus of this study was
+individual
+words,
+we
+split
+phrases
+such
+as
+sulfamethoxazole/trimethoprim into two separate words, and
+then removed duplicates, producing a list of 108 individual
+terms
+Method Process, including Corpus Treatment
+We trained a Word2Vec model, implementing the Genism
+Word2Vec library in Python [22], for the task of locating words
+found in the same contexts within the corpus as the 108
+pharmaceutical terms. Preliminary work indicated that a model
+with a feature vector dimensionality of 600, using the
+Continuous Bag of Words algorithm, with a context window of
+
+453
+
+8 words, implementing the softmax function with no negative
+sampling, and 10 iterations produced the most effective model
+for this given task. In producing the final model, we built word
+embeddings for all words in the corpus, regardless of frequency.
+This last measure ensured that we could observe the final
+efficiency of this method even for terms that occurred just once
+in the corpus. The Word2Vec model contained a vocabulary of
+354,559 terms.
+To determine frequency of useful terms in the corpus, we
+subjected it to a separate, independent process, tokenizing the
+content, removing many common words (e.g., articles,
+prepositions, ordinal numbers), specific punctuation patterns
+that were typical of noise in VA notes, and transformed the
+remaining tokens to lower case. Superfluous punctuation was
+also removed. This resulted in a set of 285,909 tokens that were
+particularly information-bearing, for which we calculated the
+frequency of each and stored the results.
+We built a customized lexicon of standard spellings using the
+RXNCONSO file from RxNorm [23] for use in the method.
+The goal of this process was to harvest standardized RxNorm
+terms for both trade and generic drug names. This automated
+process placed all such RxNorm terms in a separate resource
+that contained 19,732 unique drug terms.
+The application processed each term from the prepared CDC
+list of antibiotics using the following methodology. First, the
+program determined if the input term was correctly spelled,
+using the customized lexicon, and if the word was present in the
+Word2Vec model vocabulary. Properties such as dosage were
+not relevant to the analysis process. If the input term was not
+in the vocabulary, this fact was recorded for output. If the input
+term was in the vocabulary, rules facilitated its comparison to
+the word embeddings of words in the corpus or words in the
+customized lexicon of standard drug terms, specific to one of
+three possible scenarios:
+Scenario 1: If the input term was correctly spelled, the program
+retrieved other corpus words that occurred in similar contexts,
+by ranking the similarity scores between the target input word
+and other words in the Word2Vec model vocabulary, using the
+default cosine measurement, retrieving a maximum of 1000
+similar terms. For each of these “context” terms, the program
+calculated the Levenshtein edit distance between it and the
+input term. If the edit distance was equal or less than the integer
+floor value of the character count of the input term divided by
+three (minimum threshold of three after division), and the
+context word did not end in “s” (i.e., a probable plural form),
+and did not occur in the customized lexicon (i.e., a probable
+standardized spelling of a different drug), the program
+identified it as a misspelling of the input term.
+Scenario 2: If the input term was a misspelling, the program
+first identified candidates from the retrieved context terms also
+appearing in the customized lexicon that met one of these
+conditions:
+1. The edit distance between the input term and the
+context term was equal or less than the absolute value
+of the character count of the context term minus that of
+the input term (or alternatively four, if this length was
+less than four). This cast a sufficient yet not overly
+large net, based on Kilicoglu et al. observations [18].
+2. The input term and the context term began with the
+same three letters.
+All these candidate terms were weighted with a simple metric
+that computed the given candidate’s word embedding similarity
+score, divided by the inverse of the frequency’s log2 value, with
+
+454
+
+T.E. Workman et al. / A Proficient Spelling Analysis Method Applied to a Pharmacovigilance Task
+
+the highest scoring candidate term selected as the logical correct
+spelling.
+Scenario 3: If the input term was a misspelling and the
+previous step did not identify a logical correct spelling, the
+input term was compared to terms in the lexicon where the edit
+distance was three or less. The term(s) with the smallest edit
+distance that also began with the same first three letters was
+chosen as the correct form(s).
+The edit distances used in Scenarios 2 and 3 were determined
+through common heuristics (i.e., an optimal maximum edit
+distance will be a proportion of the input term’s length) and
+testing. The weight metric used in Scenario 2 was guided by
+two additional heuristics: (a) the correct form will have a high
+similarity score, and (b) will occur frequently in the corpus.
+Taking the log value of the frequency scales its influence so that
+it proportionately affects the value. The metric used in Scenario
+3 was guided by the heuristic that the alternative correct form
+would otherwise be the closest in character variation to the
+misspelling and begin with the same characters. Edit distances
+were also determined through preliminary testing on another
+dataset.
+Figure 1 provides a graphical representation of this process.
+
+Figure 1. Application process
+
+To answer these questions for each input term, the annotators
+could use a reference standard, such as a dictionary or lexicon.
+Additionally, occurrences of output terms were analyzed in the
+corpus to assure they were likely used as drug terms.
+We calculated Cohen’s Kappa to assess inter-annotator
+agreement. Disagreements were settled by consensus. We
+calculated the positive predictive value (True Positives/(True
+Positives + False Positives)) and negative predictive value
+(True Negatives/(True Negatives + False Negatives)) to
+evaluate performance. Positive predictive value is used to
+evaluate the application’s performance in terms of its output
+(evaluation Oa and evaluation Ob). Negative predictive value
+is used to determine how the program performed when it
+produced no output (evaluation Na and evaluation Nb), in terms
+of not identifying valid output (i.e., false negatives).
+
+Results
+Raw Application Output
+Input terms were organized by six classifications, in accordance
+with the application. Input words that were correctly spelled
+drug terms (a) were in the corpus, and the application produced
+misspellings (33 input terms), (b) were in the corpus, and the
+application did not produce misspellings (20 input terms), or (c)
+were not in the corpus (37 input terms). Similarly, input words
+that were misspelled drug terms (d) were in the corpus, and the
+application identified a potentially correct spelling (10 input
+terms), (e) were in the corpus, and the application did not
+identify a potentially correct spelling (3 input terms), or (f) were
+not in the corpus (5 input terms). Terms were considered
+correct if they appeared in the customized lexicon.
+For the 33 correctly spelled input terms in the corpus where the
+program did produce output, there was a total of 184
+misspellings, prior to annotator review. For the 10 misspellings
+where the program produced output, there was a total of 11
+potential correct spellings identified (there were 2 identified for
+“septran”).
+Inter-Rater Agreement
+
+Evaluation of Output
+Two authors (GD, TEW) reviewed the method’s output. For
+each input term, they considered the following questions to
+identify valid output values:
+Where the program produced output:
+•
+
+•
+
+For correctly spelled input words, how many
+candidate terms identified by the program are logical
+misspellings of the associated term (true positives)?
+How many are not (false positives)? (evaluation Oa)
+For misspelled input words, did the program identify a
+logical correct spelling (true positive), or not (false
+positive)? (evaluation Ob)
+
+Where the program did not produced output:
+•
+
+For correctly spelled input words, for each context
+word, could it logically be a misspelling of the word
+(false negative), or not (true negatives)? (evaluation
+Na)
+
+•
+
+For misspelled input words, did a logically correct
+spelling of the term appear in the corpus or lexicon
+(false negative) or not (true negative)? (evaluation Nb)
+
+In terms of Cohen’s Kappa (Table 1), agreement was fair for
+evaluation Na, substantial for evaluation Oa and evaluation Ob,
+and essentially perfect for evaluation Nb [24], with percentages
+ranging from 90% to 100% for all. For evaluation Na, the
+Cohen’s Kappa agreement was borderline fair / moderate, yet
+the percentage of overall agreement was 99.68%. This
+discrepancy is likely due to Cohen’s Kappa’s vulnerability to
+skewed data [25].
+Method Performance
+For evaluation Oa, of the total 184 misspellings output by the
+application, 171 were determined to be logical misspellings of
+their given correctly spelled input forms, thus producing a PPV
+of 0.929 for this task. For evaluation Ob, of the 11 correct
+forms output by the application, 9 were determined to be logical
+representations of their given input misspellings. This
+produced a PPV of 0.909 for this task (Table 1).
+For evaluation Na, there were 619 true negatives, and four false
+negatives, producing an NPV of 0.994. For evaluation Nb,
+there were 1 true negative and 2 false negatives, producing an
+NPV of 0.333. For these input misspellings we checked if a
+logical correct spelling occurred in the corpus or lexicon. Of
+the three terms, logical corrections appeared in the corpus for
+two, therefore there were two false negatives, and one true
+negative (Table 1).
+
+T.E. Workman et al. / A Proficient Spelling Analysis Method Applied to a Pharmacovigilance Task
+
+Table 1. Inter-Rater agreement and application performance
+
+455
+
+Ob 11 (9)
+
+1 (90.90%)
+
+0.621
+
+PPV (0.909)
+
+spellings of these exact terms occur 15,317 times in the corpus.
+The application found a total of 19 misspellings of penicillin,
+tetracycline, and amoxicillin. In the corpus, these misspellings
+(in the case of “penicillin”, appending the misspelled variations
+with “g”) occurred 9,815 times, representing 9,815 additional
+occurrences where these drugs may have been used to treat
+MRSA, thus meriting scrutiny.
+
+Na 623 (4)
+
+3 (99.68%)
+
+0.398
+
+NPV (0.994)
+
+Method Output Performance
+
+Nb 3(1)
+
+0 (100%)
+
+1
+
+NPV (0.333)
+
+The application achieved PPV of 0.929 and 0.909 in identifying
+misspellings of correctly spelled input terms, and logical
+corrections of misspelled input terms, respectively. By
+combining similarity scores provided by the word embeddings
+with the edit distance constraints, the application was able to
+identify misspellings from the many words that occur in the
+same context as a given correctly spelled word. For the
+correctly spelled input word “tetracycline”, the application
+identified “tetracyclin”, but not “tegecycline” as a logical
+misspelling. The latter term, which occurs in the corpus, is
+within the edit distance constraint, but did not occur in the same
+context as tetracycline and is more likely a misspelling of
+Tigecycline. For the misspelling “amoxicilline” the program
+identified “amoxicillin” as the correct spelling instead of the
+other candidate “amoxi” because it produced a score of 4.8849,
+whereas the score for “amoxi” was 2.2499. A visual
+comparison of the three terms suggests that “amoxicillin” is the
+valid correct spelling. For the two misspelled input terms
+“septran” and “tetraycycline” for which no context word met
+the Scenario 2 criteria, the method of finding the customized
+lexicon term with the shortest edit distance that began with the
+same three letters identified logical corrections for each.
+
+Raw(Valid) Disagreements Cohen’s Performance
+Terms
+(Agreement %) Kappa Metric(Value)
+Oa 184 (171)
+
+6 (96.74%)
+
+0.733
+
+PPV (0.929)
+
+Examples of how some terms were used in the corpus follow,
+with indications of the correct and incorrect spellings:
+•
+
+Bactrim/bactim: “the pt will be best tx with bactim i
+will order this drug as well”
+
+•
+
+Clindamycin/clindamcyin: “was initally started on
+vancomycin and switched to clindamcyin po 600mg
+tid”
+
+•
+
+Zosyn/zozyn: “agree with outpatient treatment with
+zozyn and clindamycin for 7 days”
+
+Misspelled Antibiotic Terms Identified
+For the task of monitoring clinical text for mentions of the
+antibiotics on the list, the program identified 171 logical
+misspellings after annotator review and consensus. This equals
+an average of 5 additional representations per correct spelling,
+of the 33 correctly spelled words from the CDC antibiotics list.
+For example, the correctly spelled input term Cefazolin
+occurred in the corpus. It was matched to the contextual
+misspellings “cafazolin”, “cefazoin”, “cefazoline”, “cefezolin”,
+“ceftazolin”, “cefzolin”, and “cephazolin” (all true positives for
+evaluation Oa) using the edit distance constraint and lack of
+presence of these contextual words in the customized lexicon,
+as described in Scenario 1.
+Correct Spellings Identified
+There were 18 misspellings in the original CDC list. All but 5
+of the 18 misspellings were also found in the corpus. Of those
+13, the application identified logical correct spellings for 10,
+including two for “septran”. After annotator review and
+consensus, 9 terms were identified as valid corrections for 9
+misspellings.
+To illustrate a Scenario 2 output for the input misspelling
+“zithromycin”, Azithromycin had a similarity score of 0.3403
+and occurred 22556 times in the corpus, producing a score of
+4.9212:
+(0.3403) / (1/ log2(22556)) = 4.9212
+The highest score of all candidate corrections, and is a true
+positive for evaluation Ob.
+To illustrate Scenario 3, the application identified
+“Tetracycline” as the logical correct spelling of the misspelled
+input term “tetraycycline”, because among terms in the
+customized lexicon, it had the smallest edit distance from
+“tetraycycline” and began with the first three letters. This is
+another true positive for evaluation Ob.
+
+Discussion
+The application identified 171 valid misspellings of the
+correctly spelled antibiotic terms, thus providing additional
+material for review in a pharmacovigilance task. As a specific
+use case, consider Penicillin G, Tetracycline, and Amoxicillin,
+to which MRSA demonstrates resistance [26]. The correct
+
+The application performed well in terms of NPV where correct
+spellings were used as input, but not as well for input
+misspellings, where no output was produced. Evaluation Nb
+determined that in most cases, among all context words, there
+were no valid logical misspellings for the twenty correctly
+spelled input terms for which the method did not produce
+output. In this evaluation, there were only four false negatives
+and 619 true negatives. For the three input misspellings with
+no output, we identified two false negatives and one true
+negative. This has been targeted as an area of improvement in
+future work.
+Overall, the application demonstrated good performance for
+identifying both misspelled and correctly spelled antibiotic
+terms for the pharmacovigilance task, using the randomly
+selected 400,000 VA notes as a corpus. Although this is a small
+study addressing antibiotic use, these results suggest that this
+method could achieve satisfactory results for other
+pharmacovigilance tasks.
+Limitations
+For testing purposes, we designed the application to produce
+word embeddings for terms that occurred at any frequency in
+the corpus, but generally Word2Vec is not as efficient in
+modeling highly infrequent words. The task of identifying
+logically correct forms of input misspellings should be
+interpreted as such, and not as an attempt to identify the exact
+intended term. For example, it would be impossible to truly
+ascertain from the text whether or not a clinician meant
+“Amoxicillin” and not “Amoxil” when using a similar
+misspelling. This is a small study addressing 108 antibiotics
+but demonstrates the program’s potential value in a
+pharmacovigilance task. The VHA serves a predominantly
+older adult male population. However, because the VHA is so
+large, with so many patients as well as healthcare practice
+specialties, and significant populations of both adult male and
+
+456
+
+T.E. Workman et al. / A Proficient Spelling Analysis Method Applied to a Pharmacovigilance Task
+
+female patients of various ages, these results can be generalized
+to a certain extent.
+
+Conclusions
+We developed a novel method to identify misspellings and
+correct spellings of pharmaceutical terms in clinical text using
+Word2Vec, Levenshtein edit distance constraints, and a
+customized lexicon, evaluating it for a real-world
+pharmacovigilance task using a corpus of VHA clinical notes
+and a CDC surveillance list of pathogen-resistant antibiotics,
+achieving PPV of 0.929 for identification of misspellings and
+0.909 for identification of correct spellings in output, and NPV
+of 0.994 and 0.333 for these tasks where there was no output.
+As a specific use case, the method provided 9815 additional
+occurrences in the corpus of three MRSA-resistant drugs.
+
+Acknowledgements
+This work was supported by the VA IDEAS 2.0 HSRD
+Research Center and CREATE: A VHA NLP Software
+Ecosystem for Collaborative Development and Integration
+project,
+grant
+CRE
+12–315,
+and
+Award
+Numbers UL1TR001876 and KL2TR001877 from the NIH
+National Center for Advancing Translational Sciences. The
+views expressed are those of the authors and do not necessarily
+reflect those of the Department of Veterans Affairs, the United
+States Government, or the academic affiliate organizations. We
+also thank Dr. Halil Kilicoglu for his wisdom and advice in
+preparing the manuscript.
+
+References
+[1]
+
+E.U. European Commission.
+Pharmacovigilance.
+https://ec.europa.eu/health/human-use/pharmacovigilance_en.
+[accessed 31 March 2019]
+[2] World Health Organization, The Importance of
+Pharmacovigilance: Safety Monitoring of Medicinal Products,
+World Health Organization, 2002.
+[3] D.C. Throckmorton, S. Gottlieb, and J. Woodcock, The FDA
+and the Next Wave of Drug Abuse - Proactive
+Pharmacovigilance, N Engl J Med 379 (2018), 205-207.
+[4] J. Huang, J. Du, R. Duan, X. Zhang, C. Tao, and Y. Chen,
+Characterization of the Differential Adverse Event Rates by
+Race/Ethnicity Groups for HPV Vaccine by Integrating Data
+From Different Sources, Front Pharmacol 9 (2018), 539.
+[5] S. Reagan-Steiner, D. Yankey, J. Jeyarajah, L.D. Elam-Evans,
+J.A. Singleton, C.R. Curtis, J. MacNeil, L.E. Markowitz, and
+S. Stokley, National, Regional, State, and Selected Local Area
+Vaccination Coverage Among Adolescents Aged 13-17 Years-United States, 2014, MMWR. Morbidity and mortality weekly
+report 64 (2015), 784-792.
+[6] S.J. Dancer, The Effect of Antibiotics on Methicillin-Resistant
+Staphylococcus Aureus, J Antimicrob Chemother 61 (2008),
+246-253.
+[7] R. Harpaz, A. Callahan, S. Tamang, Y. Low, D. Odgers, S.
+Finlayson, K. Jung, P. LePendu, and N.H. Shah, Text Mining
+for Adverse Drug Events: The Promise, Challenges, and State
+of the Art, Drug Saf 37 (2014), 777-790.
+[8] W.R. Hersh, E.M. Campbell, and S.E. Malveau, Assessing the
+Feasibility of Large-Scale Natural Language Processing in a
+Corpus of Ordinary Medical Records: a Lexical Analysis, Proc
+AMIA Annu Fall Symp (1997), 580-584.
+[9] L. Zhou, L.M. Mahoney, A. Shakurova, F. Goss, F.Y. Chang,
+D.W. Bates, and R.A. Rocha, How Many Medication Orders
+are Entered through Free-Text in EHRs?--a Study on
+
+Hypoglycemic Agents, AMIA Annu Symp Proc 2012 (2012),
+1079-1088.
+[10] C. Senger, J. Kaltschmidt, S.P. Schmitt, M.G. Pruszydlo, and
+W.E. Haefeli, Misspellings in Drug Information System
+Queries: Characteristics of Drug Name Spelling Errors and
+Strategies for their Prevention, Int J Med Inform 79 (2010),
+832-839.
+[11] V.I. Levenshtein, Binary Codes Capable of Correcting
+Deletions, Insertions, and Reversals, in: Soviet physics
+doklady, 1966, pp. 707-710.
+[12] R. Danielsson-Ojala, H. Lundgren-Laine, and S. Salanterä,
+Describing the Sublanguage of Wound Care in an Adult ICU,
+Stud Health Technol Inform 180 (2012), 1093-1095.
+[13] P. Ruch, R. Baud, and A. Geissbühler, Using Lexical
+Disambiguation and Named-Entity Recognition to Improve
+Spelling Correction in the Electronic Patient Record, Artificial
+intelligence in medicine 29 (2003), 169-184.
+[14] J. Dziadek, A. Henriksson, and M. Duneld, Improving
+Terminology Mapping in Clinical Text with Context-Sensitive
+Spelling Correction, Informatics for Health: Connected
+Citizen-Led Wellness and Population Health 235 (2017), 241.
+[15] S.M. Meystre, Y. Kim, J. Heavirland, J. Williams, B.E. Bray,
+and J. Garvin, Heart Failure Medications Detection and
+Prescription Status Classification in Clinical Narrative
+Documents, Studies in health technology and informatics 216
+(2015), 609.
+[16] M.A. Levin, M. Krol, A.M. Doshi, and D.L. Reich, Extraction
+and Mapping of Drug Names from Free Text to a Standardized
+Nomenclature, in: AMIA Annual Symposium Proceedings,
+American Medical Informatics Association, 2007, p. 438.
+[17] T. Mikolov, K. Chen, G. Corrado, and J. Dean, Efficient
+Estimation of Word Representations in Vector Space, arXiv
+preprint arXiv:1301.3781 (2013).
+[18] H. Kilicoglu, M. Fiszman, K. Roberts, and D. DemnerFushman, An Ensemble Method for Spelling Correction in
+Consumer Health Questions, in: AMIA Annual Symposium
+Proceedings, American Medical Informatics Association,
+2015, p. 727.
+[19] J.B. Perlin, R.M. Kolodner, and R.H. Roswell, The Veterans
+Health Administration: Quality, Value, Accountability, and
+Information as Transforming Strategies for Patient-Centered
+Care, Am J Manag Care 10 (2004), 828-836.
+[20] Veterans Heatlh Administration: About VHA.
+https://www.va.gov/health/aboutvha.asp. [accessed 31 March
+2019]
+[21] S.H. Brown, M.J. Lincoln, P.J. Groen, and R.M. Kolodner,
+VistA—US Department of Veterans Affairs National-Scale
+HIS, International journal of medical informatics 69 (2003),
+135-156.
+[22] R. Rehurek and P. Sojka, Software Framework for Topic
+Modelling with Large Corpora, in: In Proceedings of the LREC
+2010 Workshop on New Challenges for NLP Frameworks,
+Citeseer, 2010.
+[23] S. Liu, W. Ma, R. Moore, V. Ganesan, and S. Nelson,
+RxNorm: Prescription for Electronic Drug Information
+Exchange, IT professional 7 (2005), 17-23.
+[24] M.L. McHugh, Interrater Reliability: The Kappa Statistic,
+Biochem Med (Zagreb) 22 (2012), 276-282.
+[25] S. Xu and M.F. Lorber, Interrater Agreement Statistics with
+Skewed Data: Evaluation of Alternatives to Cohen's Kappa, J
+Consult Clin Psychol 82 (2014), 1219-1227.
+[26] M.A. Al-Ashmawy, K.I. Sallam, S.M. Abd-Elghany, M.
+Elhadidy, and T. Tamura, Prevalence, Molecular
+Characterization, and Antimicrobial Susceptibility of
+Methicillin-Resistant Staphylococcus aureus Isolated from
+Milk and Dairy Products, Foodborne Pathog Dis 13 (2016),
+156-162.
+
+Address for correspondence
+lizworkman@gwu.edu
+
+

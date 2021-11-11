@@ -1,0 +1,1390 @@
+1376
+
+Biometrical Journal 58 (2016) 6, 1376–1389
+
+DOI: 10.1002/bimj.201500098
+
+Bayesian model selection in logistic regression for the detection of
+adverse drug reactions
+Matthieu Marbac1 , Pascale Tubert-Bitter1 , and Mohammed Sedki∗,1,2
+1
+2
+
+Inserm, UMR 1181 B2PHI, Institut-Pasteur and Université Versailles St-Quentin, France
+Faculté de médecine, Université Paris-Sud, France
+
+Received 28 May 2015; revised 21 December 2015; accepted 18 January 2016
+
+Spontaneous adverse event reports have a high potential for detecting adverse drug reactions. However,
+due to their dimension, the analysis of such databases requires statistical methods. In this context,
+disproportionality measures can be used. Their main idea is to project the data onto contingency tables in
+order to measure the strength of associations between drugs and adverse events. However, due to the data
+projection, these methods are sensitive to the problem of coprescriptions and masking effects. Recently,
+logistic regressions have been used with a Lasso type penalty to perform the detection of associations
+between drugs and adverse events. On different examples, this approach limits the drawbacks of the
+disproportionality methods, but the choice of the penalty value is open to criticism while it strongly
+influences the results. In this paper, we propose to use a logistic regression whose sparsity is viewed as
+a model selection challenge. Since the model space is huge, a Metropolis–Hastings algorithm carries
+out the model selection by maximizing the BIC criterion. Thus, we avoid the calibration of penalty or
+threshold. During our application on the French pharmacovigilance database, the proposed method
+is compared to well-established approaches on a reference dataset, and obtains better rates of positive
+and negative controls. However, many signals (i.e., specific drug–event associations) are not detected by
+the proposed method. So, we conclude that this method should be used in parallel to existing measures
+in pharmacovigilance.
+Code implementing the proposed method is available at the following url: https://
+github.com/masedki/MHTrajectoryR.
+
+Keywords: Bayesian Information Criterion; Binary data; Logistic regression;
+Metropolis–Hastings algorithm; Model selection; Pharmacovigilance;
+Spontaneous reporting.
+
+
+
+Additional supporting information including source code to reproduce the results
+may be found in the online version of this article at the publisher’s web-site
+
+1 Introduction
+To obtain approval, drugs go through many premarket safety tests, but adverse drug reactions may not
+be detected during these experiments. Many national or international regulatory agencies have thus
+introduced pharmacovigilance systems collecting spontaneously reported adverse events. Postapproval
+drug safety surveillance relies on these reported cases for suspecting that some drugs induce adverse
+events. They provide huge binary databases that describe each individual by its drug consumption
+and its adverse events. Although spontaneous reporting systems suffer from many biases (Almenoff
+et al., 2007), they have permitted early identification of associations between drugs and adverse events
+(Szarfman et al., 2002). In order to assist pharmacovigilance experts in managing such databases,
+∗ Corresponding
+
+author: e-mail: mohammed.sedki@u-psud.fr, Phone: +33 145 595 214
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+Biometrical Journal 58 (2016) 6
+
+1377
+
+statistical methods aiming to put the light on unexpected associations have been proposed. This is
+referred to as signal detection where detected signals warrant further investigation.
+The most classical methods are based on disproportionality measures and use data projections onto
+contingency tables. Among them, the most popular are: the Proportional Reporting Ratio (Evans et al.,
+2001), the Reporting Odds Ratio (Van Puijenbroek et al., 2002), the Bayesian Confidence Propagation
+Neural Network (Bate et al., 1998), and the Gamma Poisson Shrinkage (DuMouchel, 1999). All
+of these methods use a specific statistic that requires a threshold for detecting associations between
+drugs and adverse events. The disproportionality measure is computed for each drug–event pair in the
+database and compared to the threshold. Moreover, the data projections onto the contingency tables
+provide good computational performances. However, these projections involve some weakness against
+the problems of coprescriptions and masking effects from highly reported associations for some drugs
+(Caster et al., 2010). None of these methods is defined as the reference approach. Due to the shortage
+of the gold standard sets, their comparison remains a challenging issue.
+The shrinkage logistic regression is an interesting alternative to the methods based on data projections
+onto contingency tables. In this spirit, Caster et al. (2010) propose to model the probability of an
+adverse event conditionally on the drug consumptions by a sparse logistic regression whose sparsity
+is imposed by a Lasso type penalty (Tibshirani, 1996). In this context, drug j and adverse event h
+are claimed to be associated and to constitute a signal when the coefficient related to drug j in the
+regression of adverse event h is strictly positive — since, in this case, the adverse event occurs more
+often with the consumption of this drug. However, the choice of the penalty value is a crucial and very
+difficult task. Indeed, the penalty value directly influences the signal detection. Caster et al. (2010)
+propose to use the same penalty for all the regressions. Moreover, they set the penalty value in order
+to obtain the same number of signals as a disproportionality method. A more rigorous method, but
+more computationally demanding, could consist in setting the penalty value by cross-validation where
+the penalty is set for minimizing the misclassification error. However, as shown during our numerical
+application, this approach obtains poor results notably due to the database sparsity. Recently, Harpaz
+et al. (2013) have used a full logistic regression in a two-step procedure where the first step consists in
+empirically selecting a subset of candidate drugs.
+In this paper, the signal detection is performed by a model selection step that avoids the use of any
+threshold or the calibration of the penalty. In this context, a model of a logistic regression determines
+the coefficients that are not zero. In a Bayesian framework, the best model has the highest posterior
+probability but this amount is not explicit. It is also useful to approximate its logarithm by the
+Bayesian Information Criterion (Schwarz, 1978). Therefore, the signal detection consists in selecting
+the model that maximizes the BIC criterion. Unfortunately, the number of competing models is too
+huge for applying an exhaustive approach that computes the BIC criterion for each competing model.
+Therefore, the model selection is carried out by a Metropolis–Hastings algorithm (Robert and Casella,
+2004) that performs a random walk through the models of interest. This algorithm is classically used
+for finding the maximum of a function even on a discrete space. In our context, the mode of its
+stationary distribution corresponds to the model maximizing the BIC criterion. Thus, we were able to
+develop an efficient algorithm by taking advantage of some features of the data.
+In this paper, we compare our model-based procedure to the four disproportionality methods
+implemented in the R package PhViD and to the Lasso logistic regression implemented in the R package
+glmnet. We use the database arisen from the French pharmacovigilance that received roughly 20,000
+suspected adverse drug reactions per year from 2000 to 2010. Comparison between pharmacovigilance
+procedures is a difficult task. In this paper, we focus on the four adverse events described in the
+Observational Medical Outcomes Partnership (OMOP) reference set (Ryan et al., 2013) and on their
+145 relating drugs. To our knowledge, it is the only reference set recently formed with positive and
+negative controls to address the issue of methods assessment in pharmacovigilance.
+This article is organised as follows. Section 2 presents the parsimonious version of the logistic
+regression. Section 3 introduces the Metropolis–Hastings algorithm devoted to the model selection.
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+1378
+
+M. Marbac et al.: Bayesian model selection in logistic regression for the detection
+
+Section 4 compares the proposed method to four disproportionality methods and to the Lasso logistic
+regression. Section 5 discusses the limitations and scope of the proposed approach.
+
+2 Parsimonious logistic regression
+2.1
+
+Spontaneous reporting database
+
+Spontaneous reporting databases describe n individuals by their consumptions of p drugs and by
+the presence or absence of d adverse events. For the purpose of logistic regression, in this article,
+we consider one adverse event at a time that we denote by the binary vector y = (y1 , . . . , yn ) ∈ Bn
+where B = {0, 1}. More specifically, yi = 1 if individual i suffers from this adverse event and yi = 0
+otherwise. In the regression context, explanatory variables x = (x1 , . . . , xn ) indicate the presence or the
+absence of drug consumptions. Binary vector xi = (xi1 , . . . , xip ) ∈ B p indicates the drug consumption
+of individual i since xi j = 1 if individual i takes drug j and xi j = 0 otherwise.
+2.2
+
+Logistic regression
+
+The probability of the adverse event given the drug consumption is assumed to follow a logit regression.
+Model γ = (γ1 , . . . , γ p ) ∈ B p defines which drugs influence the appearance of the adverse event, since
+γ j = 1 if the coefficient of the regression related to drug j is unconstrained (i.e., defined on R) while
+γ j = 0 if this coefficient is zero. The indices of the drugs having a nonzero (respectively zero) coefficient
+are grouped into the set Dγ = { j : γ j = 1} (respectively Dγc = { j : γ j = 0}).
+For model γ, the logit relationship is
+
+P(yi = 1 | xi , γ, β)
+= β0 +
+ln
+β j xi j ,
+(1)
+1 − P(yi = 1 | xi , γ, β)
+j∈D
+γ
+
+
+
+β = β0 , β1 , . . . , β p ∈ γ being the vector of regression coefficients for which many coefficients are
+constrained by γ to be zero, since
+
+
+γ = β ∈ R p+1 : ∀ j ∈ Dγc , β j = 0 .
+(2)
+Thus, the drugs suspected to induce the adverse event are those belonging to Dγ and having a positive
+coefficient in the regression (i.e., β j > 0). Thus, we call signal each pair adverse-event/drug where the
+coefficient related to the drug in the regression of the adverse event is strictly positive.
+Assuming that spontaneous reports consists of n i.i.d. observations, the adverse event log-likelihood
+related to model γ is written as
+⎛
+⎞
+⎡
+⎛
+⎞⎤
+n
+
+
+
+ 
+n y | x, γ, β =
+yi ⎝β0 +
+β j xi j ⎠ − ln ⎣1 + exp ⎝β0 +
+β j xi j ⎠⎦ .
+(3)
+i=1
+
+j∈Dγ
+
+j∈Dγ
+
+Obviously, the indices of xi impacting the log-likelihood value are those belonging to Dγ . In practice,
+it is often more numerically efficient to compute the adverse event log-likelihood by using the unique
+profiles of observations impacting the likelihood. This weighted form of the log-likelihood is described
+in Appendix A.
+From the database, the Maximum Likelihood Estimate (MLE) 
+βγ is defined by
+
+
+
+(4)
+βγ = arg max β∈ n y | x, γ, β .
+γ
+
+To assess (4), we need to solve the derivative likelihood equations using the classical Newton–Raphson
+method (see Nocedal and Wright, 2006). However, the MLE is well defined only if the overlapping
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+Biometrical Journal 58 (2016) 6
+
+1379
+
+conditions of Silvapulle (1981) are satisfied (see also the discussion of Owen and Roediger, 2014).
+Thus, for the binary variables, the MLE is well defined only if
+∀(hy , hx ) ∈ B2 , ∀ j ∈ Dγ , ∃i ∈ Ih : xi j = hx ,
+
+(5)
+
+y
+
+where Ih = {i : yi = hy }. In a few words, (5) is equivalent to have at least one absence and one presence
+y
+of drug consumption in both sets {xi j | yi = 0} and {xi j | yi = 1}. To ensure that the MLE is well
+defined, this condition suggests not take into account drugs that do not satisfy it.
+
+3 Model selection by MCMC algorithm
+3.1
+
+Bayesian model selection
+
+We define the set of the competing models  as the set of models γ ∈ B p where (5) is satisfied. So,
+ = {γ ∈ B p such as (5) is satisfied for γ}.
+
+(6)
+
+framework, the aim is to obtain the model having the highest posterior distribution
+ In a Bayesian
+
+p γ | y, x . We assume that uniformity holds for the prior distribution p(γ | x) of models γ ∈ . So,
+we have
+
+
+p γ | y, x ∝ p(y | x, γ ),
+(7)
+where p(y | x, γ ) is the integrated likelihood defined by
+
+p(y | x, γ, β)p(β | x, γ )dβ,
+p(y | x, γ ) =
+
+(8)
+
+γ
+
+
+
+where p(y | x, γ, β) = exp n (y | x, γ, β) is the likelihood related to model γ and where p(β | x, γ ) is
+the prior distribution of β whose the support is included in γ . Since logarithm is monotone,
+
+
+(9)
+arg max γ∈ p γ | y, x = arg max γ∈ ln p(y | x, γ ).
+When the integrated likelihood has not a closed form, the Bayesian Information Criterion (BIC) is
+generally used. It is based on a second degree Laplace approximation of the logarithm of the integrated
+likelihood (Schwarz, 1978), and it is defined as
+
+ νγ
+ln n,
+(10)
+βγ −
+BIC(γ ) = n y | x, γ, 
+2
+
+where νγ = 1 + pj=1 γ j denotes the degree of freedom for model γ. Therefore, we want to achieve γ 
+that is the model maximizing the BIC criterion, so
+γ  = arg max γ∈ BIC(γ ).
+
+(11)
+
+This criterion selects the model providing the best trade-off between its accuracy related to the data
+and its complexity.
+Obviously, the number of competing models is too huge for applying an exhaustive approach (i.e., to
+compute the BIC criterion for each model). Therefore, the Metropolis–Hastings algorithm described
+in the following section is used to estimate γ  .
+3.2
+
+Metropolis-Hastings algorithm for achieving γ 
+
+Model γ  can be achieved through a Metropolis–Hastings algorithm (Robert and Casella, 2004),
+described in Algorithm 1, which performs
+a random walk over . The unique invariant distribution of
+
+Algorithm 1 is proportional to exp BIC(γ ) . Therefore, γ  is the mode of its stationary distribution.
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+1380
+
+M. Marbac et al.: Bayesian model selection in logistic regression for the detection
+
+At each iteration, the algorithm proposes to move into a neighborhood of the current model. A
+neighboring model is defined as copy of the current model where just a few elements are altered. Thus,
+at iteration [r], the candidate γ̃ is equal to the current model γ [r] except for α ≥ 1 elements at the
+maximum. More specifically, γ̃ is uniformly sampled in Vα (γ [r] ) where
+⎧
+⎫
+p
+⎨ 
+⎬
+[r]
+|γ j − γ j | ≤ α .
+(12)
+Vα (γ [r] ) = γ :
+⎩
+⎭
+j=1
+
+In the application, we set α = 5 to obtain good mixing properties. The candidate γ̃ is accepted with a
+probability equal to
+
+
+exp BIC(γ̃ )
+[r]
+
+.
+ρ =
+(13)
+exp BIC(γ [r] )
+Note that we define that BIC(γ ) = −∞ for all γ ∈ B p \ . Thus, the probability ρ [r] is an approximation
+of the Bayes factor (Kass and Raftery, 1995) between model γ̃ and model γ [r] . This algorithm performs
+R iterations and returns the model maximizing the BIC criterion. In practice, there may be almost
+absorbing states, so different initialisations of this algorithm ensure to visit γ  .
+Algorithm 1. Metropolis–Hasting performing the model selection
+Initialisation γ [0] is uniformly sampled in .
+For r = 1, . . . , R.
+Candidate step: γ̃ is uniformly sampled in Vα (γ [r] ).
+Acceptance/reject step: defined γ [r] with
+
+γ
+
+[r]
+
+=
+
+γ̃
+γ [r−1]
+
+with probability ρ [r]
+otherwise
+
+.
+
+End For
+Return arg max r=1,...,R BIC(γ [r] ).
+
+4 Results on real data set
+In this section, after presenting the French pharmacovigilance database, the proposed method is
+compared to the others by using the OMOP set. Finally, specific comments are given for the proposed
+method.
+4.1
+
+Data
+
+To evaluate and compare the performances of the competing methods, we use the OMOP (Ryan et al.,
+2013) reference set of test cases that contains both positive and negative controls. Four adverse events
+(i.e., d = 4) were studied in this reference set: acute myocardial infarction (AMI), acute kidney injury
+(AKI), acute liver injury (ALI), and upper gastro-intestinal bleeding (GIB). There are three-hundred
+and ninety-nine test cases where 165 positive controls and 234 negative controls were identified across
+the four adverse events of interest. More details are given by Table 1. Ryan et al. (2013) indicate that the
+majority of positive controls for AKI and GIB were supported by randomized clinical trial evidence,
+while the majority of positive controls for ALI and AMI were only based on published case reports.
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+Biometrical Journal 58 (2016) 6
+
+1381
+
+Table 1 Numbers of positive and negative controls for the four adverse event in the OMOP reference
+set.
+Control
+
+AMI
+
+GIB
+
+ALI
+
+AKI
+
+Positive
+Negative
+
+36
+66
+
+24
+67
+
+81
+37
+
+24
+64
+
+Table 2 Numbers of positive, negative, and unknown signals for the four adverse event in the OMOP
+reference set and for the 145 drugs presented in both databases (OMOP and French pharmacovigilance).
+Control
+
+AMI
+
+GIB
+
+ALI
+
+AKI
+
+Positive
+Negative
+Unknown
+
+29
+43
+73
+
+20
+46
+79
+
+75
+22
+48
+
+21
+42
+82
+
+Then a positive control is a pair (drug and adverse event) that is supported by randomized clinical
+trial evidence or based on published case reports whereas a negative control is not met by neither of
+these methods.
+Methods are compared on the data extracted from the French pharmacovigilance database where
+notifications have been collected from 2000 to 2010. The studied database describes a set of n = 219,340
+individuals with their adverse event notifications and their drug consumption informations concerning
+p = 145 drugs mentioned on the OMOP reference set. Each individual is described by the pair (xi , yi )
+detailed in Section 2.1. Therefore, 145 × 4 = 580 drug–event pairs are studied, among them 145 are
+positive controls (25%), 153 are negative controls (26%) and 282 have an unknown status (49%). More
+details are given in Table 2. The four studied adverse events occur 495 (AMI), 4746 (GIB), 10910
+(ALI), and 5234 (AKI) times in the French pharmacovigilance database.
+4.2
+
+Competing methods
+
+Disproportionality-based methods We chose to compare our method with all the disproportionality methods implemented in the R package PhViD (Ahmed and Poncet, 2013) Thus, four
+disproportionality-based methods: the Proportional Reporting Ratio (PRR), the Reporting Odds
+Ratio (ROR), the Reporting Fisher Exact Test (RFET) (Ahmed et al., 2010), and the FDR-based
+Gamma Poisson Shrinkage (GPS) (Ahmed et al., 2009) are considered. The specific statistics are used
+with a threshold of 0.05 and are presented in Table 3. All methods are compared on the 580 drug–event
+pairs mentioned on the OMOP reference set.
+Lasso-based logistic regressions The results of the Lasso method applied on logistic regressions
+are obtained with the R package glmnet (Friedman et al., 2010). The penalty value is selected by
+cross-validation with tenfolds to obtain the most parsimonious model among the models having best
+misclassification error. This method permits to find few signals since the selected penalty implies that
+only the intercept is not zero for all adverse events except one adverse event (AMI). This example
+shows the difficulty for calibrating the Lasso-penalty. Indeed, the misclassification error is roughly
+constant according to the penalty value. This is due to the weak rate of notifications for one adverse
+event.
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+1382
+
+M. Marbac et al.: Bayesian model selection in logistic regression for the detection
+
+Table 3 Specific statistics of the disproportionality methods: statistics (Stat), minimal number of
+individuals having a drug–event pair to claim this pair as a signal (Min.) and reference (Ref.).
+Method
+
+Stat.
+
+Min.
+
+Ref.
+
+PRR
+ROR
+RFET
+GPS
+
+p-value of rank
+p-value of rank
+mid-p-value
+prob of H0
+
+3
+3
+1
+1
+
+Evans et al. (2001)
+Van Puijenbroek et al. (2002)
+Ahmed et al. (2010)
+Ahmed et al. (2009)
+
+Table 4 Number of drugs respecting (5) and number of competing models for each adverse
+event (||).
+Adverse event
+
+AMI
+
+GIB
+
+ALI
+
+AKI
+
+Number of drugs respecting (5)
+||
+
+66
+266
+
+97
+297
+
+123
+2123
+
+107
+2107
+
+Model-based logistic regressions For each of the four adverse events, 100 random initialisations of
+Algorithm 1 with α = 5 and R = 5.103 iterations have been done. The model maximizing the BIC
+criterion is returned. Table 4 presents the number of competing models for each adverse event, which
+corresponds to the dimension of  defined in (6).
+4.3
+
+Method comparison
+
+Table 5 presents the rates of positive controls, of negative controls and of unknown signals detected
+by all the competing methods.
+The proposed method obtains the best rates of positive controls and negative controls. It detects 70
+signals while the Lasso-based method finds only 13 couples. The poor results of the Lasso are explained
+by the penalty values assessed by the misclassification error rate. Indeed, the resulting penalty values
+constrain all the coefficients to be zero for three adverse events. All the disproportionality methods
+obtain similar results. Despite that many signals are detected by these methods (between 73 and 129),
+their rates of positive and negative controls are worse than those resulting from the proposed method.
+Table 5 Main results obtained by the competing methods ordered by their rate of positive controls:
+number of signals (NS), rate of positive controls (RPC), rate of negative controls (RNC), and rate of
+unknown signals (RUS).
+Method
+
+NS
+
+RPC
+
+RNC
+
+RUS
+
+Logistic BIC (Algorithm 1)
+RFET
+PRR
+ROR
+GPS
+Lasso-CV
+
+70
+114
+73
+120
+129
+13
+
+0.54
+0.51
+0.51
+0.50
+0.48
+0.46
+
+0.01
+0.06
+0.10
+0.07
+0.07
+0.08
+
+0.45
+0.43
+0.40
+0.43
+0.45
+0.46
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+Biometrical Journal 58 (2016) 6
+
+1383
+
+Table 6 General results of Algorithm 1: number of times where γ  has been found (model), number
+of signals (nb signals), number of positive controls, number of negative controls, computing time in
+minutes required for one Markov chain realization (time), and number of unique profiles for the best
+model (mγ  ).
+Adverse event
+
+AMI
+
+GIB
+
+ALI
+
+AKI
+
+Model
+nb signals
+Positive controls
+Negative controls
+Time
+mγ 
+
+100
+9
+1
+1
+1
+45
+
+67
+10
+5
+0
+3
+629
+
+50
+26
+20
+0
+3
+554
+
+56
+25
+12
+0
+5
+1024
+
+Since the proposed method obtains the best rates of positive and negative controls, we conclude that
+it is more precise for the signal detection. However, it finds less signals than the disproportionality
+methods. So, it permits the practitioner to focus on more probably related drug–event pairs. Moreover,
+some associations detected only by the disproportionality method could be due to the coprescription
+phenomenon, whereby a drug tends to be coprescribed and therefore coreported with an other drug.
+Caster et al. (2010) explored this phenomenon and found that the adjustment for coreported drugs in
+the regression often explains why signals are highlighted only by disproportionality methods.
+4.4
+
+Specific comments about the proposed method
+
+Table 6 indicates the computing time obtained by an Intel(R) Xeon(R) CPU 3.00 GHz and the number
+of times where the Algorithm 1 finds the best model.
+The computing time has been strongly reduced by using the expression of the log-likelihood given
+in Appendix A. For example, by considering the best model resulting of the adverse event AMI where
+nine variables have a nonzero coefficient, the database can be reduced to mγ  = 45 unique weighted
+individuals (see Appendix A). Moreover, since many different initializations allow to find γ  , the
+number of initializations (set at 100 during the experiment) could be reduced. Finally, the list of the
+detected signals are presented in Appendix B.
+4.5
+
+Specific comments about the Lasso
+
+We have seen that the Lasso obtains poor results when the penalty is determined according to the
+misclassification error. Caster et al. (2010) set the same penalty value for all the adverse events.
+Moreover, they use a disproportionality measure to evaluate the number of signals and thus to deduce
+the penalty value corresponding to the same number of signals.
+In order to investigate the Lasso approach features, we build a sequence of penalties to obtain
+different numbers of signals with the Lasso. The numbers of positive and negative controls resulting
+for each penalty values are indicated by the black lines of Fig. 1. The results related to the model
+maximizing the BIC criterion are indicated by red dots.
+Figure 1 shows that for a penalty providing more than 70 signals (number of signals detected by the
+proposed procedure), the number of negative controls resulting form the Lasso procedure increases
+quickly. For the penalty providing 70 signals, the results obtained by the Lasso procedure are slightly
+better to those of the proposed procedure. However, in practice, it is not doable to use these plots for
+calibrating the Lasso penalty, since the nature of signals is unknown.
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+50
+
+100
+150
+Number of signals
+
+200
+
+0
+
+50
+
+100
+150
+Number of signals
+
+200
+
+5
+
+10
+
+15
+
+20
+
+25
+
+0
+
+0
+
+Number of negative controls
+
+0
+
+20
+
+40
+
+60
+
+80
+
+M. Marbac et al.: Bayesian model selection in logistic regression for the detection
+
+Number of postive controls
+
+1384
+
+Figure 1 Rates of positive and negative controls obtained by the Lasso with different penalties (black
+curve) and obtained by the model maximizing the BIC criterion (red dots).
+
+This illustrates the difficulty and influence of penalty calibration. This is avoided by the proposed
+procedure that detects signals by maximizing BIC.
+
+5 Discussion
+In this paper, we have proposed a method for analysing individual spontaneous reporting databases
+that also avoids the drawbacks of the disproportionality-based measures (coprescription and masking
+effects, Caster et al., 2010). The signal detection is led throughout parsimonious logistic regressions
+whose sparsity degree is assessed as a model selection challenge. Therefore, we avoid the use of Lassotype method that requires the challenging calibration of penalty. The combinatorial problem of model
+selection is bypassed by Metropolis–Hastings binary space sampling.
+Despite to the difficulties for evaluating pharmacovigilance methods, the OMOP reference set of
+Ryan et al. (2013) gives us the opportunity to compare the proposed method to the reference approaches
+on real data. On these data, it appears to be relevant for the signal detection issue. Although the better
+accuracy of signal detection is provided by the proposed method, some signals are not detected by
+our method. Note that some positive controls are not detected by any methods due to their very few
+number of notifications (e.g., couples C09AA05/ALI or L04AB02/ALI). Moreover, some positive
+controls that are not detected by our method are detected by another method. Therefore, we advice
+the pharmacovigilance experts to focus on the signals detected by our method. In a second time, a
+complementary study could be based on the signals detected by other methods.
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+200 400 600 800 1000 1200
+
+1385
+
+0
+
+Number of drugs
+
+Biometrical Journal 58 (2016) 6
+
+0
+
+2000
+4000
+6000
+8000 10000
+Headcount of the adverse event
+
+Figure 2 Evolution of the number of drugs verifying (5) according to the headcount of the adverse
+event.
+The proposed approach can manage the whole French pharmacovigilance database that consists of
+n = 219,340 individual notifications, p = 2,114 drugs and d = 4,257 adverse events. We have shown
+that the dimension of the model space is defined by the number of drugs verifying (5). Figure 2 presents
+the evolution of this number according to the headcount of the adverse events.
+In the whole database, 75% of the adverse events can be associated to less than 42 drugs. For the
+adverse events that have less than 12 drugs verifying (5), we advise to use an exhaustive approach
+consisting of computing the BIC criterion for each competing models in . The model selection on the
+whole French pharmacovigilance database is achieved at the cost of several days of computing time.
+The proposed approach can thus be used to investigate targeted adverse events. Finally, a preliminary
+drug selection could provide a reducing of computing time.
+Acknowledgment The authors are grateful to Ismaı̈l Ahmed for his useful advices and Francesco Salvo for data
+cleaning and preprocessing. This work was supported by The French National Agency for Medicines and Health
+Products Safety (ANSM). The authors thanks the regional pharmacovigilance centers and ANSM for providing
+the pharmacovigilance database dataset.
+
+Conflict of interest
+The author has declared no conflict of interest.
+
+Appendix A: Weighted form of the adverse event log-likelihood
+Obviously, the coordinates of xi impacting the log-likelihood value are those belonging to Dγ . For
+
+each observation xi , we denote by xγi ∈ B|γ| , where |γ| = pj=1 γ j , the vector containing the elements
+of xi impacting the log-likelihood (i.e., the vector composed with the elements of xi such as index
+belongs to Dγ ). Thus, for each j = 1, . . . , |γ|:
+⎧
+⎫
+j
+⎨
+⎬
+
+γ
+xi j = xi j with j0 = min j :
+γj = j .
+(A1)
+0
+⎩
+⎭
+j =1
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+1386
+
+M. Marbac et al.: Bayesian model selection in logistic regression for the detection
+
+Moreover, many individual profiles (xγi , yi ) occur many times in the database. We denote by mγ
+the number of different profiles impacting the log-likelihood of model γ. The profile i is denoted by
+(x̃γi , ỹγi ) and its weight is denoted by wγi . Thus, (3) is given by
+⎛
+⎞
+mγ
+|γ|
+
+
+ 
+n y | x, γ, β =
+wγi ỹγi ⎝β0 +
+β j x̃γi j ⎠ +
+i=1
+
+j=1
+
+⎡
+
+⎛
+
+− wi ln ⎣1 + exp ⎝β0 +
+
+|γ|
+
+
+⎞⎤
+β j x̃γi j ⎠⎦ ,
+
+(A2)
+
+j=1
+
+where β γj is the j-th element that is not zero in β, so for each j = 1, . . . , |γ|:
+⎧
+⎫
+j
+⎨
+⎬
+
+γj = j .
+β γj = β j with j0 = min j :
+0
+⎩
+⎭
+
+(A3)
+
+j =1
+
+In practice, it is often more numerically efficient to compute the adverse event log-likelihood by
+using (A2) than by using (3).
+
+Appendix B: Signals detected by the proposed methods
+Table B1 presents the couples between a drug and an adverse event detected by the proposed method.
+Drugs are given in Anatomical Therapeutic Chemical code.
+Table B1
+
+List of the signals detected by the proposed method.
+
+Adverse event
+
+ATC
+
+Headcount
+
+βj
+
+Omop control
+
+AMI
+ALI
+AMI
+ALI
+AKI
+ALI
+AMI
+AMI
+GIB
+AMI
+GIB
+AKI
+GIB
+AKI
+AKI
+AKI
+ALI
+ALI
+
+L03AB07
+J05AE09
+N02CC03
+L01BB03
+M01AE09
+C02KX01
+M01AH01
+L01BC05
+M01AC01
+J05AF05
+B01AC04
+J05AF07
+B01AC07
+C09AA05
+C09AA03
+C09CA08
+L02BB01
+J05AG01
+
+7
+36
+6
+8
+46
+65
+21
+10
+138
+92
+523
+144
+31
+353
+165
+35
+10
+297
+
+2.92
+2.85
+2.6
+2.51
+2.27
+2.25
+2.05
+1.85
+1.84
+1.84
+1.77
+1.76
+1.67
+1.66
+1.66
+1.65
+1.61
+1.55
+
+Unknown
+Positive
+Positive
+Positive
+Unknown
+Positive
+Unknown
+Unknown
+Positive
+Unknown
+Positive
+Unknown
+Unknown
+Unknown
+Positive
+Positive
+Positive
+Positive
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+Biometrical Journal 58 (2016) 6
+
+1387
+
+Table B1 Continued.
+Adverse event
+
+ATC
+
+Headcount
+
+βj
+
+Omop control
+
+ALI
+AKI
+GIB
+AKI
+AKI
+AKI
+GIB
+ALI
+ALI
+AKI
+AKI
+AMI
+AKI
+ALI
+ALI
+AKI
+AKI
+GIB
+ALI
+AMI
+ALI
+AKI
+AKI
+ALI
+AKI
+ALI
+AMI
+ALI
+ALI
+ALI
+AKI
+GIB
+AKI
+AMI
+ALI
+AKI
+AKI
+AKI
+GIB
+AKI
+ALI
+AKI
+ALI
+ALI
+ALI
+
+J02AC03
+C09AA02
+M01AE03
+C09AA10
+N05AD08
+L04AD01
+M01AE02
+J01XE01
+J04AB02
+C09CA07
+M01AE03
+L04AB02
+L01BA01
+A03AX13
+A07EC01
+L01BC05
+C09CA06
+M01AH01
+J02AC02
+B01AC04
+J04AC01
+C09AA06
+C09AA01
+N03AF01
+M01AE02
+D01AE15
+J05AF02
+L03AB07
+J02AC01
+G03CA03
+J04AB02
+A12BA01
+J01MA02
+J05AF06
+L01BA01
+M04AA01
+C03AA03
+M01AH01
+C08DB01
+A12BA01
+A10BF01
+M01AC01
+N03AG01
+J01MA06
+N05BA05
+
+117
+146
+276
+38
+10
+91
+52
+52
+538
+34
+250
+13
+129
+26
+71
+57
+139
+98
+22
+24
+359
+25
+61
+248
+43
+77
+30
+27
+188
+76
+104
+155
+147
+44
+186
+220
+430
+72
+81
+154
+36
+47
+298
+60
+147
+
+1.54
+1.51
+1.5
+1.49
+1.48
+1.38
+1.34
+1.33
+1.31
+1.31
+1.31
+1.29
+1.28
+1.25
+1.24
+1.18
+1.16
+1.15
+1.15
+1.14
+1.08
+1.06
+1.02
+0.99
+0.99
+0.98
+0.98
+0.98
+0.97
+0.96
+0.96
+0.94
+0.87
+0.83
+0.81
+0.77
+0.73
+0.68
+0.63
+0.62
+0.61
+0.59
+0.56
+0.54
+0.53
+
+Positive
+Positive
+Positive
+Unknown
+Unknown
+Positive
+Positive
+Positive
+Positive
+Positive
+Positive
+Unknown
+Unknown
+Unknown
+Unknown
+Unknown
+Positive
+Unknown
+Positive
+Unknown
+Positive
+Unknown
+Positive
+Positive
+Positive
+Positive
+Negative
+Positive
+Positive
+Unknown
+unknown
+positive
+unknown
+unknown
+positive
+positive
+positive
+unknown
+unknown
+unknown
+unknown
+positive
+positive
+positive
+unknown
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+1388
+
+Table B1
+
+M. Marbac et al.: Bayesian model selection in logistic regression for the detection
+
+Continued.
+
+Adverse event
+
+ATC
+
+Headcount
+
+βj
+
+Omop control
+
+ALI
+ALI
+AKI
+GIB
+ALI
+GIB
+ALI
+ALI
+
+J05AF07
+M04AA01
+J01MA01
+C08CA01
+N06AB04
+C09AA05
+M01AE03
+J01MA02
+
+177
+216
+109
+126
+117
+148
+200
+202
+
+0.49
+0.45
+0.43
+0.37
+0.36
+0.35
+0.31
+0.31
+
+positive
+positive
+unknown
+unknown
+unknown
+unknown
+unknown
+positive
+
+References
+Ahmed, I. and Poncet, A. (2013). PhViD: An R Package for PharmacoVigilance Signal Detection. R package
+version 1.0.6.
+Ahmed, I., Haramburu, F., Fourrier-Réglat, A., Thiessard, F., Kreft-Jais, C., Miremont-Salamé, G., Bégaud, B.
+and Tubert-Bitter, P. (2009). Bayesian pharmacovigilance signal detection methods revisited in a multiple
+comparison setting. Statistics in Medicine 28, 1774–1792.
+Ahmed, I., Dalmasso, C., Haramburu, F., Thiessard, F., Broët, P., and Tubert-Bitter, P. (2010). False discovery
+rate estimation for frequentist pharmacovigilance signal detection methods. Biometrics 66, 301–309.
+Almenoff, J., Pattishall, E., Gibbs, T., DuMouchel, W., Evans, S., and Yuen, N. (2007). Novel statistical tools for
+monitoring the safety of marketed drugs. Clinical Pharmacology and Therapeutics 82, 157–166.
+Bate, A., Lindquist, M., Edwards, I., Olsson, S., Orre, R., Lansner, A., and De Freitas, R. (1998). A Bayesian neural
+network method for adverse drug reaction signal generation. European Journal of Clinical Pharmacology 54,
+315–321.
+Caster, O., Norén, G., Madigan, D., and Bate, A. (2010). Large-scale regression-based pattern discovery: the
+example of screening the who global drug safety database. Statistical Analysis and Data Mining: The ASA
+Data Science Journal 3, 197–208.
+DuMouchel, W. (1999). Bayesian data mining in large frequency tables, with an application to the FDA spontaneous reporting system. The American Statistician 53, 177–190.
+Evans, S., Waller, P., and Davis, S. (2001). Use of proportional reporting ratios (prrs) for signal generation from
+spontaneous adverse drug reaction reports. Pharmacoepidemiology and Drug Safety 10, 483–486.
+Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization paths for generalized linear models via coordinate descent. Journal of Statistical Software 33, 1–22.
+Harpaz, R., DuMouchel, W., LePendu, P., Bauer-Mehren, A., Ryan, P., and Shah, N. (2013). Performance
+of pharmacovigilance signal-detection algorithms for the FDA adverse event reporting system. Clinical
+Pharmacology and Therapeutics 93, 539–546.
+Kass, R. E. and Raftery, A. E. (1995). Bayes factors. Journal of the American Statistical Association 90, 773–795.
+Nocedal, J. and Wright, S. (2006). Numerical Optimization. Springer Series in Operations Research and Financial
+Engineering (2nd edn.). Springer, New York, NY .
+Owen, A. B. and Roediger, P. A. (2014). The sign of the logistic regression coefficient. The American Statistician
+68, 297–301.
+Robert, C. and Casella, G. (2004). Monte Carlo statistical methods. Springer Verlag, New York, NY.
+Ryan, P., Schuemie, M., Welebob, E., Duke, J., Valentine, S., and Hartzema, A. (2013). Defining a reference set
+to support methodological research in drug safety. Drug Safety 36, 33–47.
+Schwarz, G. (1978). Estimating the dimension of a model. Annals of Statistics 6, 461–464.
+Silvapulle, M. (1981). On the existence of maximum likelihood estimators for the binomial response models.
+Journal of the Royal Statistical Society. Series B (Methodological) 43, 310–313.
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+Biometrical Journal 58 (2016) 6
+
+1389
+
+Szarfman, A., Machado, S., and Oneill, R. (2002). Use of screening algorithms and computer systems to efficiently
+signal higher-than-expected combinations of drugs and events in the us FDAs spontaneous reports database.
+Drug Safety 25, 381–392.
+Tibshirani, R. (1996). Regression shrinkage and selection via the lasso. Journal of the Royal Statistical Society
+Series B (Methodological) 58, 267–288.
+Van Puijenbroek, E., Bate, A., Leufkens, H., Lindquist, M., Orre, R., and Egberts, A. (2002). A comparison
+of measures of disproportionality for signal detection in spontaneous reporting systems for adverse drug
+reactions. Pharmacoepidemiology and Drug Safety 11, 3–10.
+
+
+C 2016 WILEY-VCH Verlag GmbH & Co. KGaA, Weinheim
+
+www.biometrical-journal.com
+
+

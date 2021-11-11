@@ -1,0 +1,1944 @@
+International Journal of Medical Informatics 120 (2018) 101–115
+
+Contents lists available at ScienceDirect
+
+International Journal of Medical Informatics
+journal homepage: www.elsevier.com/locate/ijmedinf
+
+Authenticity and credibility aware detection of adverse drug events from
+social media
+
+T
+
+Tao Hoanga, , Jixue Liua, Nicole Prattb, Vincent W. Zhengc, Kevin C. Changd,
+Elizabeth Rougheadb,1, Jiuyong Lia,1
+⁎
+
+a
+
+School of Information Technology and Mathematical Sciences, University of South Australia, Mawson Lakes, Adelaide, South Australia 5095, Australia
+School of Pharmacy and Medical Sciences, University of South Australia, City East Campus, North Terrace, Adelaide, South Australia 5000, Australia
+c
+Advanced Digital Sciences Center, 1 Fusionopolis Way, #08-10 Connexis North Tower, Singapore, 138632, Singapore
+d
+Department of Computer Science, University of Illinois at Urbana-Champaign, 201 N Goodwin Ave, Urbana, IL 61801, United States
+b
+
+ARTICLE INFO
+
+ABSTRACT
+
+Keywords:
+Bayesian model
+Authenticity
+Credibility
+Consistency
+Adverse drug event
+Social media
+
+Objectives: Adverse drug events (ADEs) are among the top causes of hospitalization and death. Social media is a
+promising open data source for the timely detection of potential ADEs. In this paper, we study the problem of
+detecting signals of ADEs from social media.
+Methods: Detecting ADEs whose drug and AE may be reported in different posts of a user leads to major concerns
+regarding the content authenticity and user credibility, which have not been addressed in previous studies.
+Content authenticity concerns whether a post mentions drugs or adverse events that are actually consumed or
+experienced by the writer. User credibility indicates the degree to which chronological evidence from a user's
+sequence of posts should be trusted in the ADE detection. We propose AC-SPASM, a Bayesian model for the
+authenticity and credibility aware detection of ADEs from social media. The model exploits the interaction
+between content authenticity, user credibility and ADE signal quality. In particular, we argue that the credibility
+of a user correlates with the user's consistency in reporting authentic content.
+Results: We conduct experiments on a real-world Twitter dataset containing 1.2 million posts from 13,178 users.
+Our benchmark set contains 22 drugs and 8089 AEs. AC-SPASM recognizes authentic posts with F1 – the harmonic mean of precision and recall of 80%, and estimates user credibility with precision@10 = 90% and
+NDCG@10 – a measure for top-10 ranking quality of 96%. Upon validation against known ADEs, AC-SPASM
+achieves F1 = 91%, outperforming state-of-the-art baseline models by 32% (p < 0.05). Also, AC-SPASM obtains
+precision@456 = 73% and NDCG@456 = 94% in detecting and prioritizing unknown potential ADE signals for
+further investigation. Furthermore, the results show that AC-SPASM is scalable to large datasets.
+Conclusions: Our study demonstrates that taking into account the content authenticity and user credibility improves the detection of ADEs from social media. Our work generates hypotheses to reduce experts’ guesswork in
+identifying unknown potential ADEs.
+
+1. Introduction
+Adverse events (AEs) associated with medicines have been a major
+source of hospitalization and mortality worldwide, costing billions of
+dollars annually [1–3]. Fig. 1B shows an example of a known adverse
+drug events (ADEs) 〈Ibuprofen→stomach ulcer〉, which is a sequence of
+taking the drug d = “Ibuprofen” followed by suffering from the AE
+e =“stomach ulcer” associated with d. Timely detection of ADEs is
+crucial to minimizing consequences on health and cost, yet has been
+difficult with traditional data sources and approaches. Limited
+Corresponding author.
+E-mail address: tao.hoang@mymail.unisa.edu.au (T. Hoang).
+1
+Senior authors.
+⁎
+
+https://doi.org/10.1016/j.ijmedinf.2018.09.002
+Received 20 January 2017; Accepted 3 September 2018
+1386-5056/ © 2018 Elsevier B.V. All rights reserved.
+
+populations in clinical trials [4] have hindered the identification of all
+possible AEs. Postmarketing drug safety surveillance has mainly relied
+on spontaneous reporting systems (SRSs), which allow drug consumers
+to report suspected ADEs. However, it was shown that more than 90%
+of ADEs were not reported to SRSs [5]. Longitudinal observational data
+sources such as administrative claims data [6] and electronic health
+records [7], while comprehensive, are subject to access restrictions and
+so cannot always be utilized for the detection of ADEs.
+Social media is a promising open data source for the timely detection
+of potential ADEs. Statistics show that 11 million U.S. people have been
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+discussing health and treatment related issues on social media [8]. Such
+discussions exist not only in health forums [9,10] but also in Twitter
+[11,12]. Fig. 1A presents a user who tweeted about the known ADE
+〈Ibuprofen→stomach ulcer〉 mentioned earlier. Some discussions describe ADEs that were unknown but later confirmed by the experts [8].
+Since user posts often appear in close proximity to the event occurrences [3], social media offers a possibility for earliest detection of
+ADEs. Further, a previous study showed that some patients tend to
+discuss their ADEs on social media before reporting to health professionals [13].
+In this paper, we study the problem of detecting ADE signals from social
+media. Given a set of social media posts, benchmark drugs and AEs, our
+main objective is to identify a set of sequences 〈drug→AE〉 indicative of
+potential ADEs. Due to the importance of the problem, a number of recent
+studies have been devoted to detecting ADEs from social media, including
+health forums (e.g., DailyStrength, Healthboard, etc.) [14–17,9,8,18,10,
+11,19,13,20–27] and Twitter [28,10–12,29–31,27,32].
+Most of the previous studies [8,18,14,19,29,15,16,13,9,30,20,31,
+21,28,17,22,23,11,10,24,12,25–27] require that the drug and AE of an ADE
+are mentioned in the same post. These approaches, however, fail to detect
+potential ADEs whose drug and AE may be reported in different posts of a
+user. In fact, AEs may require a latency to be observed after the initiation of
+treatments [33]. This is evidenced by previous studies [34,7], showing that
+utilizing a longer patient medical history improves the prediction of ADEs.
+In addition, on social media, a user's sequence of posts with mentions of
+drugs and AEs may approximately capture the actual chronological orders
+of taking drugs and suffering from AEs. Fig. 1A presents such an example.
+User 1 first tweeted about the use of drug d = “Ibuprofen” in posts #1, #2
+(“Advil” is a brand name of “Ibuprofen”), then reported the experience of
+AE e = “stomach ulcer” and related symptoms (e.g., stomach feels awful) in
+subsequent posts #3, #4. Such timeline posts provide opportunities to
+analyze the chronological relationships between drugs and AEs on social
+media posts for signaling ADEs. As a result, Katragadda et al. [32] proposed
+a method to detects ADEs from users’ sequences of posts, i.e., AEs whose
+
+drug and AE may occur in different posts of a user. However, there are two
+major concerns that have not been accounted for by this method.
+The first concern regarding the detection of ADEs from users’ sequences of posts, yet not addressed by the earlier work [32], is the
+authenticity of reported content. Some social media posts are authentic
+since they mention drugs or AEs that are actually consumed or experienced by the writers near the post times, e.g., posts in Fig. 1A. In
+contrast, some posts, though mentioning drugs or AEs, are not authentic. Fig. 1D gives examples of unauthentic posts that were written
+for different purposes such as expert advice (post #11), case repost
+(post #12), advertisement (post #13), etc. Authenticity is used to indicate whether a post is from a genuine patient. In this paper, authenticity is measured by syntax, such as, whether the post language is
+indicative (e.g., first person pronouns, sentiments, etc.) or contraindicative (e.g., URLs, negations, etc.) of personal experience. While an
+unauthentic post might contain a true ADE signal (e.g., post #11), its
+usability for detecting ADEs is limited for two reasons. First, such posts
+are likely to signal well-known or common ADEs, while unknown and
+rare ADEs are more significant for expert investigation. Second, unauthentic posts may not form a sequence of events that occur to solely
+one person, making it difficult to detect potential ADEs whose drug and
+AE are mentioned across different posts. Therefore, accounting for
+content authenticity is essential for accurate detection of ADEs from
+users’ sequences of posts. Note that some previous ADE detection
+methods [29,19], while filtering out unauthentic content, do not consider ADEs whose drug and AE occur in different posts.
+Another important factor unaddressed by the previous ADE detection method [32] is the credibility of reporting users. Suppose we are
+inferring whether 〈Ibuprofen→stomach ulcer〉 is a potential ADE based
+on the posts of User 1 (Fig. 1A) and User 2 (Fig. 1C). User 1's posts
+demonstrate positive chronological evidence since “Ibuprofen” appears
+in post #1 and “stomach ulcer” in the subsequent post #3. As information on social media is highly uncertain [35], a natural question
+arises as to what degree we should trust such chronological evidence
+
+Fig. 1. Examples of an ADE signal, authentic/unauthentic posts and user credibility in Twitter.
+
+102
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Authenticity assessment, however, can be challenging sometimes due to
+limited context in the posts. For instance, in post #5 of Fig. 1A, User 1
+mentions “Ibuprofen” without explicitly indicating the actual consumption of the drug. To alleviate the uncertainty, we take into account
+the observation that users who have consistently written authentic
+posts (i.e., high credibilities) tend to further report authentic content
+when posting about drugs or AEs (credibility ↪ authenticity). Since
+User 1 is highly credible based on the posts #1 to #4, it is likely that the
+post #5 is also authentic, i.e., User 1 most likely consumed “Ibuprofen”.
+Our experiments demonstrate that accounting for the content authenticity and user credibility improves the detection of ADEs from
+social media. We evaluate AC-SPASM on a real-world Twitter dataset of
+1.2 million tweets from 13,178 users. We utilize 22 drugs and 8089 AEs
+in the evaluation. Our AC-SPASM is semi-supervised. On parameter
+estimation, assessing authenticity relies on a set of posts, a subset of
+which are manually labeled as whether they are authentic, and language features indicative (e.g., first person pronouns, sentiments, etc.)
+or contraindicative (e.g., URLs, negations, etc.) of personal experience.
+For ADE classification, we employ the Side Effect Resource (SIDER)
+[36] to provide positive examples (i.e., an AE is a known ADE of a drug)
+and negative examples (i.e., an AE can be treated by a drug). As a result,
+AC-SPASM recognizes authentic posts with F1 – the harmonic mean of
+precision and recall of 80%, and estimates user credibility with precision@10 = 90% and NDCG@10 – a measure for top-10 ranking quality
+of 96%. Upon signaling known ADEs, AC-SPASM achieves F1 = 91%,
+outperforming state-of-the-art baselines by 32% (p < 0.05). Additionally, AC-SPASM obtains precision@456 = 73% and NDCG@
+456 = 94% in detecting and prioritizing unknown potential signals.
+Our results also show that AC-SPASM is scalable to large datasets. The
+codes, data and results are publicly available at http://nugget.unisa.
+edu.au/taohoang/AC-SPASM/.
+
+Fig. 2. Interaction between authenticity, credibility and signal quality.
+
+from User 1? Intuitively, if a user has reported authentic content related
+to a potential ADE signals many times (i.e., consistently) (e.g., User 1)
+then such content becomes reliable chronological evidence to support
+or reject the signal since it reflects progressive changes in user's health
+status over time. In contrast, if the user occasionally posts unauthentic
+content (e.g., posts #6, #9 of User 2 in Fig. 1C) then the chronological
+evidence is deceptive and less credible. Also, chronological evidence
+from health consultant and pharmacy company users is not credible as
+their different posts may refer to different cases (e.g., Fig. 1D). Further,
+conflicting evidence may exist when we consider multiple users. For
+instance, User 2's posts indicate negative chronological evidence as
+“stomach ulcer” appears before “Ibuprofen”. For those reasons, if we
+know which user is more credible, we can effectively reduce the uncertainty in the inference, i.e., improve the detection accuracy. As an
+example, since User 1 is more credible than User 2 due to higher rate of
+authentic posts (5/5 =100 % > 3/5 =60%), 〈Ibuprofen→stomach
+ulcer〉 is more likely to be a potential ADE. Thus, taking into account
+the credibility of each user may improve the accuracy of the ADE detection from users’ sequences of posts. Note that the user trustworthiness defined by Mukherjee [9] for ADE detection captures the popularity and influence of a user in a health community, which differs from
+our user credibility.
+We develop a Bayesian model for the authenticity and credibility
+aware signaling of potential ADEs from social media (AC-SPASM). Our
+goal is to automatically assess the content authenticity and estimate the
+user credibility, which are used to revise potential ADE signals. The key
+insight is the interaction between content authenticity, user credibility
+and signal quality as in Fig. 2. First, users’ sequences of authentic posts
+provide chronological evidence for ADE signals. Thus, signals supported
+by more sequences of authentic posts are more likely to be ADEs (authenticity ↪ signal quality). Second, as explained earlier, users who
+report authentic content more consistently, i.e., having higher credibilities, contribute more trustworthy chronological evidence to the
+ADE detection (authenticity ↪ credibility ↪ signal quality).
+
+2. Methods
+2.1. Overview
+Concisely, given a set of social media posts, a set of drugs and a set
+of AEs, our main goal is to identify a set of sequences 〈drug→AE〉 that
+indicate potential ADEs. Simultaneously, we aim to assess the content
+authenticity and estimate user credibility, which are used to revise
+potential ADEs.
+We develop a method to achieve the goal. Fig. 3 presents the
+workflow of our method, which consists of three steps. First, in the preprocessing step (1), we recognize mentions of drugs and AEs in social
+media posts. Our focus is on steps (2) and (3), where we employ our
+proposed model AC-SPASM to detect potential ADEs taking into account content authenticity and user credibility. Particularly, in step (2),
+we jointly predict whether each post with mentions of drugs or AEs is
+
+Fig. 3. The workflow of authenticity and credibility aware detection of potential ADEs from social media.
+
+103
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Table 1
+Main notations.
+Notation
+
+Definition
+
+D
+E
+S
+Su
+yd,e
+U
+Pu
+P
+cp
+tp
+Dp
+Ep
+zp
+wu
+
+Set of drugs
+Set of AEs
+Set of all ADE signals
+Set of signals generated from user u's posts
+Whether e is a potential ADE of d (yd,e ∈ { −1, 1})
+Set of users
+Set of user u's posts with mentions of drugs/AEs
+Set of all posts with mentions of drugs/AEs
+Content of post p
+Timestamp of post p
+Set of drugs mentioned in post p
+Set of AEs mentioned in post p
+Whether post p is authentic (zp ∈ { −1, 1})
+Credibility of user u
+
+Fig. 4. The detailed graphical structure of AC-SPASM.
+
+authentic and estimate the credibility of each user. Then based on the
+results in step (2), we generate ADE signals and predict whether each of
+them is a potential ADE in step (3).
+The insight behind step (2) is the mutual interaction between content authenticity and user credibility. Intuitively, users who have
+written authentic posts many times before (i.e., high credibilities) tend
+to further post authentic content. As a result, in step (2), we jointly
+estimate the probability of content authenticity conditioning on user
+credibility and the probability of user credibility conditioning on content authenticity.
+Then in step (3), we leverage the observation that the quality of ADE
+signals depends on content authenticity and user credibility. In fact,
+subsequent authentic posts related to a potential ADE signal written by
+a user constitute chronological evidence to support or reject the signal.
+Also, such chronological evidence will be more reliable if it is provided
+by a highly credible user. Consequently, in step (3), we estimate the
+conditional probability of potential ADE signals based on content authenticity and user credibility estimated in step (2).
+In the following, we describe the details of each step. We summarize
+the main notations in Table 1. Each notation shall be introduced on
+demand.
+
+2.3. AC-SPASM
+Given the drugs and AEs mentioned in users’ posts, our next step is
+to detect potential ADEs signals. In particular, we propose AC-SPASM, a
+Bayesian model for the authenticity and credibility aware signaling of
+potential ADEs from social media. First, we highlight the insights and
+key components of AC-SPASM. Then we explain the details of each
+component.
+2.3.1. Insights
+The insight behind AC-SPASM is the interaction between the content authenticity, user credibility and ADE signal quality as illustrated
+in Fig. 2. First, there is a two-way influence between the content authenticity and user credibility. We observe that users who have written
+authentic posts in a consistent manner (i.e., high credibilities) tend to
+further post authentic content (authenticity ⇆ credibility). Additionally, the quality of ADE signals is affected by the content authenticity and user credibility. As users’ sequences of authentic posts
+provide chronological evidence for ADE signals, signals supported by
+more such sequences are more likely to be ADEs (authenticity ↪ signalquality). Further, chronological evidence provided by a user with
+higher credibility is more reliable in ADE detection since it reflects
+more actual changes in user's health status over time (credibility ↪ signalquality). Such interaction enables changes in one factor
+to affect the prediction of the others. For instance, if the credibility of a
+user increases, ADE signals manifested by that user will have more
+potential, and the user's posts will be more likely to be authentic.
+Fig. 4 presents the detailed structure of AC-SPASM. Each node represents a variable in our problem. Some variables shall be introduced
+later. The nodes without circles are hyperparameters, e.g., α. Among
+the circular nodes, the shaded ones are observations (e.g., p) while the
+non-shaded nodes are hidden variables (e.g., z). The plates surrounding
+the circular nodes indicate the replication of the nodes for multiple
+times in a set. For example, z is replicated for all posts in Pu. Depending
+on the tasks, additional nodes may become shaded. For instance, in
+parameter estimation, nodes representing ADE signal quality Y will be
+shaded. An edge directing from node a to node b indicates that the
+variable b depends on variable a, e.g., y depends on w . For emphasis,
+the borders of nodes representing y, z and w are colored blue, green and
+red respectively. Also, edges propagating influence from one factor to
+the other have similar colors with their origin factors, e.g., edges from
+w to y are in red.
+Due to the two-way influence, the content authenticity and user
+credibility needs to be jointly assessed and estimated. In addition, since
+ADE signal quality depends on the other two factors, the joint content
+authenticity assessment and user credibility estimation precedes the
+prediction of potential ADEs. As a result, we first describe the joint
+assessment of content authenticity and estimation of user credibility in
+
+2.2. Recognizing drugs and AEs in the posts
+The very first step towards detecting ADEs is to recognize the drugs
+and AEs that might be taken and suffered by the users. As a result, we
+need to locate mentions of drugs and AEs from each user's post, e.g.,
+“Ibuprofen” in post #1 and “stomach ulcer” in post #3 of Fig. 1A.
+Denote D as a set of drugs and E the set of AEs, which shall be used as a
+benchmark for lookup. Each drug d ∈ D or AE e ∈ E can be associated
+with multiple names. For instance, “Ibuprofen” has a brand name
+“Advil”, while “stomach ulcer” can be referred to as “gastric ulcer”.
+More details of D and E will be discussed in Section 3.1.
+Let Dp ∈ D and Ep ∈ E denote the set of drugs and the set of AEs
+mentioned in a post p. To compute Dp and Ep given post p, we first build
+a Lucene inverted index2 from the set of drugs D and AEs E [10,30].
+Then we determine whether a drug or AE is mentioned in a post by
+searching the index. For tweets, in particular, before the index search,
+we utilize TweetNLP [37] to remove stop-words, URLs, tokens starting
+with @ while keeping hashtags (but removing the prefix #). Note that
+this clean-up step is only for the index search and the original posts are
+not discarded. We only retain those posts with at least one mention of
+drug or AE.
+
+2
+
+https://lucene.apache.org/
+104
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Section 2.3.2. Then we explain how to predict potential ADEs in Section
+2.3.3.
+
+Pr(z p |p; ) =
+
+Pr(z p |p, wu; ) =
+
+•
+•
+•
+•
+•
+
+(2)
+
+1
+1 + exp[ wu z p
+
+l LZ
+
+l fl (p )]
+
+(3)
+
+Pr(Z|P , U , W ; ) =
+
+u U
+
+p Pu
+
+Pr(z p |p , wu; )
+
+=
+
+u U
+
+p Pu 1 + exp
+
+1
+wu z p
+
+l LZ l fl (p)
+
+(4)
+
+User credibility. Next, we define the conditional distribution over
+user credibility W. Let ru be the number of authentic posts written by
+user u, i.e., ru = p Pu [z p = 1], where [x ] = 1 if x is true and 0
+otherwise. Since the credibility wu of each user u represents the user's
+consistency in reporting authentic content, wu correlates with the rate
+at which user u writes authentic posts, i.e., ru/|Pu|. With some abuse of
+notations, we denote Zu ⊆ Z as the set of post authenticity labels for
+user u. Since Beta distribution has often been used to represent the
+distribution of rates [42], we assume that wu follows the Beta distribution parameterized by ru and the total number of posts with
+mentions of drugs or AEs |Pu|:
+
+(1)
+
+wu |Pu, Zu
+
+Beta( + ru,
+
++ |Pu |
+
+(5)
+
+ru )
+
+where α + ru and β + |Pu| − ru are the posterior counts of user u's authentic posts and unauthentic posts respectively. α and β are fixed
+parameters representing prior beliefs about the numbers of u's authentic
+posts and unauthentic posts. We empirically set α = β = 1 so that the
+posterior distribution of wu is unimodal.
+Since Beta distribution is defined on [0, 1], the value of wu is nonnegative as required in the task definition. In addition, the assumption
+of Beta distribution is consistent with the definition of user credibility
+as the expected value of wu is proportional to the fraction of user u's
+posts that are authentic:
+
+• First person pronouns: authenticity indicative. The feature function is
+
+•
+
+l fl (p )]
+
+The injection of wu in Eq. (3) allows the probability that zp = 1 to
+vary proportionally with wu . The full conditional distribution of content
+authenticity Z is given by:
+
+In the following, we describe how to model the conditional distributions of Z and W respectively. Then we explain the process of estimating parameters θ from the training data. Lastly, given the estimated parameters, we discuss how to jointly infer Z and W from
+arbitrarily given data.
+Content authenticity. We first model the conditional distribution
+of content authenticity Z. Let LZ denote the set of features that are indicative or contraindicative of the authenticity of a post, e.g., language
+describing personal experience. We compile LZ from existing studies
+[9,29,19,38,39]. We determine whether the features are present in a
+post by employing TweetNLP [37] for part-of-speech tagging and
+WordNet [40] for lemmatization. Given a post p, the features are as
+follows:
+
+•
+
+l LZ
+
+To capture the influence of W on Z, we take into account the observation that a post p written by a more credible user u is more likely
+to be authentic than by a less credible one. Upon modeling this dependency, we incorporate the credibility wu of user u into Eq. (2) as
+follows:
+
+2.3.2. Jointly assessing authenticity and estimating credibility
+Task definition. First, we formally define the task of jointly assessing content authenticity and estimating user credibility. We are
+given a set of users U, e.g., User 1 in Fig. 1A and User 2 in Fig. 1C. Each
+user u ∈ U has a set of posts Pu. We represent each post p = (cp, tp, Dp,
+Ep), where cp is the content, tp the timestamp, Dp ⊆ D the set of mentioned drugs, Ep ⊆ E the set of mentioned AEs. Each post p ∈ Pu has at
+least one mention of drug or AE, i.e., Dp ≠∅ or Ep ≠∅. For example, in
+post #3 of Figure 1A, tp = “8 Sep 2015”, Dp = {}, and Ep = {“stomach
+ulcer”}. The posts in Pu are sorted in ascending order of timestamps,
+e.g., post #1 to #5 of User 1 in Fig. 1A. For brevity, let P be the set of all
+users’ posts with at least a mention of drug or AE, i.e., P = ⋃ u∈UPu.
+Denote Z = {z p}p P , where zp ∈ { −1, 1} indicates whether post p ∈ P
+is authentic. Also, let W = {wu}u U , where wu 0 represents the credibility of user u. Denote θ as the set of parameters for this task. Our
+objective is to jointly infer Z and W such that:
+
+Z *, W * = argmaxZ , W Pr(Z , W |P , U ; )
+
+1
+1 + exp[ z p
+
+computed as whether post p mentions the pronouns such as I, me,
+my, mine.
+Sentiments: authenticity indicative. The feature function is computed
+as whether emotion icons and sentiment terms such as haha, lol, !,
+etc. exist in post p.
+Actions: authenticity indicative. The feature function is whether
+action keywords signaling drug use such as take, consume, prescribe, use, etc. or AE experience such as suffer, feel, experience,
+have, etc. exist in post p.
+Non-first person pronouns: authenticity contraindicative. The feature
+function is whether post p mentions one of the pronouns such as
+you, your, yours, we, our, ours, he, she, him, her, his, it, its.
+Negations: authenticity contraindicative. The feature function is
+computed as whether post p mentions one of the negated keywords
+such as no, not, neither, nor, never, none, don’t, doesn’t, didn’t, isn’t,
+aren’t, won’t, wouldn’t, hadn’t, hasn’t, haven’t, wasn’t, weren’t,
+can’t, cannot, couldn’t, shouldn’t, etc.
+Questions: authenticity contraindicative. The feature function is
+whether post p contains a question mark.
+Quotes: authenticity contraindicative. The feature function is computed as whether p quotes information from other sources.
+URLs: authenticity contraindicative. The feature function is computed as whether URLs exist in post p.
+
+[wu |Pu, Zu] =
+
++ ru
+( + ru ) + ( + |Pu |
+
+ru )
+
+=
+
++
+
++ ru
++ |Pu |
+
+(6)
+
+Further, we observe that user credibility negatively correlates with
+user's frequency of posts with mentions of drugs or AEs. First, we note
+that health consultant and pharmacy company users tend to write many
+
+Also, let θl be the weight of feature l ∈ LZ, and fl(p) the value of the
+corresponding feature function for post p. Logistic regression has been
+widely employed to model the probability that an observation belongs
+to a class given its features [41]. As such, we utilize logistic regression
+to model the distribution of zp given the features of post p. For each post
+p, we have:
+
+Fig. 5. Proportion of credible users with qu ≤ q for different frequencies of
+posts with mentions of drugs or AEs q.
+105
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+posts with mentions of drugs or AEs within a short period, e.g., more
+than 200 posts per year. On the other hand, normal users who report
+authentic content often write less than 100 posts per year. Second,
+normal users tend to post not only about their health status during a
+short period of time. Thus, many of the posts with mentions of drugs or
+AEs within a short period of time are likely to be unauthentic.
+We conduct an experiment to evidence such observation. Denote qu
+as user u's frequency of posts with mentions of drugs or AEs – the
+average number of posts with mentions of drugs or AEs per year.
+Remember Pu = {pi }|iP=u1| denotes the set of user u's posts with mentions of
+drugs or AEs ordered by ascending timestamps. Let denote the period
+(in years) between the first post and the last post of user u. Particularly,
+qu = |Pu| if all user u's posts with mentions of drugs or AEs are written
+1year . Otherwise, we estimate qu as the ratio
+within a year, i.e., u
+between |Pu| and u . Note that for special case when |Pu| = 1, we set
+qu = 1. Since each user u in our dataset has at least one post with
+mention of drug or AE, |Pu| > 0 and thus qu > 0. For each frequency
+of posts with mentions of drugs or AEs q = 25, 50, 100, …, 250, we
+randomly pick 10 users with qu ≤ q from our dataset. Then we manually check whether each user is credible, i.e., having at least one authentic post. Fig. 5 demonstrates that the proportion of credible users
+with qu ≤ q consistently drops as q increases, supporting our observation. As a result, if we take into account this observation in the credibility, the accuracy of ADE detection and authenticity assessment may
+be improved.
+The idea of accounting for such observation is to penalize the
+credibility of each user wu by a quantity proportional to user's frequency of posts with mentions of drugs or AEs qu. Since the value of qu
+can be large, before incorporating it wu , we scale it to the range [0, 1] to
+prevent its excessive effect on wu . Let qmin and qmax be the minimum
+and maximum qu among all users u ∈ U respectively. Denote q̄u as user
+u's relative frequency of posts with mentions of drugs or AEs, i.e., the
+scaled version of qu. We employ the Min–Max normalization technique
+[43] to compute q̄u as follows:
+
+q¯u =
+
+0
+qu
+qmax
+
+qmin
+qmin
+
+W is given by:
+
+Pr(W |P , U , Z ) =
+
+qmax
+
+Parameter estimation. We estimate the parameters θ with a semisupervised setting. Given a set of users U, a set of posts with mentions of
+drugs or AEs P, a set of labeled post authenticity ZL, and a set of unlabeled post authenticity ZU, we aim to estimate θ* that minimizes the
+following loss function:
+
+Beta( + ru, ( + q¯u ) + |Pu |
+
+(7)
+
+[wu |Pu, Zu] =
+
++ ru
++ ( + q¯u ) + |Pu |
+
+ru )
+
+1+5
+6
+=
+1 + (1 + 0) + 5
+7
+
+[wu2 |Pu2, Zu2] =
+
+1+3
+4
+=
+1 + (1 + 0) + 5
+7
+
+=
+
+log[Pr( )Pr(ZL, ZU , W |P , U ; )]
+
+=
+
+log Pr( )
+
+log Pr(ZL, Z U , W |P , U ; )
+
+(14)
+
+To alleviate the overfitting problem, we assume a Gaussian prior
+(0, 2 ) for some fixed σ
+over each parameter in θ, i.e., l LZ : l
+[44]. We empirically choose σ = 0.3. As a consequence, the above loss
+function becomes:
+2
+l LZ l
+2 2
+
+( )=
+
+(8)
+
+log Pr(ZL, Z U , W |P , U ; ) +
+
+(15)
+
+where λ is a constant.
+Algorithm 1 summarizes the process of estimating θ*. Since θ* is
+estimated in the presence of hidden variables ZU and W, we employ the
+Stochastic Expectation-Maximization (Stochastic EM) algorithm [45] to
+iteratively infer ZU, W and estimate θ*. In the E-step, we first utilize
+Gibbs Sampling [41] to draw samples of content authenticity ZU (Eq.
+(11)). In particular, for each post indexed j of user u in the unlabeled
+set, its authenticity label z pUj (i) at iteration i is drawn from the following
+distribution:
+
+(9)
+
+In Section 3, we show that the accuracy of ADE detection and authenticity assessment improves after incorporating q̄u .
+We demonstrate how to compute the expected credibility wu given
+that our dataset contains User 1 in Fig. 1A and User 2 in Fig. 1C. Since
+User 1 wrote five authentic posts among 5 posts with mentions of drugs
+or AEs, ru1 = |Pu1 | = 5. All the five posts of User 1 were written in less
+than 1 year, thus, qu1 = 5. User 2 wrote five posts mentions of drugs or
+AEs, among which three posts are authentic, thus, ru2 = 3 and |Pu2 | = 5.
+All the posts of User 2 were also written in less than 1 year, thus,
+qu2 = 5. Since qu1 = qu2 = qmin = qmax , we have q¯u1 = q¯u2 = 0 . Remember
+that α = β = 1. Applying Eq. (9) gives:
+
+[wu1 |Pu1, Zu1] =
+
+log Pr(ZL, ZU , W ; |P , U )
+
+( ) =
+
+Since β represents the prior belief about the number of unauthentic
+posts, we augment it with q̄u so that user credibility decreases as user's
+frequency of posts with mentions of drugs or AEs increases. Therefore,
+Eqs. (5) and (6) becomes:
+
+wu |Pu, Zu
+
+(10)
+
+Algorithm 1. Estimating content authenticity parameters θ
+
+if qmin = qmax
+if qmin
+
+Pr(wu |Pu, Zu )
+u U
+
+z pUj (i)
+
+Pr(z pUj (i) |pj , wu(i
+
+1)
+
+;
+
+(i 1) )
+
+(16)
+
+Then we continue to compute the expectation of user credibility W
+(Eq. (12)). The expected credibility of each user u is computed using Eq.
+(9). In the M-step, we utilize the Gradient Descent algorithm [41] to
+estimate θ* (Eq. (13)) by minimizing the loss function ( ) with respect
+to the existing values of ZU and W in the current iteration. The gradient
+of ( ) with respect to each θl is given by:
+
+(
+
+As a consequence, the full conditional distribution of user credibility
+
+)
+l
+
+106
+
+=
+
+l
+2
+
+z p wu fl (p)
+u U p Pu
+
+1 + exp[z p wu
+
+l LZ
+
+l fl (p)]
+
+(17)
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Algorithm 2. Inferring Z and W given parameters θ*
+
+arbitrarily data using the estimated parameters.
+ADE signal quality. Denote LY as the set of features from a user's
+posts that indicate positive or negative evidence for a potential ADE
+signal 〈d → e〉. We classify LY into non-chronological features and
+chronological features.
+Non-chronological features. We utilize the co-occurrence of drug and
+AE within a post as a feature, since most previous ADE detection
+methods [8,18,19,29,13,9,30,20,31,21–23,11,10,24,12,25–27] demonstrated that such co-occurrence often signals potential ADEs.
+
+• AE co-occurs with drug: indicative of potential ADE signal. The fea-
+
+ture function is whether a post p of user u mentions both a drug d
+and an AE e. As explained earlier in the task definition, p is not
+required to be authentic.
+
+In addition, the context in posts that mention both a drug and an AE
+are important language features. Consider a post p of user u with
+mentions of a drug d and an AE e. Here we reuse several common
+context keywords from previous works [8,18,19,29,13,9,30,20,
+31,21–23,11,10,24,12,25–27]:
+
+Inferring Z and W given θ*. With the estimated parameters θ*, we
+now explain how to assess content authenticity Z and estimate user
+credibility W on arbitrary given sets of users U and posts P. The procedure is summarized in Algorithm 2. Since content authenticity Z and
+user credibility W are mutually dependent on each other, we adopt the
+Coordinate Descent (CD) algorithm [41] to iteratively solve for one set
+of variables at a time while fixing other sets of variables. Specifically,
+we employ Gibbs Sampling [41] to estimate content authenticity Z (Eq.
+(18)). In addition, the user credibility W can be estimated using Maximum A Posteriori (MAP) for Beta distribution [42] (Eq. (19)), i.e., for
+each user u, we have wˆ u = ( + ru 1)/( + ( + q¯u ) + |Pu | 2) . Using
+Gibbs Sampling in this case creates chances for the algorithm to escape
+from local optima and consider alternative solutions upon jointly inferring content authenticity and user credibility.
+In each iteration, updating Z is linear in terms of the number of
+posts, i.e., (|P|) , while updating W also requires (|P|) to compute
+both q̄u and ru. Let |I(Z)| be the total number of required iterations, including those in Gibbs Sampling. The worst-case running time complexity is thus (|I (Z ) ||P|) .
+
+• Co-occurred ADE: indicative of potential ADE signal. The feature
+•
+
+hronological features. Additionally, we exploit chronological features
+between drug and AE based on the timeline of each user. Intuitively, in
+a potential ADE 〈d → e〉, the experience of AE e should occur after d has
+been consumed, and thus, is likely to be reported after d has been reported. Given an ADE signal 〈d → e〉 from user u, the chronological
+features are as follows:
+
+• AE after drug: indicative of potential ADE signal. The feature func-
+
+2.3.3. Predicting potential ADEs
+Task definition. We now define the task of predicting potential
+ADEs. After authenticity assessment and credibility estimation, we are
+given a set of users U, where each user u ∈ U has the credibility wu , and
+a set of posts Pu with zp indicating whether the post p ∈ Pu is authentic.
+Let S = {〈d → e〉} denote a set of ADE signals for which we are
+interested in whether e ∈ E is a potential ADE of d ∈ D. We describe how
+to generate S. Denote Su = {〈d → e〉} as the set of ADE signals generated from user u's posts such that there exists two authentic posts p and
+tp TADE . The
+p′ written by user u with d ∈ Dp, e E p and 0 < t p
+time frame TADE is introduced to assure that the cause of e is related to d
+[33]. Since most drugs are short-acting, we set TADE = 3 months [46].
+As an example, 〈Ibuprofen→stomach ulcer〉 is generated from User 1's
+posts in Fig. 1A. In addition, previous studies show that the co-occurrence of d and e within the same post often indicates potential ADEs
+[8,18,19,29,13,9,30,20,31,21–23,11,10,24,12,25–27]. Thus, Su also
+includes 〈d → e〉 such that there exists a post p″ with d D p and
+e E p . Note that we do not require p″ to be authentic as health consultant and pharmacy company users often write unauthentic posts to
+give advice about well-known ADEs, e.g., post #11 in Fig. 1D. We
+compute S as the union of Su from all users, i.e., S = ⋃ u∈USu.
+Let Y = {yd, e } d e S , where yd,e ∈ { −1, 1} indicates whether e is a
+potential ADE of d. Denote ψ as the set of parameters for this task. Our
+goal is to infer Y such that:
+
+Y * = argmaxY Pr(Y |P , U , S, Z , W ; )
+
+function is computed as whether keywords like cause, make, effect,
+result, due to, reaction, because, kill, etc. exist in p.
+Co-occurred non-ADE: contraindicative of potential ADE signal. The
+feature function is computed as whether keywords indicating the
+use of d to treat e such as for, treat, cure, relieve, relief, ease, help,
+heal, etc. exist in p. These keywords often indicate treatment relationship between drug and AE.
+
+•
+
+tion is computed as whether we observe two different authentic
+posts p, p′ ∈ Pu such that p mentions d, p′ mentions e and
+0 < tp
+tp TADE .
+AE before drug: contraindicative of potential ADE signal. The feature
+function is computed as whether we observe two different authentic
+posts p, p′ ∈ Pu such that p mentions d, p′ mentions e and tp t p > 0 .
+
+Let ψl be the weight of each feature l ∈ LY, and fl(d, e, Pu, Zu) the
+value of the corresponding feature function for the ADE signal 〈d → e〉
+in user u. Similar to content authenticity, we again employ logistic
+regression [41] to define the likelihood of Y in terms of the combination
+of feature values from all the users. Given an ADE signal 〈d → e〉, as
+yd,e ∈ { −1, 1}, we have:
+
+Pr(yd, e |P , U , Z ; ) =
+
+1
+1 + exp[ yd, e
+
+u U
+
+l
+
+LY
+
+l fl
+
+(d, e, Pu, Zu )]
+(21)
+
+Since the credibility of a user indicates the degree to which user's
+evidence should be trusted in the ADE detection, Y is influenced by W.
+First, user credibility W affects the reliability of Y's chronological evidence, e.g., whether d and e occur in two subsequent posts of user u
+within TADE. Intuitively, a user who consistently reports authentic
+content (i.e., high credibility) provides reliable chronological evidence,
+which reflects progressive changes in user's health status over time. An
+example of highly credible user is User 1 in Fig. 1A. Some users such as
+User 2 in Fig. 1C, however, sometimes post unauthentic content besides
+authentic content (i.e., lower credibility), which is deceptive and less
+
+(20)
+
+We first explain how to model the conditional distribution of Y.
+Then we discuss how to estimate parameters ψ from the training data.
+Lastly, we describe the prediction of ADE signal quality Y given
+107
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Table 2
+Benchmark set of drugs.
+Class
+
+Drug
+
+Treatment example
+
+ADE example
+
+#ADEs
+
+NSAIDs
+
+Ibuprofen (Advil, Motrin),
+Naproxen (Aleve, Anaprox),
+Diclofenac (Voltaren, Cataflam),
+Celecoxib (Celebrex),
+Meloxicam (Mobic, Vivlodex)
+Lisinopril (Prinivil, Zestril),
+Ramipril (Altace),
+Perindopril (Aceon),
+Captopril (Capoten)
+Quetiapine (Seroquel),
+Olanzapine (Zyprexa)
+Sertraline (Zoloft),
+Paroxetine (Paxil),
+Citalopram (Celexa)
+Lamotrigine (Lamictal),
+Pregabalin (Lyrica)
+Warfarin (Counmadin),
+Rivaroxaban (Xarelto),
+Dabigatran (Pradaxa)
+Rosuvastatin (Crestor),
+Atorvastatin (Lipitor),
+Simvastatin (Zocor)
+
+arthritis
+
+stomach ulcer
+
+517
+
+Hypertension
+
+Reduced sex drive
+
+287
+
+Bipolar disorder
+
+Irregular heartbeats
+
+420
+
+Depression
+
+Insomnia
+
+745
+
+Seizures
+
+Blurred vision
+
+636
+
+Coagulation
+
+Anemia
+
+120
+
+High cholesterol
+
+Chest pain
+
+220
+
+ACE Inhibitors
+
+Antipsychotics
+Antidepressants
+Anticonvulsants
+Anticoagulants
+Statins
+
+Table 3
+Statistics of the Twitter dataset.
+Statistics
+
+Value
+
+#Tweets with drugs/AEs
+#Users with drugs/AEs
+#Tweets/User
+Timespan
+Timespan/User
+#Drug classes/user
+#AEs/User
+
+1,191,767
+13,178
+90 ± 302
+3/2007–5/2016
+25 ± 25 months
+1±1
+68 ± 98
+
+Drug class
+
+#Users
+
+#Tweets
+
+NSAIDs
+ACE inhibitors
+Antipsychotics
+Antidepressants
+Anticonvulsants
+Anticoagulants
+Statins
+
+3533
+524
+1140
+2228
+2175
+2115
+823
+
+24,427
+6011
+14,804
+37,098
+16,223
+22,709
+14,068
+
+Fig. 6. Relative importance of content authenticity features.
+
+reliable for the ADE detection. Other examples of users with less
+trustworthy chronological evidence include health consultants and
+pharmacy companies. The reason is that their different posts may refer
+to different cases, e.g., Fig. 1D.
+On the other hand, the trustworthiness of Y's non-chronological
+evidence is independent of W. While some users may have low credibility due to low consistency in reporting authentic content, their nonchronological evidence such as the co-occurrence of d and e within a
+
+post may be still useful for the ADE detection. For instance, health
+consultants or pharmacy companies often write posts that give advice
+about ADEs, e.g., post #11 in Fig. 1D. Although such posts are not
+authentic, the mentioned ADEs are often common or well-known ADEs,
+which may provide helpful evidence for the ADE detection.
+In order to retain such non-chronological evidence from low-credibility users, we only exert the effect of W on chronological evidence.
+First, we partition LY into the set of chronological features LYt and the
+108
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+set of non-chronological features LY t , i.e., LY = LYt
+to integrate W into Eq. (21) as follows:
+
+LY t . We propose
+
+validate AC-SPASM upon assessing content authenticity, estimating
+user credibility, and predicting known ADEs. Next, we evaluate and
+discuss the unknown potential ADE signals detected by AC-SPASM.
+Lastly, we examine the running time scalability of AC-SPASM.
+
+Pr(yd, e |P , U , Z , W ; )
+1
+
+=
+1 + exp
+
+yd, e u U
+
+l LY t l fl (d, e , Pu , Zu) + w u l LYt l fl (d, e , Pu, Zu )
+
+(22)
+
+3.1. Data
+
+With the integration of W in Eq. (22), the effect of the chronological
+features in each user is boosted by the user credibility. As a result, given
+an ADE signal, if there is a chronological feature indicative of the potential ADE in user u, the gain for the likelihood will be magnified by
+wu . In contrast, if a chronological feature contraindicative of the potential ADE exists, the penalty for the likelihood will also be amplified
+by wu . The full conditional distribution of ADE signal quality Y is then
+given as follows:
+
+Pr(Y |P , U , S, Z , W ; ) =
+
+Pr(yd, e |P , U , Z , W ; )
+d
+
+e
+
+S
+
+Benchmark drugs and AEs. We select 22 commonly used drugs
+from 7 drug classes based on WebMD.3 Each drug is associated with a
+PubChem Compound ID (e.g., 3672), a generic name (e.g., Ibuprofen)
+and multiple brand names (e.g., Advil, Motrin). PubChem Compound ID
+is used for the consistency with SIDER 4.1 [36], which later provides us
+with known ADEs and treatments. In addition, each d ∈ D is treated as a
+drug class instead of an individual drug, as in previous ADE detection
+methods [47,6]. For instance, “Ibuprofen” belongs to the drug class
+“NSAIDs”. This approach may result in stronger signal detection,
+especially in social media where the data relevant to a particular drug
+may be rare [35]. The drugs under each class are selected so that they
+share essential properties, i.e., can be used for similar treatments and
+may result in similar AEs.
+We select 8089 AEs from the Medical Dictionary for Regulatory
+Activities (MedDRA) 19.0 [48]. These AEs are Preferred Terms extracted from 18 System Organ Classes, including 19 disorders (except
+“Congenital, familial and genetic disorder” and “General disorders and
+administration site conditions”) and “Infections and infestations”. The
+lexicon of each AE is augmented with Lowest Level Terms associated
+with the Preferred Term of the AE. Also, we use SIDER 4.1 [36] to map
+the AEs with the Concept Unique Identifier (CUI) in the Unified Medical
+Language System (UMLS). This mapping enables the utilization of
+known ADEs and treatments in SIDER 4.1. Further, we enrich our AE
+vocabulary with the Consumer Health Vocabulary (CHV) [49] via
+UMLS CUI mapping. For instance, “stomach ulcer” has the UMLS CUI of
+C0038358 and is also referred to as “gastric ulcer”.
+Table 2 presents the drug names, examples of treatments, examples
+of ADEs, and total number of known ADEs for each drug class. More
+details of known ADEs shall be discussed later in the ground truth
+section. The drug names outside the parentheses are generic names,
+while those inside the parentheses are brand names.
+Twitter dataset. We build a web crawler to collect data from
+Twitter given the queries. The queries are constructed based on the
+benchmark set of drugs and AEs. Each query is a combination of a drug
+name and an AE name (e.g., “ibuprofen stomach ulcer”), where the AE
+may be treated by the drug or a potential ADE of the drug according to
+SIDER 4.1 [36]. Then the query is used to retrieve a set of Twitter users.
+For each user, we crawl the tweets written by the user that mention at
+least a keyword from the drug name (e.g., “ibuprofen”) or AE name
+(e.g., “stomach”, “ulcer” from “stomach ulcer”). Retweets are excluded
+from the dataset. We then perform the preprocessing step to locate the
+mentions of drugs and AEs from the tweets as discussed in Section 2.2.
+Table 3 summarizes the statistics of the dataset. In total, we collected 1,191,767 tweets with at least one mention of drug and AE from
+13,178 users during the period of March 2007 to May 2016. We use the
+format mean ± standard deviation to report the statistics. On average,
+each user has 90 ± 302 posts written within a period of 25 ± 25
+months, in which 1 ± 1 drug classes and 68 ± 98 AEs have been
+mentioned. Also, the number of tweets and users are reported for each
+drug class in Table 3. Among the classes, NSAIDs has the most number
+of users (3533 users with 24,427 tweets), while ACE Inhibitors has the
+least (524 users with 6011 tweets).
+Ground truth. Here we describe the ground truth to be used for our
+model training and testing. For content authenticity assessment, we
+manually annotate 2000 tweets as whether they are authentic. The
+tweets are randomly split into two parts: 75% for training (1500 tweets)
+
+(23)
+
+Parameter estimation. We estimate the parameters ψ with a supervised setting. Given a set of users U with credibility W, a set of posts
+P with authenticity Z, a set of ADE signals S, and a set of labeled signal
+quality YL, our goal is to estimate ψ* such that the following loss
+function is minimized:
+
+( ) =
+
+log Pr(Y L; |P , U , S, Z , W )
+
+=
+
+log[Pr( )Pr(Y L|P , U , S, Z , W ; )]
+
+=
+
+log Pr( )
+
+log Pr(Y L|P , U , S, Z , W ; )
+
+(24)
+
+We alleviate the overfitting problem by assuming a Gaussian prior
+(0, 2) for some fixed σ
+over each parameter in ψ, i.e., l LY : l
+[44]. We empirically set σ = 0.3. Thus, the above loss becomes:
+2
+l LY l
+2
+2
+
+( )=
+
+log Pr(Y L|P , U , S, Z , W ; ) +
+
+(25)
+
+where λ is a constant.
+We again employ the Gradient Descent algorithm [41] to estimate
+ψ*. The gradients of ( ) with respect to each ψl (l LY t ) and l
+LYt ) are given by:
+(l
+
+( )
+
+=
+
+l
+
+( )
+l
+
+=
+
+l
+2
+
+l
+2
+
+yd, e
+d
+
+e
+
+S
+
+yd, e
+d
+
+e
+
+S
+
+f (d ,
+u U l
+
+e, Pu, Zu )
+
+1 + exp[yd, e M (d , e , P , U , Z , W ; )]
+u U
+
+(26)
+
+wu fl (d , e , Pu , Zu )
+
+1 + exp[yd, e M (d, e, P , U , Z , W ; )]
+
+(27)
+
+where
+
+M (d , e, P , U , Z , W ; ) =
+l LY t
+
+u U
+
++ wu
+l
+
+LYt
+
+l fl (d ,
+
+l fl
+
+e , Pu, Zu )
+
+(d, e , Pu , Zu )
+
+Inferring Y given ψ*. Given the estimated parameters ψ*, we again
+utilize Gibbs Sampling [41] to predict ADE signal quality Y from arbitrarily given sets of users U with credibility W, posts P with authenticity Z, and ADE signals S. Upon inferring yd,e for each signal 〈d →
+e〉 ∈ S, we might need to scan all the users to compute sufficient statistics. Thus, the worst-case running time complexity of estimating Y is
+(|I (Y ) ||S||U |) , where I(Y) is the required number of iterations for Gibbs
+Sampling.
+3. Results and analysis
+In this section, we evaluate the performance of AC-SPASM on
+Twitter. We first describe our benchmark sets of drugs and AEs, our
+Twitter dataset, and the ground truth for training and testing. Then we
+
+3
+
+109
+
+http://www.webmd.com/drugs/
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+as authentic by AC-SPASM. The last metric, F1 score, measures the
+harmonic mean of precision and recall, which is computed as follows:
+
+Table 4
+Different methods for content authenticity assessment.
+Method
+
+AC-SPASM
+AC-SPASM-NoQ
+PECT
+
+Credibility
+
+F1 = 2 ×
+
+ru
+
+q̄u
+
+✓
+✓
+
+✓
+
+Precision × Recall
+Precision + Recall
+
+(28)
+
+All the results are averaged over 10 different training/testing splits.
+Upon comparing different methods, we utilize Student's t-test to compute the statistical significance (p-value) in performance improvement,
+which has been commonly used in previous studies [50]. The significance test is computed based on the results from 10 different
+training/testing splits.
+Fig. 7 shows the performance of AC-SPASM and baselines on the
+Twitter dataset. Overall, AC-SPASM achieves F1 = 80% on predicting
+content authenticity, outperforming PECT by 36% (p < 0.05). This
+demonstrates that realizing the influence of user credibility on content
+authenticity improves the accuracy of authenticity assessment. Specifically, AC-SPASM performs better than PECT by 8% in terms of precision and 71% in terms of recall. The recall is significantly improved
+since AC-SPASM is able to recognize many authentic posts without
+sufficient language context, e.g., post #5 in Fig. 1A. In addition, ACSPASM improves its alternative setting AC-SPASM-NoQ by 7% F1
+(p < 0.05) with the increase of 8% in precision and 3% in recall respectively. This shows that accounting for the user's relative frequency
+of posts with mentions of drugs or AEs in user credibility further enhances the assessment of content authenticity.
+Estimating user credibility. Next, we assess AC-SPASM on estimating user credibility. The idea is to check whether users who are
+assigned high credibilities by AC-SPASM are actually credible. Since the
+number of social media users is large, we only evaluate the top K users
+with highest credibilities. We manually check the top K = 10 users and
+annotate whether each user is credible, i.e., having at least one authentic post. This evaluation is done for users in 10 different content
+authenticity testing sets and the results are averaged accordingly.
+We compare the performance of AC-SPASM with AC-SPASM-NoQ
+(refer to Table 4), which does not take into consideration user's relative
+frequency of posts with mentions of drugs or AEs in user credibility.
+We utilize two popular metrics [51] to evaluate the top K users with
+highest credibilities. Let vi {0, 1} denote whether the user ranked at
+position i is actually credible. The first metric is precision@K, the proportion of top K users that are credible users. The second metric,
+NDCG@K (Normalized Discounted Cumulative Gain at K), is computed
+as follows:
+
+and 25% for testing (500 tweets). All reported results below are averaged over 10 splits.
+For ADE signal quality prediction, we utilize SIDER 4.1 [36] to
+construct 2945 positive examples (i.e., an AE is a known ADE of a drug
+class) and 312 negative examples (i.e., an AE can be treated by a drug
+class). We create random splits of 75% training data and 25% test data
+on both positive examples and negative examples. Each split results in
+2242 training examples (2208 ADEs and 234 treatments), and 815
+testing examples (737 ADEs and 78 treatments). All reported results
+below are averaged over 10 different splits.
+3.2. AC-SPASM validation
+Predicting content authenticity. First, we examine the performance of AC-SPASM on predicting whether each post is authentic. First,
+we demonstrate the indicative or contraindicative power of different
+features on predicting content authenticity. Fig. 6 shows the relative
+feature weights estimated from the training data. First person pronouns is
+most indicative of authenticity, followed by actions and sentiments. On
+the contrary, for unauthenticity, URLs is the most representative feature.
+In addition, we evaluate AC-SPASM against different methods for
+content authenticity assessment, as summarized in Table 4. We aim to
+demonstrate the effect of user credibility on the content authenticity
+assessment. First, we compare AC-SPASM with PECT (personal experience classifier on Twitter), a baseline employed in previous studies
+[29,12]. The main difference between AC-SPASM and PECT is that ACSPASM takes into account the influence of user credibility on content
+authenticity, while PECT does not. Also, we compare AC-SPASM with
+its alternative setting AC-SPASM-NoQ, which is AC-SPASM without
+taking into account q̄u , user's relative frequency of posts with mentions
+of drugs or AEs (refer to Section 2.3.2).
+We employ three well-known metrics to evaluate the predictive
+performance of content authenticity. The first metric, precision, is the
+proportion of posts predicted by AC-SPASM as authentic that are actually authentic based on the ground truth. The second metric, recall, is
+the proportion of authentic posts in the ground truth that are predicted
+
+NDCG@K =
+
+1
+× v1 +
+Zv
+
+K
+i=2
+
+vi
+log 2 (i)
+
+(29)
+
+where Z v is the normalizing term such that NDCG@K = 1 when the
+ranking is perfect, i.e., credible users always have higher credibilities.
+Intuitively, credible users ranked lower in the list are penalized by reducing NDCG@K logarithmically proportional to the rank of these
+users. NDCG@K takes into account the ranks of the users while precision@K does not. We do not compute Recall@K as it is infeasible to
+count the total number of actually credible users.
+We employ Student's t-test to compute the statistical significance in
+performance improvement [50] based on the results from 10 content
+authenticity testing sets.
+Fig. 8 presents the performance of AC-SPASM and AC-SPASM-NoQ
+on estimating credibilities of the top K users as K varies from 1 to 10.
+Overall, AC-SPASM obtains precision@10 = 90% and NDCG@
+10 = 96%, outperforming AC-SPASM-NoQ by 32% in terms of precision@10 and 26% in terms of NDCG@10 (p < 0.05). The performance
+of AC-SPASM suggests that the estimated user credibility is useful for
+authenticity assessment (as empirically shown earlier) and potential
+ADE prediction (as empirically shown later). Additionally, AC-SPASM
+consistently performs better than AC-SPASM-NoQ as K varies from 1 to
+10. The results also demonstrate that considering user's relative
+
+Fig. 7. Performance of AC-SPASM on predicting content authenticity.
+110
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Fig. 8. Performance of AC-SPASM on estimating user credibility.
+
+Fig. 9. Relative importance of ADE signal quality features.
+
+frequency of posts with mentions of drugs or AEs facilitates more accurate estimation of user credibility.
+Predicting known ADEs. We then evaluate AC-SPASM on the
+prediction of known ADEs. Fig. 9 shows the estimated relative weights
+of features indicative or contraindicative of potential ADEs. AE after
+drug is the most representative feature for potential ADEs, which demonstrates that chronological evidence plays a crucial role in the signaling of potential ADEs. In contrast, Co-occurred non-ADE is shown to
+be the most contraindicative feature of ADEs. While Drug after AE is
+naturally contraindicative, its negative effect on ADE detection turns
+out to be less significant than Co-occurred non-ADE. The reason is that a
+user might sometimes repeatedly mention a drug and the corresponding
+AE of an ADE in subsequent posts. For instance, in Fig. 1A, “Ibuprofen”
+is mentioned in post #1, followed by “stomach ulcer” in post #3 and
+then “Ibuprofen” again in post #5.
+We compare the performance of AC-SPASM with its alternative
+settings and state-of-the-art baselines. Our goal is to validate the necessity of accounting for content authenticity and user credibility in the
+detection of ADEs from users’ sequences of posts. Table 5 summarizes
+the essential properties of all the methods to be compared. Remember
+that q̄u is the user u's relative frequency of posts with mentions of drugs
+or AEs (refer to Section 2.3.2). The setting AC-SPASM-NoQ is ACSPASM without incorporating q̄u in the user credibility wu , i.e., q̄u = 0 .
+The setting AC-SPASM-NoW takes into account content authenticity but
+not user credibility. Thus, in AC-SPASM-NoW, all users have equal
+
+credibility and user credibility has no effect on potential ADE prediction. Additionally, the baseline ADE-LCT (ADE link classifier on
+Twitter) [32] considers ADEs whose drug and AE may occur in different
+posts of a user, yet does not consider the content authenticity and user
+credibility. Lastly, the baseline MT-PDE (mining Twitter for potential
+drug effects) [29], though filtering out unauthentic content, requires
+that the drug and AE of an ADE are co-mentioned in the same post.
+Similar to authenticity assessment, we employ precision, recall, and
+F1 score to evaluate the ADE prediction. Precision is the proportion of
+signals predicted as potential ADEs by AC-SPASM that are known ADEs
+based on the ground truth. Recall is the proportion of known ADEs in
+the ground truth that are predicted as potential ADEs by AC-SPASM. F1
+score is computed as in Eq. (28). All the results are averaged over 10
+different training/testing splits. Further, the statistical significance (pvalue) in performance improvement is computed using the Student's ttest [50].
+Fig. 10 presents the performance of AC-SPASM, its alternative settings and baselines on the Twitter dataset. Overall, AC-SPASM achieves
+the best tradeoff between precision and recall, i.e., F1 = 91%. The results demonstrate that taking into account content authenticity and user
+credibility improves the ADE detection. In fact, AC-SPASM outperforms
+state-of-the-art baselines by at least 32% in F1 (p < 0.05). Particularly,
+AC-SPASM outperforms ADE-LCT, the latter which neglects content
+authenticity and user credibility, by 70% recall and 32% F1. In addition,
+MT-PDE, while accounting for content authenticity, does not consider
+ADEs whose drug and AE may be reported in different posts of a user,
+thus, obtains a 4% lower precision, 116% lower recall and a 57% lower
+F1 than AC-SPASM. Furthermore, AC-SPASM achieves the best performance in comparison with its alternative settings (p < 0.05). ACSPASM-NoQ, without q̄u , is 20% and 8% behind AC-SPASM in recall
+and F1 respectively, which indicates that taking into account the user's
+relative frequency of posts with mentions of drugs or AEs further enhances the detection of potential ADEs. Without considering user
+credibility, AC-SPASM-NoW is outperformed by AC-SPASM by larger
+margins of 42% recall and 17% F1.
+By detecting many known ADEs, AC-SPASM obtains the highest
+recall of 95%. This means AC-SPASM may be able to identify more rare
+and unknown ADEs than other methods. On the other hand, it also
+
+Table 5
+Different methods for predicting known ADEs.
+Method
+
+AC-SPASM
+AC-SPASM-NoQ
+AC-SPASM-NoW
+ADE-LCT
+MT-PDE
+
+Drug and AE in different posts
+
+✓
+✓
+✓
+✓
+
+Authenticity
+
+✓
+✓
+✓
+
+Credibility
+ru
+
+q̄u
+
+✓
+✓
+
+✓
+
+✓
+
+111
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Fig. 10. Performance of AC-SPASM on predicting known ADEs.
+
+evaluation. Particularly, we employ the χ2 test [52] to remove signals
+without significant association between the drug and AE (significance
+level = 0.05). Then we rank the signals by lift, a widely used association
+measure in ADE detection [13,22]. Lift measures how many times more
+often there is positive evidence from a user's posts supporting
+〈drug→AE〉 than expected if the drug and AE are statistically independent. A cut-off lift of 5 is applied to the results.
+These post-processing steps retain 479 potential signals, which are
+then manually revised by research pharmacists to further remove another 23 potentially known ADEs. As a result, the top K = 456 unknown
+potential ADE signals remain for evaluation. We ask two pharmacists to
+assess whether each potential signal is likely to be an indication (unfiltered by SIDER 4.1) or a symptom of a commonly occurring comorbid condition (aka comorbidity). The assessment took half of a
+working day to complete. We report the Cohen's Kappa agreement
+measure κ [53] for two pharmacists. Given the assessment, we employ
+precision@K and NDCG@K to measure the quality of top K signals.
+Precision@K is the proportion of top K signals that are unknown potential signals, i.e., are neither indications nor comorbidities. Let
+hi ∈ {0, 1} denote whether the signal ranked at position i is an unknown
+potential signal. The NDCG@K is computed as follows:
+
+means more false positives might be captured. In fact, the results show
+that AC-SPASM achieves a precision of 87%, which is 7% lower than
+the highest precision. This tradeoff of precision for recall is worthwhile,
+as rare and unknown ADEs are most important for expert investigation.
+3.3. Unknown potential ADE signals
+In this section, we describe the post-processing steps to obtain the
+set of unknown potential ADE signals, followed by their evaluation.
+First, we eliminate known ADEs and indications. We remove ADEs
+that have been known based on SIDER 4.1 [36]. We notice that, however, some known ADEs are not listed in SIDER 4.1. For instance, in
+SIDER 4.1, “depression” is a listed ADE for some “NSAIDs” but “suicidal
+depression” (UMLS CUI of C0221745) is not. As such, we also eliminate
+known ADEs based on high-level MedDRA terms [48]. In particular, if
+two AEs share the same high-level MedDRA term and one of them is a
+known ADE of a drug, then the other one is likely to be a known ADE of
+that drug and shall be eliminated. For example, “suicidal depression”
+(C0221745) and “depression” (C0011570) have the same high-level
+term “Depressive disorder” (MedDRA Id 10012401). Since “depression”
+is a known ADE of NSAIDs according to SIDER 4.1, we eliminate the
+signal 〈NSAIDs→suicidal depression〉. Additionally, we use SIDER 4.1
+to remove known indications.
+Second, we eliminate insignificant signals and prioritize them for
+
+NDCG@K =
+
+1
+× h1 +
+Zh
+
+K
+i=2
+
+hi
+log 2 (i)
+
+Fig. 11. Proportions of unknown potential signals versus comorbidities and indications.
+112
+
+(30)
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Fig. 12. Performance of AC-SPASM on detecting unknown potential ADE signals.
+
+where Zh is the normalizing term such that NDCG@K = 1 when the
+ranking is perfect, i.e., unknown potential signals always ranked higher.
+The insight is that unknown potential signals ranked lower in the list
+are penalized by reducing NDCG@K logarithmically proportional to the
+ranks of these signals.
+Given the evaluation of 456 potential signals, the strength of Kappa
+κ = 0.68 with 95% confidence interval of 0.6–0.76 demonstrates the
+“substantial” [53] and significant (p < 0.05) agreement between two
+pharmacists. Fig. 11 presents the proportion of unknown potential
+signals detected by AC-SPASM according to each pharmacist. Overall,
+AC-SPASM detects significantly more unknown potential signals than
+noise, achieving an average precision@456 = 73% (precision@456 =
+72% for pharmacist 1 and precision@456 = 73% for pharmacist 2). In
+addition, the prioritization of potential signals based on lift obtains an
+average NDCG@456 = 94% (NDCG@456 = 93% for pharmacist 1 and
+NDCG@456 = 94% for pharmacist 2). This shows that most unknown
+potential signals are ranked higher than noise. Furthermore, Fig. 12
+presents the values of precision@K and NDCG@K as the number of top
+potential signals K varies from 10 to 456 in each pharmacist's evaluation. We notice that the top 8 signals are evaluated neither indications
+nor comorbidities by both pharmacists. Table 6 presents these top eight
+signals with their corresponding lifts. These results suggest that ACSPASM can be employed as a hypothesis generator to reduce experts’
+guesswork in identifying unknown potential ADEs.
+
+4. Limitations and future work
+While results demonstrate the utility of AC-SPASM in detecting
+potential ADE signals from social media, our method is still subject to
+certain limitations. Besides unknown potential signals that may be
+worth investigating, AC-SPASM also identifies noise. Fig. 11 shows that
+a large proportion of noise is due to comorbidities. In this study, most
+comorbid conditions are related to cardiovascular disease. For instance,
+〈ACE Inhibitors→heart valve leak〉 is detected as a potential ADE by
+AC-SPASM. However, patients with “heart valve” disease are likely to
+have comorbid “hypertension” and thus treated with an ACE inhibitor
+[54]. Thus, “heart valve leak” is more likely to be a comorbid disease
+rather than an ADE. Likewise, some indications are detected as potential ADEs by AC-SPASM and unable to be eliminated using SIDER 4.1,
+e.g., 〈ACE Inhibitors→blood pressure fluctuation〉. Therefore, expert
+input is still required.
+The performance of AC-SPASM might be affected by the quality of
+training datasets of known ADEs. While there are many public databases of known ADEs and indications such as SIDER, DrugBank, etc.,
+they are still far from complete and may contain inaccurate information
+due automatic extraction [4,35]. For instance, Losartan is listed in
+SIDER 4.1 as a treatment of “cough” while “cough” is instead a known
+ADE of Losartan. Also, “depression” is listed as a side effect of “NSAIDs”
+in SIDER 4.1 while “suicidal depression” is not.
+Another limitation is that AC-SPASM is only applicable for English
+speakers and does not take into account user demographic information.
+This affects the accuracy of ADE signal prediction since some ADEs
+might occur for specific segments of drug users [1]. However, demographic information of user is generally hard to obtain from social
+media due to privacy concerns. The language level of users, which may
+affect the user credibility, is also not known. In addition, while ACSPASM attempts to assess the credibility of social media users, we
+cannot completely test its accuracy as it can hard to differentiate fake
+users who pretend to post authentic content from authentic real users.
+Furthermore, AC-SPASM assesses the authenticity of content based
+solely on syntax. The consequences of this are that some posts may
+contain many indicative keywords, yet may not actually express the
+real personal experience of ADEs. This leads to more false positives in
+recognizing authentic posts and potentially false positives in ADE signal
+detection. Therefore, a more sophisticated underlying model with natural language understanding could be incorporated into AC-SPASM in
+future work.
+ADE signal detection is difficult and requires triangulation. In fact,
+recent studies [55,56] show that combining ADE signals from multiple
+data sources significantly improves the detection accuracy. Thus, social
+media complemented by other data sources might help confirm suspected signals. Potential ADE signals generated by AC-SPASM can be
+validated against spontaneous reports [55] and longitudinal observational databases such as administrative claims database [6] or electronic health records [56]. Additionally, electronic health records and
+claims database often contain demographic information and existing
+
+3.4. Scalability
+Lastly, we examine the running time scalability of AC-SPASM on the
+detection of potential ADEs. We draw samples of different numbers of
+posts and numbers of users from the Twitter dataset. We run this experiment on a computer with the specification AMD Opteron(TM)
+Processor 6234 6-core 1.4GHz CPUs 32GB memory. Fig. 13 presents the
+running times of AC-SPASM as the number of posts and the number of
+users vary. It can be observed from the results that the running time of
+AC-SPASM grows approximately linearly in terms of these dimensions,
+which demonstrates that AC-SPASM is scalable to large datasets.
+
+Table 6
+Top eight unknown potential ADE signals detected by AC-SPASM.
+Rank
+
+Drug
+
+AE
+
+Lift
+
+1
+2
+3
+4
+5
+6
+7
+8
+
+ACE Inhibitors
+Statins
+ACE Inhibitors
+Statins
+ACE Inhibitors
+ACE Inhibitors
+ACE Inhibitors
+ACE Inhibitors
+
+White blood cell disorder
+Oral mucosal eruption
+Paralysis
+Oral pruritus
+Anal ulcer haemorrhage
+Anal fistula
+Anal fissure
+Cholelithiasis
+
+29.75
+22.76
+19.83
+17.07
+16.53
+16.53
+16.53
+16.43
+
+113
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+Fig. 13. Running time scalability of AC-SPASM.
+
+medical conditions of patients. By controlling these additional factors,
+the effect of potential ADE signals can be estimated more accurately.
+In addition, considering different kinds of social media may improve
+the detection of ADEs. Beside Twitter, health forums such as
+DailyStrength, Healthboard, etc. have been demonstrated to be promising sources for detecting ADEs in previous studies
+[9,8,18,10,11,19,13,20–27]. In fact, health forums might contain more
+health-related discussions than Twitter and the reported content might
+be more likely to be authentic. However, there might be fewer discussions per user and each discussion tends to be longer than in Twitter,
+which may affect the performance of AC-SPASM. Modeling such differences is another interesting direction for future work.
+Lastly, we aim to extends AC-SPASM towards real-time detection of
+ADEs from social media streaming data. The challenge is how to utilize
+chronological evidence in the detection while assuring efficient processing time and memory. On the other hand, this creates opportunities
+to capture evolving features and user vocabularies for better detection
+of ADEs.
+
+[5]
+[6]
+[7]
+
+[8]
+[9]
+
+[10]
+
+[11]
+
+5. Conclusions
+
+[12]
+
+Adverse drug events (ADEs) have been imposing a substantial
+burden on patients and health management. Social media is a promising
+open data source for the timely signaling of potential ADEs. Detecting
+ADEs whose drug and AE may be mentioned across different posts of a
+user induces unnoticed complications regarding the content authenticity and user credibility. In this paper, we develop AC-SPASM, a
+Bayesian model for the authenticity and credibility aware detection of
+potential ADEs from social media. AC-SPASM captures the interaction
+between content authenticity, user credibility and ADE signal quality.
+Our experiments on Twitter demonstrate the improvement in detecting
+known ADEs. The results also suggest that AC-SPASM can be employed
+as a hypothesis generator for unknown potential signals.
+
+[13]
+[14]
+[15]
+[16]
+
+[17]
+
+Acknowledgements
+[18]
+
+This research was supported by the Australian Research Council
+(ARC) DP130104090 and the National Health and Medical Research
+Council (NHMRC) GNT 1110139.
+
+[19]
+
+References
+[20]
+
+[1] R. Harpaz, W. DuMouchel, N.H. Shah, D. Madigan, P. Ryan, C. Friedman, Novel
+data-mining methodologies for adverse drug event discovery and analysis, Clin.
+Pharmacol. Ther. 91 (6) (2012) 1010–1021.
+[2] S.L. Kane-Gill, S. Visweswaran, M.I. Saul, A.-K.I. Wong, L.E. Penrod, et al.,
+Computerized detection of adverse drug reactions in the medical intensive care
+unit, Int. J. Med. Inf. 80 (8) (2011) 570–578.
+[3] R. Harpaz, W. DuMochel, N. Shah, Big data and adverse drug reaction detection,
+Clin. Pharmacol. Ther. (2015).
+[4] S. Karimi, C. Wang, A. Metke-Jimenez, R. Gaire, C. Paris, Text and data mining
+
+[21]
+
+[22]
+
+114
+
+techniques in adverse drug reaction detection, ACM Comput. Surv. 47 (4)
+(2015) 56.
+L. Hazell, S.A. Shakir, Under-reporting of adverse drug reactions, Drug Saf. 29 (5)
+(2006) 385–396.
+I.A. Wahab, N.L. Pratt, L.K. Ellett, E.E. Roughead, Sequence symmetry analysis as a
+signal detection tool for potential heart failure adverse events in an administrative
+claims database, Drug Saf. 39 (4) (2016) 347–354.
+S. Somanchi, S. Adhikari, A. Lin, E. Eneva, R. Ghani, Early prediction of cardiac
+arrest (code blue) using electronic medical records, in: L. Cao, C. Zhang,
+T. Joachims, G.I. Webb, D.D. Margineantu, G. Williams (Eds.), Proceedings of the
+21th ACM SIGKDD International Conference on Knowledge Discovery and Data
+Mining, ACM, New York, NY, USA, 2015, pp. 2119–2126.
+B.W. Chee, R. Berlin, B. Schatz, Predicting adverse drug events from personal health
+messages, AMIA Annu. Symp. Proc. 2011 (2011) 217–226.
+S. Mukherjee, G. Weikum, C. Danescu-Niculescu-Mizil, People on drugs: credibility
+of user statements in health communities, in: S.A. Macskassy, C. Perlich,
+J. Leskovec, W. Wang, R. Ghani (Eds.), Proceedings of the 20th ACM SIGKDD
+International Conference on Knowledge Discovery and Data Mining, ACM, New
+York, NY, USA, 2014, pp. 65–74.
+A. Nikfarjam, A. Sarker, K. OConnor, R. Ginn, G. Gonzalez, Pharmacovigilance from
+social media: mining adverse drug reaction mentions using sequence labeling with
+word embedding cluster features, J. Am. Med. Inform. Assoc. 22 (3) (2015)
+671–681.
+A. Yates, N. Goharian, O. Frieder, Extracting adverse drug reactions from social
+media, in: B. Bonet, S. Koenig (Eds.), AAAI Conference on Artificial Intelligence,
+AAAI Press, Menlo Park, CA, 2015.
+L. Wu, T.-S. Moh, N. Khuri, Twitter opinion mining for adverse drug reactions, in:
+H.J.L.P.R.S.K.T. Ricardo Baeza-Yates, Goel Anil (Eds.), IEEE International
+Conference on Big Data (Big Data), IEEE, Washington, DC, USA, 2015, pp.
+1570–1574.
+C.C. Yang, H. Yang, L. Jiang, Postmarketing drug safety surveillance using publicly
+available health-consumer-contributed content in social media, ACM Trans.
+Manage. Inform. Syst. 5 (1) (2014) 2.
+A. Benton, L. Ungar, S. Hill, S. Hennessy, J. Mao, A. Chung, et al., Identifying potential adverse effects using the web: a new approach to medical hypothesis generation, J. Biomed. Inform. 44 (6) (2011) 989–996.
+J.J. Mao, A. Chung, A. Benton, S. Hill, L. Ungar, C.E. Leonard, et al., Online discussion of drug side effects and discontinuation among breast cancer survivors,
+Pharmacoepidemiol. Drug Saf. 22 (3) (2013) 256–262.
+M. Yang, X. Wang, M.Y. Kiang, Identification of consumer adverse drug reaction
+messages on social media. in: J. Lee, J. Mao, J.Y.L. Thong (Eds.), The Pacific Asia
+Conference on Information Systems, Association for Information Systems, Atlanta,
+GA, USA, 2013, p. 193.
+X. Liu, J. Liu, H. Chen, Identifying adverse drug events from health social media: a
+case study on heart disease discussion forums, in: X. Zheng, D. Zeng, H. Chen,
+Y. Zhang, C. Xing, D.B. Neill (Eds.), International Conference on Smart Health,
+Springer, Berlin, Heidelberg, Germany, 2014, pp. 25–36.
+A. Nikfarjam, G.H. Gonzalez, Pattern mining for extraction of mentions of adverse
+drug reactions from user comments, AMIA Annual Symposium Proceedings 2011
+(2011) 1019–1026.
+X. Liu, H. Chen, Azdrugminer: an information extraction system for mining patientreported adverse drug events in online patient forums, in: D. Zeng, C.C. Yang,
+V.S. Tseng, C. Xing, H. Chen, F. Wang, X. Zheng (Eds.), International Conference on
+Smart Health, Springer, Berlin, Heidelberg, Germany, 2013, pp. 134–150.
+H. Sampathkumar, X.-w. Chen, B. Luo, Mining adverse drug reactions from online
+healthcare forums using hidden Markov model, BMC Med. Inform. Decis. Making
+14 (1) (2014) 1.
+S. Wang, Y. Li, D. Ferguson, C. Zhai, Sideeffectptm: an unsupervised topic model to
+mine adverse drug reactions from health forums, in: P. Baldi, W. Wang (Eds.),
+Proceedings of the 5th ACM Conference on Bioinformatics, Computational Biology,
+and Health Informatics, ACM, New York, NY, USA, 2014, pp. 321–330.
+R. Feldman, O. Netzer, A. Peretz, B. Rosenfeld, Utilizing text mining on online
+medical forums to predict label change due to adverse drug reactions, in: L. Cao,
+C. Zhang, T. Joachims, G.I. Webb, D.D. Margineantu, G. Williams (Eds.),
+
+International Journal of Medical Informatics 120 (2018) 101–115
+
+T. Hoang et al.
+
+[23]
+[24]
+[25]
+[26]
+[27]
+[28]
+[29]
+
+[30]
+[31]
+[32]
+
+[33]
+[34]
+[35]
+[36]
+[37]
+
+[38]
+
+Proceedings of the 21th ACM SIGKDD International Conference on Knowledge
+Discovery and Data Mining, ACM, New York, NY, USA, 2015, pp. 1779–1788.
+H. Yang, C.C. Yang, Using health-consumer-contributed data to detect adverse drug
+reactions by association mining with temporal analysis, ACM Trans. Intell. Syst.
+Technol. 6 (4) (2015) 55.
+X. Liu, H. Chen, A research framework for pharmacovigilance in health social
+media: identification and evaluation of patient adverse drug event reports, J.
+Biomed. Inform. 58 (2015) 268–279.
+X. Liu, H. Chen, Identifying adverse drug events from patient social media: a case
+study for diabetes, IEEE Intell. Syst. 30 (3) (2015) 44–51.
+M. Yang, M. Kiang, W. Shang, Filtering big data from social media-building an early
+warning system for adverse drug reactions, J. Biomed. Inform. 54 (2015) 230–240.
+A. Sarker, G. Gonzalez, Portable automatic text classification for adverse drug reaction detection via multi-corpus training, J. Biomed. Inform. 53 (2015) 196–207.
+C.C. Freifeld, J.S. Brownstein, C.M. Menone, W. Bao, R. Filice, T. Kass-Hout, et al.,
+Digital drug safety surveillance: monitoring pharmaceutical products in twitter,
+Drug Saf. 37 (5) (2014) 343–350.
+K. Jiang, Y. Zheng, Mining twitter data for potential drug effects, in: H. Motoda,
+Z. Wu, L. Cao, O. Zaiane, M. Yao, W. Wang (Eds.), International Conference on
+Advanced Data Mining and Applications, Springer, Berlin, Heidelberg, Germany,
+2013, pp. 434–443.
+K. OConnor, P. Pimpalkhute, A. Nikfarjam, R. Ginn, K.L. Smith, G. Gonzalez,
+Pharmacovigilance on twitter? Mining tweets for adverse drug reactions 2014,
+(2014), p. 924.
+D. Adjeroh, R. Beal, A. Abbasi, W. Zheng, M. Abate, A. Ross, Signal fusion for social
+media analysis of adverse drug events, IEEE Intell. Syst. 29 (2) (2014) 74–80.
+S. Katragadda, H. Karnati, M. Pusala, V. Raghavan, R. Benton, Detecting adverse
+drug effects using link classification on twitter data, in: J. Huan, S. Miyano,
+A. Shehu, X.T. Hu, B. Ma, S. Rajasekaran, V.K. Gombar, M. Schapranow, I. Yoo,
+J. Zhou, B. Chen, V. Pai, B.G. Pierce (Eds.), IEEE International Conference on
+Bioinformatics and Biomedicine (BIBM), IEEE, Washington, DC, USA, 2015, pp.
+675–679.
+J.A. Berlin, S.C. Glasser, S.S. Ellenberg, Adverse event detection in drug development: recommendations and obligations beyond phase 3, Am. J. Public Health 98
+(8) (2008) 1366–1371.
+J. Zhao, A. Henriksson, M. Kvist, L. Asker, H. Boström, Handling Temporality of
+Clinical Events for Drug Safety Surveillance, (2015), p. 1371.
+T. Hoang, J. Liu, N. Pratt, V.W. Zheng, K.C. Chang, E. Roughead, J. Li, Detecting
+signals of detrimental prescribing cascades from social media, Artif. Intell. Med. 71
+(2016) 43–56.
+M. Kuhn, I. Letunic, L.J. Jensen, P. Bork, The sider database of drugs and side
+effects, Nucleic Acids Res. (2015) gkv1075.
+K. Gimpel, N. Schneider, B. O’Connor, D. Das, D. Mills, J. Eisenstein, et al., Part-ofspeech tagging for twitter: Annotation, features, and experiments, in: D. Lin,
+Y. Matsumoto, R. Mihalcea (Eds.), Proceedings of the 49th Annual Meeting of the
+Association for Computational Linguistics: Human Language Technologies: Short
+Papers - vol. 2, Association for Computational Linguistics, Stroudsburg, PA, USA,
+2011, pp. 42–47.
+K.C. Park, Y. Jeong, S.H. Myaeng, Detecting experiences from weblogs, in: J. Hajic,
+S. Carberry, S. Clark (Eds.), Proceedings of the 48th Annual Meeting of the
+Association for Computational Linguistics, Association for Computational
+Linguistics, Stroudsburg, PA, USA, 2010, pp. 1464–1472.
+
+[39] S. Li, C.-R. Huang, G. Zhou, S.Y.M. Lee, Employing personal/impersonal views in
+supervised and semi-supervised sentiment classification, in: J. Hajic, S. Carberry,
+S. Clark (Eds.), Proceedings of the 48th Annual Meeting of the Association for
+Computational Linguistics, Association for Computational Linguistics, Stroudsburg,
+PA, USA, 2010, pp. 414–423.
+[40] G.A. Miller, Wordnet: a lexical database for English, CACM 38 (11) (1995) 39–41.
+[41] K. Murphy, Machine Learning: A Probabilistic Perspective, Adaptive Computation
+and Machine Learning Series, MIT Press, Cambridge, MA, USA, 2012.
+[42] M. Evans, N. Hastings, B. Peacock, Statistical Distributions, Wiley Series in
+Probability and Statistics, John Wiley & Sons, Ltd., New Jersey, USA, 2000.
+[43] J. Han, J. Pei, M. Kamber, Data Mining: Concepts and Techniques, Elsevier,
+Amsterdam, Netherlands, 2011.
+[44] S. Vishwanathan, N.N. Schraudolph, M.W. Schmidt, K.P. Murphy, Accelerated
+training of conditional random fields with stochastic gradient methods, in:
+W.W. Cohen, A. Moore (Eds.), Proceedings of the 23rd International Conference on
+Machine Learning, ACM, New York, NY, USA, 2006, pp. 969–976.
+[45] C. Andrieu, N. De Freitas, A. Doucet, M.I. Jordan, An introduction to MCMC for
+machine learning, Mach. Learn. 50 (1-2) (2003) 5–43.
+[46] P.A. Routledge, Adverse Drug Reactions and Interactions: Mechanisms, Risk
+Factors, Detection, Management and Prevention, John Wiley & Sons, Ltd., New
+Jersey, USA, 2005, pp. 91–125.
+[47] J. Liu, A. Li, S. Seneff, Automatic drug side effect discovery from online patientsubmitted reviews: focus on statin drugs, in: U. Norbisrath (Ed.), Proceedings of
+First International Conference on Advances in Information Mining and
+Management, International Academy, Research, and Industry Association,
+Wilmington, Delaware, USA, 2011.
+[48] P. Mozzicato, Meddra: an overview of the medical dictionary for regulatory activities, Pharm. Med. 23 (2) (2009) 65–75.
+[49] K.M. Doing-Harris, Q. Zeng-Treitler, Computer-assisted update of a consumer health
+vocabulary through mining of social network data, J. Med. Internet Res. 13 (2)
+(2011) e37.
+[50] M.D. Smucker, J. Allan, B. Carterette, A comparison of statistical significance tests
+for information retrieval evaluation, in: M.J. Silva, A.H.F. Laender, R.A. BaezaYates, D.L. McGuinness, B. Olstad, Ø.H. Olsen, A.O. Falc ao (Eds.), Proceedings of
+the Sixteenth ACM Conference on Conference on Information and Knowledge
+Management, ACM, New York, NY, USA, 2007, pp. 623–632.
+[51] C.D. Manning, P. Raghavan, H. Schütze, Introduction to Information Retrieval vol.
+1, Cambridge University Press, New York, NY, USA, 2008.
+[52] F. Yates, Contingency tables involving small numbers and the χ2 test, Suppl. J. R.
+Stat. Soc. 1 (2) (1934) 217–235.
+[53] J.R. Landis, G.G. Koch, The measurement of observer agreement for categorical
+data, Biometrics 33 (1) (1977) 159–174.
+[54] R. Padwal, S.E. Straus, F.A. McAlister, Cardiovascular risk factors and their effects
+on the decision to treat hypertension: evidence based review, Br. Med. J. 322
+(7292) (2001) 977.
+[55] Y. Li, P.B. Ryan, Y. Wei, C. Friedman, A method to combine signals from spontaneous reporting systems and observational healthcare data to detect adverse drug
+reactions, Drug Saf. 38 (10) (2015) 895–908.
+[56] A.C. Pacurariu, S.M. Straus, G. Trifirò, M.J. Schuemie, R. Gini, R. Herings,
+G. Mazzaglia, G. Picelli, L. Scotti, L. Pedersen, et al., Useful interplay between
+spontaneous adr reports and electronic healthcare records in signal detection, Drug
+Saf. 38 (12) (2015) 1201–1210.
+
+115
+
+

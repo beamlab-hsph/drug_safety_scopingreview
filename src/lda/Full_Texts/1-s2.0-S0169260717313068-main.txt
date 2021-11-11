@@ -1,0 +1,1924 @@
+Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+Contents lists available at ScienceDirect
+
+Computer Methods and Programs in Biomedicine
+journal homepage: www.elsevier.com/locate/cmpb
+
+Supervised signal detection for adverse drug reactions in medication
+dispensing data
+Tao Hoang a,∗, Jixue Liu a, Elizabeth Roughead b, Nicole Pratt b, Jiuyong Li a
+a
+b
+
+School of Information Technology and Mathematical Sciences, University of South Australia, Mawson Lakes Boulevard, South Australia 5095, Australia
+School of Pharmacy and Medical Sciences, University of South Australia, City East Campus, North Terrace Adelaide, South Australia 5001, Australia
+
+a r t i c l e
+
+i n f o
+
+Article history:
+Received 24 October 2017
+Revised 12 March 2018
+Accepted 20 March 2018
+
+Keywords:
+Supervised machine learning
+Gradient boosting
+Drug
+Adverse event
+Signal detection
+Adverse drug reaction
+Medication dispensing data
+
+a b s t r a c t
+Motivation: Adverse drug reactions (ADRs) are one of the leading causes of morbidity and mortality and
+thus should be detected early to reduce consequences on health outcomes. Medication dispensing data
+are comprehensive sources of information about medicine uses that can be utilized for the signal detection of ADRs. Sequence symmetry analysis (SSA) has been employed in previous studies to detect signals
+of ADRs from medication dispensing data, but it has a moderate sensitivity and tends to miss some ADR
+signals. With successful applications in various areas, supervised machine learning (SML) methods are
+promising in detecting ADR signals. Gold standards of known ADRs and non- ADRs from previous studies
+create opportunities to take into account additional domain knowledge to improve ADR signal detection
+with SML.
+Objective: We assess the utility of SML as a signal detection tool for ADRs in medication dispensing
+data with the consideration of domain knowledge from DrugBank and MedDRA. We compare the best
+performing SML method with SSA.
+Methods: We model the ADR signal detection problem as a supervised machine learning problem by linking medication dispensing data with domain knowledge bases. Suspected ADR signals are extracted from
+the Australian Pharmaceutical Beneﬁt Scheme (PBS) medication dispensing data from 2013 to 2016. We
+construct predictive features for each signal candidate based on its occurrences in medication dispensing
+data as well as its pharmacological properties. Pharmaceutical knowledge bases including DrugBank and
+MedDRA are employed to provide pharmacological features for a signal candidate. Given a gold standard
+of known ADRs and non-ADRs, SML learns to differentiate between known ADRs and non-ADRs based
+on their combined predictive features from linked sources, and then predicts whether a new case is a
+potential ADR signal.
+Results: We evaluate the performance of six widely used SML methods with two gold standards of known
+ADRs and non-ADRs from previous studies. On average, gradient boosting classiﬁer achieves the sensitivity of 77%, speciﬁcity of 81%, positive predictive value of 76%, negative predictive value of 82%, area under
+precision-recall curve of 81%, and area under receiver operating characteristic curve of 82%, most of which
+are higher than in other SML methods. In particular, gradient boosting classiﬁer has 21% higher sensitivity than and comparable speciﬁcity with SSA. Furthermore, gradient boosting classiﬁer detects 10% more
+unknown potential ADR signals than SSA.
+Conclusions: Our study demonstrates that gradient boosting classiﬁer is a promising supervised signal
+detection tool for ADRs in medication dispensing data to complement SSA.
+© 2018 Elsevier B.V. All rights reserved.
+
+1. Introduction
+Adverse drug reactions (ADRs) are unpleasant or harmful effects associated with taking a medicine [1]. For instance, antiinﬂammation drugs such as ibuprofen have been known to be as-
+
+∗
+
+Corresponding author.
+E-mail address: tao.hoang@mymail.unisa.edu.au (T. Hoang).
+
+https://doi.org/10.1016/j.cmpb.2018.03.021
+0169-2607/© 2018 Elsevier B.V. All rights reserved.
+
+sociated with gastrointestinal bleeding (stomach ulcers) [2]. ADRs
+are among the top ﬁve causes of hospitalizations and deaths in
+the U.S., costing billions of dollars annually [3,4]. Therefore, ADRs
+should be detected early to minimize consequences on health and
+cost. Clinical trials, however, are unable to identify all possible
+ADRs due to limited population sizes [5]. Thus, post- marketing
+drug safety surveillance, or pharmacovigilance, is necessary to continue the detection of ADRs in larger populations. Pharmacovigilance has mainly relied on spontaneous reporting systems (SRSs),
+
+26
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+Table 1
+An example of the PBS medication dispensing dataset. (Note that this is for illustration only).
+Patient ID
+
+Transaction ID
+
+Drug
+
+ATC code
+
+Supply date
+
+1
+1
+1
+2
+2
+2
+3
+3
+
+1
+2
+3
+6
+7
+8
+10
+11
+
+tramadol
+aspirin
+candesartan
+aspirin
+candesartan
+metoclopramide
+lisinopril
+codeine
+
+N02AX02
+B01AC06
+C09CA06
+B01AC06
+C09CA06
+A03FA01
+C09AA03
+R05DA04
+
+21/03/2014
+21/03/2014
+17/04/2014
+14/02/2012
+06/03/2012
+08/04/2012
+09/01/2014
+13/02/2014
+
+e.g., U.S. Food and Drug Administration Adverse Event Reporting
+System. SRSs allow drug consumers, health professionals and pharmaceutical companies to report suspected ADRs. However, detecting ADRs from SRSs has several limitations. First, SRSs suffer from
+signiﬁcant under-reporting. In fact, approximately 90% of ADRs
+may not have been reported to SRSs [6]. Second, the passive nature of SRSs may lead to reporting bias [5,7].
+Given the limitations of SRSs, medication dispensing data have
+been utilized as a complementary source for ADR detection. Medication dispensing data contain all records of prescribed drugs with
+corresponding dates of supply generally collected for substantial
+populations, and thus are less likely to suffer from under-reporting
+or reporting bias [8]. An example of medication dispensing data is
+the Pharmaceutical Beneﬁt Scheme (PBS) dataset in Australia [9].
+Table 1 presents an example of the PBS dataset with three patients. While medication dispensing data do not usually include
+any record of health outcomes, drugs can be used as proxies for
+adverse events that they treat. For instance, the initiation of candesartan may indicate the treatment of emergent hypertension as
+an ADR whereas metoclopramide may indicate emergent nausea.
+Assuming that the time at which a drug is prescribed is close to
+the time the drug is taken by the patient, a patient’s sequence of
+prescriptions approximately reﬂects the temporal order that the
+patient takes these drugs. Thus, medication dispensing data can
+be utilized to gain insights into the temporal relationships between prescriptions for detecting signals of ADRs. A prescription
+sequence drug1 →drug2  may signal a potential adverse event indicated by drug2 and potentially induced by drug1 or it could be
+intended coadministration. For example, raloxifene→frusemide
+signals that raloxifene potentially induces oedema that is indicated
+by frusemide [10].
+SSA has been used previously as an ADR signal detection tool
+for medication dispensing data. The principle behind SSA is to
+identify the asymmetry in the sequence of ﬁrst prescriptions between two drugs within a time period [11,12]. The advantage of
+SSA is the consistent performance across different datasets [8,13].
+While SSA has been shown to be robust, it is subject to several
+limitations. First, SSA was found to have a moderate sensitivity for
+detecting ADRs [10], i.e., tends to miss some ADR signals. In addition, to date, SSA has been used mainly for case-by-case assessment, i.e., the input signal candidate has been ﬁltered and suspected to be potential ADR signal by medical experts [14]. The visual output of SSA allows domain experts to review the output and
+use their knowledge of drug indications, mechanism and onset of
+action and side effects to assess potential ADR signals [14]. The advent of extensive domain knowledge bases such as DrugBank and
+MedDRA provides the potential to automate the selection or ﬁltering of potential ADR signals based on prespeciﬁed domain attributes.
+With successful applications in various areas, supervised machine learning (SML) methods are promising in detecting ADR signals. In fact, SML has demonstrated effectiveness in many realword applications of healthcare, marketing, spam detection, etc.
+
+[15]. Available gold standards of known ADRs and non-ADRs from
+previous studies [10,16] create opportunities to take into account
+additional domain knowledge such as drug indications from DrugBank and MedDRA to improve ADR detection with SML. Known
+ADRs are adverse events listed in the product information leaﬂets
+of particular drugs [16] or have been detected in clinical trials [10].
+Non ADRs are those not listed in the product information of a
+drug and considered unlikely to be ADR signals by domain experts. Given a gold standard of known ADRs and non-ADRs, SML
+learns to differentiate between known ADRs and non-ADRs using
+their combined predictive features from linked sources, and then
+predicts whether a new case is a potential ADR signal.
+In this study, we investigate the utility of SML and domain
+knowledge bases in detecting signals of ADRs from medication dispensing data. We model the ADR signal detection problem as a supervised machine learning problem by linking medication dispensing data with domain knowledge bases. We utilize the PBS dataset
+that contains medication dispensing records of all patients subsidized by the Australian government from 2013 to 2016 [9]. Our
+objective is to identify all sequences of the form drug1 →drug2 
+that signal potential ADRs. We construct predictive features for
+each signal candidate based on the temporal relationships between
+drug1 and drug2 in the PBS dataset as well as their pharmacological properties. For instance, the number of patients with the
+ﬁrst prescription of drug2 K weeks after the ﬁrst prescription of
+drug1 was shown to be a useful temporal feature for ADR detection as its distribution over K tends to be similar for ADR signals
+[12]. Pharmacological features may also help improve the detection
+of ADRs by reducing spurious signals. For example, if drug1 and
+drug2 share many similar indications, this is likely to be coadministration or medication switching rather than a potential ADR signal. To utilize pharmacological features, we augment drugs in the
+PBS dataset with their pharmacological information from DrugBank
+[17] and MedDRA [18] via their anatomical therapeutic chemical
+(ATC) codes [19] and indication names.
+We evaluate the performance of six commonly used SML methods using two gold standards containing known ADRs and nonADRs [10,16] and one exploration set of known ADRs and unknown
+potential ADR signals [8]. While SML was employed in previous
+studies for ADR signal detection in the health improvement network (THIN) data [20,21], only random forests classiﬁer [22] was
+studied and the data contain records of both prescriptions and
+health outcomes instead of just prescriptions as in our case. To the
+best of our knowledge, the performance of SML has not been studied on medication dispensing data. We found that gradient boosting classiﬁer consistently outper- form SSA and other SML methods
+(i.e., logistic regression, decision tree, support vector machine, neural network, random forest) in most of the metrics across different gold standards. The average sensitivity, speciﬁcity, positive predictive values and negative predictive value, area under precisionrecall curve, and area under receiver operating characteristic curve
+of gradient boosting classiﬁer are 77%, 81%, 76%, 82%, 81%, and
+82% respectively. Particularly, gradient boosting classiﬁer has 21%
+higher sensitivity and comparable speciﬁcity with SSA. This suggests that gradient boosting classiﬁer can be employed as an ADR
+signal detection tool to complement SSA and other existing methods.
+2. Data
+2.1. Medication dispensing dataset
+We utilize the PBS medication dispensing dataset in Australia
+[9]. The data covers a random 10% sample of patients subsidized
+by the Australian government with their routinely updated records
+of prescribed drugs and corresponding dates of supply from 2013
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+Table 2
+Statistics of our PBS medication dispensing dataset.
+Statistics
+
+Value
+
+Total
+Total
+Total
+Total
+
+7,294,244
+1,807,159
+728
+4 years (Jan 2013–Dec 2016)
+
+number of prescription transactions
+number of patients
+number of drugs
+timespan of the data
+
+to 2016. An example of the dataset is shown in Table 1. Each patient has a set of transactions in ascending order of supply dates,
+i.e., from earliest to latest. Each transaction consists of a drug prescribed to a patient at a particular date of supply. Each drug is
+identiﬁed by a unique ATC code, e.g., C09CA06 for candesartan.
+For each drug prescribed to a patient, we only utilize its ﬁrst prescription transaction and ignore the subsequent non-ﬁrst transactions. To ensure all the drugs are newly prescribed, we also remove
+transactions with drugs dispensed between July 2012 and December 2012 as this was the start of the data and we were unable
+to distinguish new use from prevalent use in this period. Table 2
+summarizes the statistics of our PBS medication dispensing dataset
+after the preprocessing. The dataset contains 7,294,244 prescription transactions from 1,807,159 patients, constituting a total of 728
+unique drugs. In this study, we assume that the time at which a
+drug is prescribed to a patient is close to the time that drug is
+taken by the patient. As a result, a patient’s sequence of prescribed
+drugs approximately reﬂects the temporal order that the patient
+takes these drugs.
+2.2. Pharmacological knowledge bases
+To utilize pharmacological features in the signal detection of
+ADRs, we need to access the information regarding drug indications, i.e., the medical conditions that can be treated by a particular drug. Each drug in the medication dispensing data was integrated with Structured Indications from DrugBank [17] via its ATC
+code. Furthermore, we enriched the drug indications by linking
+Structured Indications to hierarchies in the medical dictionary for
+regulatory activities (MedDRA) 19.0 [18]. In particular, each indication in structured indications was mapped to lowest level terms
+(LLTs), preferred terms (PTs), high level terms (HLTs), and high level
+group terms (HLGTs) in MedDRA. If there is an exact match between an indication’s name (e.g., coughing) and a term in LLTs or
+PTs, the indication was ﬁrstly linked to the LLT term or PT term.
+Since each LLT term or PT term has corresponding terms in LLT,
+PTs, HLTs, and HLGTs, the indication is also linked to terms in all
+levels of MedDRA.
+2.3. ADR gold standards
+We evaluate our methods using two gold standards extracted
+from previous studies. The details of the gold standards are summarized in Table 3. The ﬁrst gold standard, named Wahab13, consists of 67 known ADRs and 83 non-ADRs [10]. The details of Wahab13 can be found in the Appendix 2 and Appendix 3 of Wahab
+et al [10]. Known ADRs refer to those adverse events of particular medicines that were identiﬁed in randomized controlled trials.
+Non ADRs are those not listed in the product information leaﬂet of
+a medicine and any other medicine in the same therapeutic class
+and considered unlikely to be ADR signals by domain experts. Wahab13 can be used to both train and test SMLs. The second gold
+standard, Harpaz14, contains 58 known ADRs and 65 non-ADRs
+[16]. Similar to Wahab13, Harpaz14 is usable for both training and
+testing. The details of Harpaz14 can be found in the supplementary
+material of Harpaz et al. [16].
+
+27
+
+We choose Harpaz14 and Wahab13 for evaluation for three reasons. First, they are the two most recently published studies that
+include gold standards for known ADRs and non-ADRs. Second,
+the drugs in Wahab13 and Harpaz14 are diverse. Wahab13 covers
+drugs with high usage volume in Australia [10], while Harpaz14
+contains diverse drugs of multiple types from the US Food and
+Drug Administration [16]. Lastly, the natures of known ADRs in
+Wahab13 and Harpaz14 are different. Known ADRs in Wahab13 are
+retrieved from randomized controlled trials, whereas known ADRs
+in Harpaz14 are listed in product labels of the US Food and Drug
+Administration. The differences between two datasets allow us to
+test the generalizability of our methods.
+Besides the two gold standards, we also utilize an exploration
+set, Wahab16, to assess the ability of our methods in picking up
+unknown potential ADR signals. Wahab16 contains 41 known ADRs
+listed in the medicine product information leaﬂets and 65 unknown potential ADR signals [8]. Unknown potential ADRs are neither known ADRs nor non-ADRs. Unlike Wahab13 and Harpaz14,
+Wahab16 is used only for testing and exploration. All the known
+ADRs, non-ADRs and unknown potential ADR signals are encoded
+into the form drug1 →drug2  by domain experts to be compatible
+with the medication dispensing dataset.
+3. Methods
+3.1. Overview
+Fig. 1 presents the workﬂow of our approach. Since the medication dispensing dataset does not contain any record of adverse
+event or health outcome, drugs are used as proxies for adverse
+events that they treat. Given the medication dispensing dataset,
+our main goal is to identify a set of sequences of the form drug1
+→drug2  that signal potential ADRs. Particularly, the adverse event
+is indicated by drug2 and potentially induced by drug1 . Our signal
+detection process consists of two main steps. First, we extracted all
+the sequences d1 → d2  from the medication dispensing dataset
+such that for each of them, the drug d2 occurs within the TADR time
+period after the drug d1 in at least one patient. We set TADR = 1
+year by default as it has been shown to be an appropriate time
+period for ADR signal detection in previous studies [8,10,23]. We
+showed empirically that one-year time period is the best option
+in the Results section. After the extraction of sequences, we computed the values of heterogeneous features for each sequence. The
+details of features will be discussed in a subsequent section. Given
+the sequences and their features, we employed a supervised ADR
+classiﬁer (i.e., SML) to predict whether each sequence is a potential
+ADR signal. Lastly, we excluded signals that are known ADRs and
+retain unknown potential ADR signals for experts’ further investigation.
+The core of our approach is the supervised ADR classiﬁer. We
+utilized the gold standards containing known ADRs and non-ADRs
+(i.e., Wahab13 and Harpaz14) to build the ADR classiﬁer. Each gold
+standard was split into two parts. One part of the gold standard
+was used to train the classiﬁer and the remaining part to test the
+performance of the trained classiﬁer. The split was repeated multiple times to reduce the variance in the performance, which is referred to as cross validation [15]. Before the training and testing
+steps, the features of sequences were computed in a similar way
+as in the signal detection process. The following section describes
+the supervised ADR classiﬁer in more detail, while the Results section presents its performance.
+3.2. Supervised ADR classiﬁers
+In this section, we describe the principles behind using SML to
+predict potential ADR signals. Suppose we have a training set of N
+
+28
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+Table 3
+Statistics of our gold standards.
+Gold standard
+
+Number of drug1 →drug2 indicating known ADRs
+
+Number of drug1 →drug2 indicating non-ADRs
+
+Wahab13 [10]
+Harpaz14 [16]
+
+67
+58
+
+83
+65
+
+Signal Detection Process
+
+Classifier Building Process
+
+Medication Dispensing Data
+
+Medication Dispensing Data
+
+Patient ID Drug ATC Code Dispensing Date
+
+Patient ID Drug ATC Code Dispensing Date
+
+…
+
+…
+
+…
+
+…
+
+…
+
+…
+
+…
+
+Extracting d1 -> d2 sequences
+
+Reference Set
+
+…
+
+d 1 -> d 2
+
+Computing d1 -> d2 features
+
+…
+
+…
+
+…
+
+…
+
+Feature K
+
+…
+
+…
+
+Sequence …
+d 1 -> d 2
+
+Supervised
+ADR
+Classifier
+
+Predicting ADR signals
+
+…
+
+…
+
+…
+
+Training Set
+
+Label
+
+… Known ADR
+
+Sequence …
+d 1 -> d 2
+
+Label
+
+… Known ADR
+
+Training Algorithm
+
+Sequence Feature 1 … Feature K Prediction
+d 1 -> d 2
+
+Label
+Known ADR
+
+Splitting data
+Testing Set
+
+…
+
+Known ADR
+
+Sequence Feature 1 … Feature K
+
+d 1 -> d 2
+
+d 1 -> d 2
+
+Label
+
+d 1 -> d 2
+
+Computing d1 -> d2 features
+
+Sequence
+
+Sequence Feature 1
+
+Sequence
+
+ADR Classifier
+
+ADR
+
+Testing classifier
+Excluding known ADRs
+Performance
+Unknown potential ADR signals
+Fig. 1. The workﬂow of our approach.
+
+observations {(x1 ,y1 ),…, (xN ,yN )} where xi is the feature vector of
+the i-th sequence d1(i ) → d2(i )  and yi ∈ {0, 1} indicates whether
+
+d1(i) → d2(i)  is a known ADR or non-ADR. The goal of classiﬁer
+
+learning is to ﬁnd the best estimate of the prediction function fˆ (x)
+mapping an input feature vector x to the binary output y by minimizing the expectation of some loss function L(y, f (x)) over the
+join distribution of {xi ,yi }N i = 1 [15,24] (training phase).
+
+fˆ(x ) = argmin Ey,x L(y, f (x ) )
+f (x )
+
+(1)
+
+The prediction function f (x) combines values of features in a
+particular way. Different classiﬁers have different forms of f (x).
+The estimated function fˆ (x) can be used to predict y on observations where only the feature vectors x are available (testing phase).
+In this study, we compared the performance of six widely used
+classiﬁers in detecting signals of ADRs: logistic regression [25], decision tree [26], support vector machine [27], neural network [28],
+random forests [22], and gradient boosting [29,30]. We employed
+the Scikit-learn library [31] in Python to provide the implementations for all the classiﬁers. In the following, we brieﬂy describe
+each classiﬁer and its best conﬁguration in our study.
+• Logistic regression: logistic regression classiﬁer is one of the
+most widely used classiﬁcation methods. Logistic regression
+classiﬁer utilizes logistic function as the prediction function f
+(x) to linearly combine features for prediction.
+• Decision tree: decision tree classiﬁer uses the tree structure to
+represent the prediction function f (x) for decision making. Each
+internal node in the tree indicates a test on the value of a feature while each outgoing branch from the node indicates the
+
+outcome of the test. Each leaf node tells whether the preceding path of feature tests indicates a potential ADR signal or not.
+The idea of constructing a decision tree is to iteratively select
+an unused feature whose values best split the sub-dataset in a
+path into two classes based on certain criterion. In this study,
+we use the Gini impurity criterion [32] to select the feature at
+each node.
+• Support vector machine: support vector machine classiﬁer represents known ADRs and non-ADRs as points in space according
+to their feature values. The idea of support vector machine is to
+identify fˆ (x) that well separates known ADRs from non-ADRs
+in space. Support vector machine can be categorized into linear
+support vector machine and non-linear support vector machine.
+In this study, we utilize linear support vector machine.
+• Neural network: neural network classiﬁer is a classiﬁcation
+method whose structure f (x) contains layers of neurons. There
+are three types of layers: input layer, hidden layer, and output layer. There is one input layer containing all the features
+for ADR classiﬁcation. There is one output layer that holds the
+value of prediction function fˆ (x). Between input and output
+layer are zero or multiple hidden layers. There are one or multiple neurons in each hidden layer. Features and the output are
+special types of neurons. For our study, we only consider feedforward neural network [33], in which a neuron in each layer
+is connected to neurons in the next layer. Information from the
+input layer is propagated through the hidden layers to the output layer. Each neuron is the output of an activation function
+taking the weighted linear summation of neuron values in the
+previous layer as input. Various activation functions including
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+identity function, logistic function, etc. have been utilized. Here
+we use 1 hidden layer with 100 neurons and rectiﬁed linear
+unit function as the activation function.
+• Random forests: random forests classiﬁer is an ensemble
+method that combines multiple ADR decision tree classiﬁers.
+The intuition is to obtain a strong ADR classiﬁer out of many
+weak ADR classiﬁers. Each ADR decision tree classiﬁer in random forests is trained using a different subset of training data
+that are randomly sampled with replacement. Random forests
+classiﬁer then outputs the prediction that has the most votes
+based on all the ADR decision tree classiﬁers. We empirically
+build the ADR random forests classiﬁer with 100 ADR decision
+tree classiﬁers. Each ADR decision tree classiﬁer uses the Gini
+impurity criterion to select the feature at each node.
+• Gradient boosting: gradient boosting classiﬁer is another ensemble classiﬁer with similar intuition as random forests classiﬁer. Gradient boosting aggregates many weak ADR classiﬁers
+into a strong ADR classiﬁer. Gradient boosting begins with
+learning a base weak ADR classiﬁer and then iteratively learning additional weak classiﬁers that focus on observations difﬁcult to predict in previous iterations. Different from random
+forests classiﬁer, a weak ADR classiﬁer in gradient boosting
+classiﬁer can be any supervised machine learning classiﬁer such
+as logistic regression, decision tree, etc. [15], which alone does
+not achieve high predictive per- formance. Another fundamental difference between gradient boosting classiﬁer and random
+forests classiﬁer is that gradient boosting classiﬁer focuses on
+speciﬁc diﬃcult-to-predict observations after each iteration instead of randomly sampled observations as in random forests
+classiﬁers. In this study, we empirically utilize 10 0 0 decision
+tree classiﬁers as weak ADR classiﬁers. Since gradient boosting
+classiﬁer achieves the best ADR prediction performance as we
+shall see in the Results section, we describe more details about
+gradient boosting classiﬁer in the Appendix.
+3.3. Sequence features
+We now describe the features based on which each sequence
+
+d1 → d2  is classiﬁed as whether it signals an ADR. The features
+are categorized into three groups: (1) statistic features, (2) groupbased statistic features, and (3) pharmacological features.
+3.3.1. Statistic features
+This group of features captures the prevalence of different conﬁgurations of the sequence in the medication dis- pensing dataset.
+• Sequence support: the number of patients to whom the ﬁrst
+prescription of d2 occurs within TADR = 1 year after the ﬁrst prescription of d1 .
+• Reverse sequence support: the number of patients to whom the
+ﬁrst prescription of d1 occurs within TADR = 1 year after the ﬁrst
+prescription of d2 .
+• d1 ’s support: the number of patients to whom d1 was prescribed.
+• d2 ’s support: the number of patients to whom d2 was prescribed.
+• 1st-week sequence support: the number of patients to whom
+the ﬁrst prescription of d2 occurs in the 1st week after the ﬁrst
+prescription of d1 .
+• 2nd-week sequence support: the number of patients to whom
+the ﬁrst prescription of d2 occurs in the 2nd week after the ﬁrst
+prescription of d1 .
+• …
+• 52nd-week sequence support: the number of patients to whom
+the ﬁrst prescription of d2 occurs in the 52nd week after the
+ﬁrst prescription of d1 .
+
+29
+
+• 1st-week reverse sequence support: the number of patients to
+whom the ﬁrst prescription of d1 occurs in the 1st week after
+the ﬁrst prescription of d2 .
+• 2nd-week reverse sequence support: the number of patients to
+whom the ﬁrst prescription of d1 occurs in the 2nd week after
+the ﬁrst prescription of d2 .
+• …
+• 52nd-week reverse sequence support: the number of patients
+to whom the ﬁrst prescription of d1 occurs in the 52nd week
+after the ﬁrst prescription of d2 .
+Note that the features were computed up to the 52nd week as
+one year corresponds to 52 weeks. When TADR changes, the number of features also changes accordingly. For instance, if TADR = 9
+months then the features are up to 39 weeks.
+3.3.2. Group-based statistic features
+Some drugs are so rarely prescribed in the medication dispensing dataset that it is diﬃcult to pick up ADR signals associated with them. For instance, betaxolol was prescribed to only
+243 patients and the sequence support of betaxolol→frusemide
+is only 7. While betaxolol→frusemide signals a known ADR
+betaxolol→oedema [8], it is not detected by SSA due to the lack
+of data. To alleviate the data rarity, we utilized additional features
+related to groups of drugs. Drugs having the same ATC fourth level
+(i.e., ﬁrst ﬁve letters) belong to the same chemical subgroup and
+thus share many essential properties [19]. Let D1 and D2 represent the groups of drugs having the same ATC fourth levels with d1
+and d2 respectively. Statistic features of D1 → D2  might be helpful for detecting d1 → d2 . The group of drugs having the same
+ATC fourth level with betaxolol has the support of 11,523 patients.
+• Group-based sequence support: the number of patients to
+whom the ﬁrst prescription of D2 occurs within TADR = 1 year
+after the ﬁrst prescription of D1 .
+• Group-based reverse sequence support: the number of patients
+to whom the ﬁrst prescription of D1 occurs within TADR = 1 year
+after the ﬁrst prescription of D2 .
+• D1 ’s support: the number of patients to whom D1 was prescribed.
+• D2 ’s support: the number of patients to whom D2 was prescribed.
+• Group-based 1st-week sequence support: the number of patients to whom the ﬁrst prescription of D2 occurs in the 1st
+week after the ﬁrst prescription of D1 .
+• Group-based 2nd-week sequence support: the number of patients to whom the ﬁrst prescription of D2 occurs in the 2nd
+week after the ﬁrst prescription of D1 .
+• …
+• Group-based 52nd-week sequence support: the number of patients to whom the ﬁrst prescription of D2 occurs in the 52nd
+week after the ﬁrst prescription of D1 .
+• Group-based 1st-week reverse sequence support: the number
+of patients to whom the ﬁrst prescription of D1
+• occurs in the 1st week after the ﬁrst prescription of D2 .
+• Group-based 2nd-week reverse sequence support: the number
+of patients to whom the ﬁrst prescription of
+• D1 occurs in the 2nd week after the ﬁrst prescription of D2 .
+• …
+• Group-based 52nd-week reverse sequence support: the number
+of patients to whom the ﬁrst prescription of
+• D1 occurs in the 52nd week after the ﬁrst prescription of D2 .
+3.3.3. Pharmacological features
+This group of features helps identify sequences that are likely
+to represent coadministration or medication switching rather than
+
+30
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+potential ADR signals. If d1 → d2  is coadministration or medication switching, d1 and d2 tend to share similar indications or overlaps in preﬁxes of ATC codes. We employed DrugBank [17] to provide the indica- tions for each drug in the medication dispensing data. We also utilized hierarchy-based indications in MedDRA
+[18] as discussed in the Data section.
+• Overlapping ATC preﬁxes: the number of preﬁxes shared by d1
+and d2 in their ATC codes.
+• Overlapping DrugBank indications: the number of DrugBank indications shared by d1 and d2 .
+• Overlapping MedDRA LLT indications: the number of MedDRA
+lowest level terms shared by d1 and d2 .
+• Overlapping MedDRA PT indications: the number of MedDRA
+preferred terms shared by d1 and d2 .
+• Overlapping MedDRA HLT indications: the number of MedDRA
+high level terms shared by d1 and d2 .
+• Overlapping MedDRA HLGT indications: the number of MedDRA high level group terms shared by d1 and d2 .
+3.4. Evaluation measures for ADR classiﬁers
+We evaluated the performance of supervised ADR classiﬁers using sensitivity, speciﬁcity, positive predictive value, and negative
+predictive value [10]. Sensitivity measures the proportion of known
+ADRs in the gold standard that are predicted as potential ADR signals by the classiﬁer. Speciﬁcity is the proportion of non-ADRs in
+the gold standard that are not predicted as potential ADR signals
+by the classiﬁer. Positive predictive value measures the proportion
+of ADR signals predicted as potential ADR signals by the classiﬁer
+that are actually known ADRs in the gold standard. Negative predictive value is the proportion of ADR signals not predicted as potential ADR signals by the classiﬁer that are actually non-ADRs in
+the gold standard. All four measures are important to evaluate the
+methods. While sensitivity and speciﬁcity measure how well the
+methods correctly detect known ADRs and non-ADRs in the gold
+standard, positive predictive value and negative predictive value
+measure the ability of the methods in predicting whether a pair
+is a potential unknown ADR or spurious. These four measures have
+been used in previous studies on ADR signal detection such as Wahab et al [10].
+Furthermore, we utilized the receiver operating characteristic
+curve (ROC curve) and the precision-recall curve (PR curve) to
+compare different classiﬁers. Each SML classiﬁer predicts an ADR
+with a probability, and the most intuitive and widely used probability threshold to determine whether a sequence is a potential
+ADR signal is 0.5. ROC curve is generated by plotting the sensitivity against 1-speciﬁcity at different probability thresholds of the
+classiﬁer (e.g., 0, 0.01, 0.02, . . . , 1). PR curve is created by plotting the precision (i.e., positive predictive value) against the recall
+(i.e., sensitivity) at different thresholds. The area under ROC curve
+(ROC–AUC) indicates the balance between sensitivity and speciﬁcity, while the area under PR curve (PR–AUC) the balance between precision and recall. These two curves have been intensively
+utilized for evaluating classiﬁcation models [34].
+3.5. SSA–baseline ADR signal detection tool
+We compared the performance of SML methods with SSA, a
+current ADR signal detection tool in medication dispensing data
+[10–12,35–55]. Petri et al. was the ﬁrst to introduce SSA in 1988
+[11]. Hallas then conceptualized SSA to test the association between cardiovascular medications and depression in 1996 [12]. The
+principle behind SSA is to identify the asymmetry in the sequence
+of ﬁrst prescriptions between two drugs d1 and d2 within a time
+period TADR . If d1 induces the prescription of d2 as a result of
+
+an ADR, patients with the ﬁrst prescription of d1 before the ﬁrst
+prescription of d2 are expected to outnumber patients for whom
+d2 are ﬁrstly prescribed before d1 are ﬁrstly prescribed. As a result, the crude sequence ratio was deﬁned as the ratio between
+the number of patients with d1 → d2  and the number of patients
+with d2 → d1  [12]. The crude sequence ratio could be utilized as
+an estimate of the incident rate ratio of the ADR when d1 is exposed versus when d1 is not exposed [12,14]. While the crude sequence ratio is not affected by confounders that are stable over
+time, it is sensitive to changes in prescription trends [13]. For instance, if the use of d2 increases due to changes in reimbursement, the number of patients with d1 → d2  rises. In this case,
+the crude sequence ratio overestimates the true incident rate ratio and may be biased [14]. To eliminate this bias, Hallas proposed
+to divide the crude sequence ratio by the null-effect sequence ratio
+that captures the prescription trends in the background population
+[12]. The null-effect sequence ratio is computed as the expected
+sequence ratio of d2 being ﬁrstly prescribed after d1 is ﬁrstly prescribed if d1 and d2 are independent. Tsiropoulos et al. later modiﬁed the null-effect sequence ratio to restrict the time period between the ﬁrst prescriptions of d1 and d2 [35]. Thus, the adjusted
+sequence ratio was deﬁned as the ratio between crude sequence
+ratio and null-effect sequence ratio. SSA relies on the adjusted sequence ratio to predict potential ADR signals. If the 95% conﬁdence
+interval lower limit of the adjusted sequence ratio exceeds one,
+d1 → d2  is considered a potential ADR signal. The advantage of
+SSA is its consistent performance across different datasets [8,13].
+4. Results
+4.1. Validation against known ADRs and non-ADRs
+In this section, we compare the performances of six supervised
+ADR classiﬁers upon detecting known ADRs and non-ADRs in the
+gold standards Wahab13 and Harpaz14. First, we describe the validation setting. Then we study the effect of varying the probability
+thresholds, time periods TADR and the set of features.
+4.1.1. Validation settings
+We designed the following four settings to validate the performances of supervised ADR classiﬁers in this study:
+• Wahab13 (Cross Validation): the gold standard Wahab13 is split
+into a training set (75%) and a testing set (25%). The performances of each ADR classiﬁer are averaged over 100 random
+splits.
+• Harpaz14 (Cross Validation): the gold standard Harpaz14 is split
+into a training set (75%) and a testing set (25%). The performances of each ADR classiﬁer are averaged over 100 random
+splits.
+• Wahab13 (Train) + Harpaz14 (Test): each ADR classiﬁer is
+trained using Wahab13 and tested with Harpaz14.
+• Harpaz14 (Train) + Wahab13 (Test): each ADR classiﬁer is
+trained using Harpaz14 and tested with Wahab13.
+4.1.2. The performances of supervised ADR classiﬁers in validation
+Table 4 presents the performances of six supervised ADR classiﬁers and SSA in terms of sensitivity, speciﬁcity, positive predictive
+value and negative predictive value under various validation settings. Figs. 2 and 3 show the PR curves and ROC curves with corresponding AUCs for different supervised ADR classiﬁers. Overall,
+gradient boosting classiﬁer achieves the sensitivity of 77%, speciﬁcity of 81%, positive predictive value of 76%, negative predictive
+value of 82%, PR-AUC of 81%, and ROC-AUC of 82%, most of which
+are highest among other supervised ADR classiﬁers and SSA across
+different settings. In comparison with SSA, gradient boosting classiﬁer improves the sensitivity by 21%, speciﬁcity by 3%, positive
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+31
+
+Table 4
+Performances of supervised ADR classiﬁers and SSA in validation.
+Setting
+
+Method
+
+Sensitivity
+
+Speciﬁcity
+
+Positive predictive value
+
+Negative predictive value
+
+Wahab13 (Cross validation)
+
+Logistic regression
+Decision tree
+Support vector machine
+Neural network
+Random forests
+Gradient boosting
+Logistic regression
+Decision tree
+Support vector machine
+Neural network
+Random forests
+Gradient boosting
+Logistic regression
+Decision tree
+Support vector machine
+Neural network
+Random forests
+Gradient boosting
+Logistic regression
+Decision tree
+Support vector machine
+Neural network
+Random forests
+Gradient boosting
+SSA
+
+66%
+71%
+56%
+64%
+66%
+84%
+73%
+74%
+53%
+49%
+68%
+77%
+51%
+74%
+67%
+70%
+44%
+76%
+59%
+48%
+67%
+52%
+49%
+70%
+64%
+47%
+62%
+67%
+61%
+59%
+57%
+77%
+56%
+
+78%
+79%
+60%
+50%
+90%
+87%
+72%
+70%
+49%
+48%
+82%
+80%
+63%
+54%
+41%
+24%
+80%
+75%
+73%
+63%
+20%
+69%
+89%
+80%
+75%
+80%
+72%
+67%
+43%
+48%
+85%
+81%
+78%
+
+72%
+74%
+59%
+52%
+85%
+85%
+74%
+72%
+51%
+44%
+80%
+81%
+59%
+63%
+55%
+49%
+70%
+65%
+64%
+51%
+41%
+58%
+79%
+72%
+68%
+61%
+67%
+65%
+52%
+51%
+79%
+76%
+65%
+
+74%
+78%
+59%
+62%
+77%
+87%
+74%
+74%
+51%
+49%
+72%
+79%
+55%
+67%
+55%
+43%
+58%
+83%
+69%
+59%
+43%
+64%
+68%
+79%
+72%
+71%
+68%
+70%
+52%
+55%
+69%
+82%
+72%
+
+Harpaz14 (Cross validation)
+
+Wahab13 (Train) + Harpaz14 (Test)
+
+Harpaz14 (Train) + Wahab13 (Test)
+
+Wahab13 (Test)
+Harpaz14 (Test)
+Average
+
+Logistic regression
+Decision tree
+Support vector machine
+Neural network
+Random forests
+Gradient boosting
+SSA
+
+predictive value by 11%, and negative predictive value by 10% on
+average. This shows that gradient boosting classiﬁer is able to detect additional potential ADR signals that might be unobserved by
+SSA without picking up more spurious signals. While the same
+gold standard Wahab13 is used in Wahab et al. [10] and in this paper, the performance of SSA is different for two reasons. First, the
+periods of medication dispensing data are different. Wahab et al.
+[10] used the records between 20 0 0 and 2010, whereas we used
+the records between 2013 and 2016. Second, Wahab et al. [10] utilized hospitalization records in addition to medication dispensing
+records as in our case.
+In addition, we observe that gradient boosting classiﬁer consistently outperforms all other supervised ADR classi- ﬁers except
+random forests classiﬁer in all six measures. Compared to random
+forests classiﬁer, on average, gradient boosting classiﬁer has 20%
+higher sensitivity, 13% higher negative predictive value, 5% higher
+PR-AUC, and 4% higher ROC–AUC, but 4% lower speciﬁcity and
+3% lower positive predictive value. The slight trade-offs in speciﬁcity and positive predictive value allows gradient boosting classiﬁer to detect more potential ADR signals than RF classi- ﬁer,
+which result in much higher sensitivity and negative predictive
+value. Figs. 2 and 3 also demonstrated that gradient boosting classiﬁer outperforms random forests classiﬁer and other supervised
+ADR classiﬁers under dif- ferent probability thresholds. These results show that gradient boosting classiﬁer is a promising ADR signal detection tool in medication dispensing data. Furthermore, in
+real-world applications, a supervised ADR classiﬁer would al- ways
+be trained on one gold standard but used to detect unknown ADR
+signals, which are completely different from those on which it is
+trained. Thus, the encouraging performance of gradient boosting
+classiﬁer when training on one gold standard and testing on another reﬂects its likely real-world applicability.
+
+4.1.3. The effect of different probability thresholds
+Table 5 presents the performance of gradient boosting classiﬁer under different probability thresholds from 0.5 to 0.9. As the
+threshold increases, the sensitivity decreases and the speciﬁcity increases consistently. This is because fewer sequences are classiﬁed
+as potential ADR signals with higher thresholds. Thus, the number
+of true positives either remains unchanged or decreases, making
+the sensitivity unchanged or decrease. Likewise, as the number of
+false positives is either the same or reduced, the number of true
+negatives stays still or rises, and so is the speciﬁcity. In addition,
+we observe that the positive predictive value rises while the negative predictive value drops as the threshold increases. This demonstrates that higher thresholds can eliminate many false positives
+but at the same time introduce many false negatives. Furthermore,
+the results show that gradient boosting classiﬁer still outperforms
+SSA on average under higher thresholds. For instance, when the
+threshold is 0.9, the gradient boosting classiﬁer achieves the sensitivity of 64%, speciﬁcity of 87%, positive predictive value of 79%,
+and negative predictive value of 76%, which is higher than SSA
+with sensitivity of 56%, speciﬁcity of 78%, positive predictive value
+of 65%, and negative predictive value of 72%.
+4.1.4. The effect of time period TADR
+Table 6 demonstrates how the performance of gradient boosting classiﬁer changes when the time period TADR varies from
+12 months to 3 months. The results show that gradient boosting classiﬁer obtains the best balance between sensitivity, speciﬁcity, positive predictive value, and negative predictive value when
+TADR = 12 months across different settings. On average, gradient boosting classiﬁer also achieves the best performance when
+TADR = 12 months. In addition, as the time period TADR decreases,
+the sensitivity of the method also drops in each setting. This is
+because fewer sequences are extracted from the medication dis-
+
+32
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+Average PR-AUC
+
+Logistic
+regression
+
+Decision tree
+
+Support vector
+machine
+
+Neural network
+
+Random
+forests
+
+Gradient
+boosting
+
+72%
+
+68%
+
+57%
+
+65%
+
+76%
+
+81%
+
+Fig. 2. Precision-recall curves for all validation settings.
+
+Table 5
+Performance of gradient boosting classiﬁer under different probability thresholds.
+Setting
+
+Probability threshold
+
+Negative
+
+Speciﬁcity
+
+Positive predictive value
+
+Negative predictive value
+
+Wahab13 (Cross validation)
+
+0.5
+0.6
+0.7
+0.8
+0.9
+0.5
+0.6
+0.7
+0.8
+0.9
+0.5
+0.6
+0.7
+0.8
+0.9
+0.5
+0.6
+0.7
+0.8
+0.9
+0.5
+0.6
+0.7
+0.8
+0.9
+
+84%
+82%
+81%
+80%
+78%
+77%
+76%
+75%
+74%
+72%
+76%
+75%
+71%
+71%
+61%
+70%
+63%
+55%
+51%
+45%
+77%
+74%
+71%
+69%
+64%
+
+87%
+88%
+89%
+91%
+91%
+80%
+81%
+81%
+82%
+86%
+75%
+76%
+76%
+78%
+82%
+80%
+80%
+82%
+83%
+88%
+81%
+81%
+82%
+84%
+87%
+
+85%
+86%
+86%
+88%
+89%
+81%
+81%
+82%
+82%
+85%
+65%
+66%
+66%
+66%
+68%
+72%
+72%
+72%
+73%
+75%
+76%
+76%
+77%
+77%
+79%
+
+87%
+86%
+86%
+86%
+84%
+79%
+79%
+77%
+77%
+76%
+83%
+82%
+81%
+81%
+77%
+79%
+73%
+70%
+68%
+67%
+82%
+80%
+79%
+78%
+76%
+
+Harpaz14 (Cross validation)
+
+Wahab13 (Train) + Harpaz14 (Test)
+
+Harpaz14 (Train) + Wahab13 (Test)
+
+Average
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+Average PR-AUC
+
+33
+
+Logistic
+regression
+
+Decision tree
+
+Support vector
+machine
+
+Neural network
+
+Random
+forests
+
+Gradient
+boosting
+
+72%
+
+70%
+
+55%
+
+53%
+
+78%
+
+82%
+
+Fig. 3. Receiver operating characteristic curves for all validation settings.
+
+Table 6
+Performance of gradient boosting classiﬁer across different time period T ADR.
+Setting
+
+TADR (months)
+
+Sensitivity
+
+Speciﬁcity
+
+Positive predictive value
+
+Negative predictive value
+
+Wahab13 (Cross validation)
+
+12
+9
+6
+3
+12
+9
+6
+3
+12
+9
+6
+3
+12
+9
+6
+3
+12
+9
+6
+3
+
+84%
+83%
+82%
+82%
+77%
+20%
+19%
+17%
+76%
+40%
+35%
+33%
+70%
+65%
+61%
+61%
+77%
+52%
+49%
+48%
+
+87%
+87%
+88%
+88%
+80%
+80%
+81%
+83%
+75%
+66%
+66%
+71%
+80%
+77%
+64%
+65%
+81%
+78%
+75%
+77%
+
+85%
+85%
+85%
+86%
+81%
+47%
+47%
+48%
+65%
+55%
+52%
+54%
+72%
+70%
+58%
+59%
+76%
+64%
+61%
+62%
+
+87%
+86%
+86%
+86%
+79%
+49%
+49%
+50%
+83%
+51%
+49%
+50%
+79%
+73%
+67%
+67%
+82%
+65%
+63%
+63%
+
+Harpaz14 (Cross validation)
+
+Wahab13 (Train) + Harpaz14 (Test)
+
+Harpaz14 (Train) + Wahab13 (Test)
+
+Average
+
+34
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+Table 7
+Performance of gradient boosting classiﬁer for different features.
+Setting
+
+Features
+
+Sensitivity
+
+Speciﬁcity
+
+Positive predictive value
+
+Negative predictive value
+
+Wahab13 (Cross validation)
+
+All
+No
+No
+No
+All
+No
+No
+No
+All
+No
+No
+No
+All
+No
+No
+No
+All
+No
+No
+No
+
+84%
+82%
+74%
+82%
+77%
+75%
+69%
+75%
+76%
+74%
+49%
+70%
+70%
+69%
+75%
+56%
+77%
+75%
+67%
+71%
+
+87%
+87%
+84%
+86%
+80%
+75%
+58%
+73%
+75%
+44%
+76%
+44%
+80%
+72%
+48%
+68%
+81%
+70%
+67%
+68%
+
+85%
+84%
+80%
+84%
+81%
+76%
+63%
+75%
+65%
+58%
+68%
+57%
+72%
+67%
+54%
+59%
+76%
+71%
+66%
+69%
+
+87%
+86%
+80%
+86%
+79%
+76%
+65%
+75%
+83%
+62%
+58%
+58%
+79%
+74%
+71%
+65%
+82%
+75%
+69%
+71%
+
+Harpaz14 (Cross validation)
+
+Wahab13 (Train) + Harpaz14 (Test)
+
+Harpaz14 (Train) + Wahab13 (Test)
+
+Average
+
+features
+statistic features
+group-based statistic features
+pharmacological features
+features
+statistic features
+group-based statistic features
+pharmacological features
+features
+statistic features
+group-based statistic features
+pharmacological features
+features
+statistic features
+group-based statistic features
+pharmacological features
+features
+statistic features
+group-based statistic features
+pharmacological features
+
+pensing data. Furthermore, it can be observed that the gradient
+boosting classiﬁer is generally more sensitive to time period TADR
+in Harpaz14 rather than in Wahab13. When TADR decreases from
+12 months to 9 months, the performance of gradient boosting
+classiﬁer drops signiﬁcantly from 77% to 20% in Harpaz14 (Cross
+validation) while only 84% to 83% in Wahab13 (Cross validation).
+This suggests that Wahab13 is a better training set than Harpaz14,
+which may be because the known ADRs in Wahab13 comes from
+randomized controlled trials instead of product information leaﬂets
+as in Harpaz14.
+4.1.5. The effect of different features
+First, we examined the effect of different feature groups, i.e.,
+statistic features, group-based statistic features, and pharmacological features. Table 7 shows the changes in the performance of gradient boosting classiﬁer as different groups of features are missing
+in various settings. On average, across different settings, the performance of gradient boosting classiﬁer drops when any type of
+feature is excluded. When statistic features are missing, the sensitivity, speciﬁcity, positive predictive value and negative predictive
+drop by 2%, 11%, 5%, and 7% respectively. When there is no groupbased statistic features, the sensitivity, speciﬁcity, positive predictive value and negative predictive are reduced by 10%, 14%, 10%,
+and 13%. When pharmacological features are absent, the sensitivity, speciﬁcity, positive predictive value and negative predictive decrease by 6%, 13%, 7%, and 11%. These results show that all three
+types of features are essential in distinguishing between known
+ADRs and non-ADRs. Among three types of features, the performance of gradient boosting classiﬁer changes most signiﬁcantly
+when group-based statistic features are excluded. In other words,
+group-based statistic features are most important in the signal detection of ADRs. This may be because that drugs within the same
+group (i.e., same ATC fourth level) often have common ADRs and
+thus group-based statistic features are essential in signaling ADRs
+in which drugs are rarely prescribed.
+Furthermore, we examined the effects of different individual
+features. Fig. 4 presents the top 50 features with highest relative
+feature importance in predicting potential ADR signals by gradient
+boosting classiﬁer. The features are sorted by their relative importance descendingly. How to compute feature importance are discussed in [56] and implemented by the Scikit-learn library [31].
+In brief, for each ADR decision tree classiﬁer in gradient boosting
+classiﬁer, we computed the importance of a feature as the proportion of observations it can be used to differentiate between known
+
+ADRs and non-ADRs. Then the importance of each feature is averaged over all ADR decision tree classiﬁers. Feature importance
+is in the range [0,1] with higher scores indicating more important features. Features belonging to different groups are colored
+differently. It can be observed that most features in the top 50
+are group-based statistic features, i.e., orange bars. This is consistent with our earlier results in Table 7, meaning that group-based
+statistic features play the most important role in differentiating between known ADRs and non-ADRs. In particular, D2 ’s support and
+D1 ’s support are the two most important features. Intuitively, large
+values of D2 ’s support and D1 ’s support show that D1 and D2 are
+commonly prescribed to patients, and thus the signal d1 → d2  is
+likely to be spurious. The same intuition applies for d1 ’s support
+and d2 ’s support and therefore they are also in the top 5. In addition, we observe that the group-based 1st-week sequence support
+and group-based 1st-week reverse sequence support are very important features (i.e., in the top 5). This most likely reﬂects the
+acute ADR response soon after initiating treatment. Two pharmacological features in the top 50 are overlapping ATC preﬁxes (rank
+8th) and overlapping MedDRA HLT indications (rank 50th). Since
+drugs sharing similar indications often have a ﬁrst few overlapping
+ATC letters, the overlapping ATC preﬁxes feature is important in
+distinguishing known ADRs from coadministrations or drug switching. The importance of the overlapping MedDRA HLT indications
+feature shows that high level terms in MedDRA are most appropriate to represent drug indications in ADR signal prediction.
+4.2. Comparison of ADR signals detected by gradient boosting
+classiﬁer and SSA
+In this section, we compared the ADR signals detected by gradient boosting classiﬁer and SSA from the testing set Wahab16.
+Among 106 signals in Wahab16, 41 are known ADRs and 65 are
+unknown potential ADRs. Fig. 5 depicts known ADRs and unknown
+potential ADR signals with their adjusted sequence ratios (by SSA)
+and probabilities (by gradient boosting classiﬁer). Blue circles represent known ADRs while red squares indicate unknown potential
+ADR signals. A signal is picked up by SSA if the 95% conﬁdence
+interval lower limit of its adjusted sequence ratio exceeds 1 and
+picked up by gradient boosting classiﬁer if its probability is greater
+than 0.5. ADR signals of higher conﬁdence are assigned higher adjusted sequence ratios (rightward) by SSA and higher probabilities
+(upward) by gradient boosting classiﬁer. It can be observed from
+Fig. 5 that most known ADRs and unknown potential ADR signals
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+35
+
+Fig. 4. Top 50 features with highest relative importance in predicting potential ADR signals by gradient boosting classiﬁer.
+
+Table 8
+Comparison of known ADRs detected by SSA and gradient boosting classiﬁer.
+Predicted as potential signals by SSA?
+Yes
+No
+Total
+Predicted as potential
+signals by gradient
+boosting classiﬁer?
+
+Yes
+No
+Total
+
+31
+1
+32
+
+7
+2
+9
+
+38
+3
+41
+
+Table 9
+Comparison of unknown potential ADR signals detected by SSA and gradient
+boosting classiﬁer.
+Predicted as potential signals by SSA?
+Yes
+No
+Total
+Predicted as potential
+signals by gradient
+boosting classiﬁer?
+
+Yes
+No
+Total
+
+50
+3
+53
+
+10
+2
+12
+
+60
+5
+65
+
+detected by both SSA and gradient boosting classiﬁer are located
+in the top left corner, i.e., higher probabilities and lower adjusted
+sequence ratio. This demonstrates that gradient boosting classiﬁer
+is more conﬁdent about these signals than SSA although previous
+studies [10–12,35–55] show that it is empirically rare for a signal
+to have an adjusted sequence ratio above 2.
+In addition, Tables 8 and 9 present more detailed comparisons.
+Table 8 compares the known ADRs detected by gradient boosting
+classiﬁer and SSA. Among 41 known ADRs, gradient boosting classiﬁer and SSA both detect the 31 same known ADRs (76%). Gradient boosting classiﬁer is able to identify 7 known ADRs that are
+not detected by SSA (17%). On the other hand, gradient boosting
+
+classiﬁer fails to detect 1 known ADR that is picked up by SSA
+(2%). Both methods are not able to identify 2 known ADRs (5%).
+Table 9 compares the unknown potential ADR signals detected by
+gradient boosting classiﬁer and SSA. Both gradient boosting classiﬁer and SSA identify 50/65 same signals (77%). Gradient boosting classiﬁer detects 10 unknown potential ADR signals that are
+not picked up by SSA (15%). In contrast, gradient boosting classiﬁer
+does not pick up 3 signals detected by SSA (5%). Both methods consider 12 signals as not potential ADR signals. These results show
+that gradient boosting classiﬁer not only identiﬁes more known
+ADRs (15%) but also more unknown potential ADR signals (10%)
+than SSA.
+
+5. Discussion
+It can be observed from the results that gradient boosting
+classiﬁer has a higher sensitivity than SSA, i.e., is able to detect
+more known ADRs as well as unknown potential ADR signals. We
+have also shown that gradient boosting classiﬁer has a comparable
+speciﬁcity with SSA, which means gradient boosting classiﬁer does
+not pick up more spurious signals than SSA. These results suggest that gradient boosting classiﬁer is a promising signal detection
+method for ADRs to complement SSA using medication dispensing
+data. Besides, Wahab et al. [54] found that SSA could detect ADR
+signals such as the association between rofecoxib and heart attack
+earlier than spontaneous reports. Thus, gradient boosting classiﬁer
+has the potential to enhance the timeliness of safety signal detection which will reduce harm and translate to improved health outcomes.
+
+36
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+Fig. 5. Comparison of ADR signals detected by SSA (95% conﬁdence interval lower
+limit of adjusted sequence ratio >1) and gradient boosting classiﬁer (probability
+>0.5). ADR signals of higher conﬁdence are assigned higher adjusted sequence ratios (rightward) by SSA and higher probabilities (upward) by gradient boosting classiﬁer.
+
+Random forests classiﬁer has been commonly utilized in other
+settings due to its high predictive performance and very few parameters to tune [22]. In fact, random forests classiﬁer was used in
+previous studies [20,21] to predict potential ADR signals from the
+health improvement network (THIN) data in the United Kingdom.
+One empirical study found that gradient boosting classiﬁer performs better than random forest classiﬁer in eight different metrics
+[57]. Another empirical study shows that gradient boosting classiﬁer has the best performance among all when the number of features is below 40 0 0 [58]. Our results conﬁrm these observations
+by showing that gradient boosting classiﬁer outperforms random
+forests classiﬁer in balancing between all four metrics when there
+are 247 features.
+Supervised ADR classiﬁers in general and gradient boosting
+classiﬁer in particular, however, are subject to certain limitations. First, the performance of gradient boosting classiﬁer depends greatly on the quality of training data. Gradient boosting
+classiﬁer can well detect ADR signals whose combinations of features approximately match those known ADRs in the training set.
+As such, the deployment of gradient boosting classiﬁer requires
+ﬁrstly building a high quality training set that covers many different types of known ADRs and non-ADRs, and extensive testing on many additional datasets. Second, gradient boosting classiﬁer is diﬃcult to understand by stakeholders. The basic principles of gradient boosting classiﬁer are based on complicated statistical modeling and often viewed as a black-box. Since signal detection tools would be used and assessed by clinicians or medical experts rather than mathematicians, gradient boosting classiﬁer will
+have lower acceptability than SSA or self-controlled designs whose
+mechanisms are more straightforward to understand [13]. Another
+limitation of gradient boosting classiﬁer is the lack of interpretability of results. While each potential ADR signal detected by gradient boosting classiﬁer is associated with a probability, this does not
+correspond to a risk estimate, which is often expected by clinicians
+to determine which signals should be further investigated [13].
+One way to address these limitations in future work is to combine gradient boosting classiﬁer and SSA in a complementary man-
+
+ner for ADR signal detection. The group of ADR signals detected by
+both methods should be investigated ﬁrst, followed by those identiﬁed by one method but not picked up by another. The adjusted
+sequence ratio provided by SSA can then be utilized as a risk estimate to prioritize the ADR signals in each group. Moreover, the
+output from SSA can be used as a reference to guide and alleviate
+the dependency of gradient boosting classiﬁer on the training data.
+Furthermore, the eﬃciency of training gradient boosting classiﬁer can be improved to facilitate routine signal detection. At the
+moment, gradient boosting classiﬁer needs to be re-trained on the
+whole training data to take into account additional training examples. This process will take longer time as the training data grows
+bigger, which affects the signal detection. Online gradient boosting
+[59] could potentially solve this problem by learning new training
+examples in an incremental manner.
+Lastly, a major limitation of using medication dispensing data
+for ADR signal detection is that only ADRs whose adverse events
+are treated by medications can be picked up. This limitation can
+be potentially addressed by relying on additional sources such as
+unstructured data to provide adverse events. Recent studies have
+demonstrated the feasibility of detecting ADR signals from unstructured data sources. Wang et al. [60] proposed a method to detect
+ADRs from clinical notes while White et al. [61] investigated the
+ADR detection from search log data.
+6. Conclusion
+ADRs have been creating substantial burden for patients and
+healthcare systems. Thus, early detection of ADRs could reduce
+harm and improve peoples health outcomes. In this study, we have
+demonstrated the utility of SML as a signal detection tool for ADRs
+in medication dispensing data. We found that gradient boosting
+classiﬁer achieves the best performance among all the supervised
+ADR classiﬁers. In addition, gradient boosting classiﬁer has higher
+sensi- tivity and comparable speciﬁcity in comparison with SSA,
+a current signal detection method in medication dispensing data.
+Thus, gradient boosting classiﬁer is a promising ADR signal detection tool to complement SSA.
+Acknowledgments
+This research has been supported by the Australian Research
+Council (ARC) DP140103617 and the National Health and Medical
+Research Council (NHMRC) APP1040938 and APP1110139.
+Appendix
+Gradient boosting ADR classiﬁer
+In this section, we provide some further details of how to learn
+a gradient boosting ADR classiﬁer. Formally, let h(x; α k ) represent
+the weak ADR classiﬁer added at iteration k, where α k is the set
+of parameters. The gradient boosting ADR classiﬁer represented by
+f (x) is the weighted combination of weak classiﬁers added over K
+iterations.
+
+f (x ) = X K
+
+k=1
+
+βk h(x; αk )
+
+(2)
+
+where β k denotes the weight of classiﬁer added at iteration k.
+As a result, the goal of learning the gradient boosting ADR classiﬁer is to estimate the parameters {α ∗ , β ∗ }K such that:
+
+{α ∗ , β ∗ }
+k
+
+K
+
+k k=1
+
+= argmin XN L(yi , f (xi )) = argmin XN Lyi , XN K h(xi , αk )
+{αk ,βk }
+
+K
+k=1
+
+i=1
+
+{αk ,βk }
+
+K
+k=1
+
+i=1
+
+i=1 βk
+
+(3)
+The process of estimating the parameters is summarized in
+Algorithm 1 [24]. There are two main steps in each iteration k.
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+37
+
+Algorithm 1 Learning algorithm for gradient boosting ADR classiﬁer.
+
+First, the algorithm estimates the parameters α k by ﬁtting the
+weak ADR classiﬁer h(x; α k ) to the negative gradient of the loss
+function using least-squares regression (lines 3–5). The insight behind this step is to let the weak ADR classiﬁer correct the prediction errors made in the previous iterations. Then in the second
+step, the algorithm determines the optimal value of parameters β k
+by minimizing the objective loss function speciﬁed in Eq. (3). In
+this study, we empirically set the maximum number of iterations
+K = 10 0 0, employ decision tree as our base weak ADR classiﬁer,
+and adopt deviance loss function.
+References
+[1] I.R. Edwards, J.K. Aronson, Adverse drug reactions: deﬁnitions, diagnosis, and
+management, Lancet 356 (9237) (20 0 0) 1255–1259.
+[2] M. Drini, Peptic ulcer disease and non-steroidal anti-inﬂammatory drugs, Aust.
+Prescr. 40 (3) (2017) 91.
+[3] M.-L. Yeh, Y.-J. Chang, P.-Y. Wang, Y.-C.J. Li, C.-Y. Hsu, Physicians responses to
+computerized drug–drug interaction alerts for outpatients, Comput. Methods
+Programs Biomed. 111 (1) (2013) 17–25.
+[4] R. Harpaz, W. DuMouchel, N.H. Shah, D. Madigan, P. Ryan, C. Friedman, Novel
+data-mining methodologies for adverse drug event discovery and analysis,
+Clin. Pharmacol. Ther. 91 (6) (2012) 1010–1021.
+[5] S. Karimi, C. Wang, A. Metke-Jimenez, R. Gaire, C. Paris, Text and data mining
+techniques in adverse drug reaction detection, ACM Comput. Surv. (CSUR) 47
+(4) (2015) 56.
+[6] L. Hazell, S.A. Shakir, Under-reporting of adverse drug reactions, Drug Saf. 29
+(5) (2006) 385–396.
+[7] V.G. Koutkias, M.-C. Jaulent, Computational approaches for pharmacovigilance
+signal detection: toward integrated and semantically- enriched frameworks,
+Drug Saf. 38 (3) (2015) 219–232.
+[8] I.A. Wahab, N.L. Pratt, L.K. Ellett, E.E. Roughead, Sequence symmetry analysis
+as a signal detection tool for potential heart failure adverse events in an administrative claims database, Drug Saf. 39 (4) (2016) 347–354.
+[9] L. Mellish, E.A. Karanges, M.J. Litchﬁeld, A.L. Schaffer, B. Blanch, B.J. Daniels,
+A. Segrave, S.-A. Pearson, The australian pharmaceutical beneﬁts scheme data
+collection: a practical guide for researchers, BMC Res. Notes 8 (1) (2015) 634.
+[10] I.A. Wahab, N.L. Pratt, M.D. Wiese, L.M. Kalisch, E.E. Roughead, The validity of
+sequence symmetry analysis (ssa) for adverse drug reaction signal detection,
+Pharmacoepidemiol Drug Saf. 22 (5) (2013) 496–502.
+[11] H. Petri, H. De Vet, J. Naus, J. Urquhart, Prescription sequence analysis: a new
+and fast method for assessing certain adverse reactions of prescription drugs
+in large populations, Stat. Med. 7 (11) (1988) 1171–1175.
+[12] J. Hallas, Evidence of depression provoked by cardiovascular medication: a prescription sequence symmetry analysis, Epidemiology (1996) 478–484.
+[13] M. Arnaud, B. Beǵaud, N. Thurin, N. Moore, A. Pariente, F. Salvo, Methods
+for safety signal detection in healthcare databases: a literature review, Expert
+Opin. Drug Saf. 16 (6) (2017) 721–732.
+[14] E.C.-C. Lai, N. Pratt, C.-Y. Hsieh, S.-J. Lin, A. Pottegård, E.E. Roughead,
+Y.-H.K. Yang, J. Hallas, Sequence symmetry analysis in pharmacovigilance and
+pharmacoepidemiologic studies, Eur. J. Epidemiol. (2017) 1–16.
+[15] K.P. Murphy, Machine learning: a Probabilistic Perspective, MIT press, Cambridge, MA, USA, 2012.
+[16] R. Harpaz, D. Odgers, G. Gaskin, W. DuMouchel, R. Winnenburg, O. Bodenreider, A. Ripple, A. Szarfman, A. Sorbello, E. Horvitz, et al., A time-indexed reference standard of adverse drug reactions, Sci. Data 1 (2014) 140043.
+[17] D.S. Wishart, C. Knox, A.C. Guo, S. Shrivastava, M. Hassanali, P. Stothard,
+Z. Chang, J. Woolsey, Drugbank: a comprehensive resource for in silico drug
+discovery and exploration, Nucleic Acids Res. 34 (suppl 1) (2006) D668–D672.
+[18] P. Mozzicato, Meddra: an overview of the medical dictionary for regulatory
+activities, Pharm. Med. 23 (2) (2009) 65–75.
+
+[19] W.H. Organization, et al., Who Collaborating Centre For Drug Statistics
+Methodology: Atc Classiﬁcation Index With Ddds And Guidelines For Atc Classiﬁcation And Ddd Assignment, Norwegian Institute of Public Health, Oslo,
+Norway, 2004.
+[20] J.M. Reps, J.M. Garibaldi, U. Aickelin, D. Soria, J.E. Gibson, R.B. Hubbard, Signalling paediatric side effects using an ensemble of simple study designs, Drug
+Saf. 37 (3) (2014) 163–170.
+[21] J.M. Reps, J.M. Garibaldi, U. Aickelin, J.E. Gibson, R.B. Hubbard, A supervised
+adverse drug reaction signalling framework imitating bradford hills causality
+considerations, J. Biomed. Inform. 56 (2015) 356–368.
+[22] L. Breiman, Random forests, Mach. Learn. 45 (1) (2001) 5–32.
+[23] H. Jin, J. Chen, H. He, C. Kelman, D. McAullay, C.M. O’Keefe, Signaling potential adverse drug reactions from administrative health databases, IEEE Trans.
+Knowl. Data Eng. 22 (6) (2010) 839–853.
+[24] L. Guelman, Gradient boosting trees for auto insurance loss cost modeling and
+prediction, Expert Syst. Appl. 39 (3) (2012) 3659–3667.
+[26] C.E. McCulloch, Generalized linear models, J. Am. Statist. Assoc. 95 (452)
+(20 0 0) 1320–1324.
+[25] J.R. Quinlan, Induction of decision trees, Mach. Learn. 1 (1) (1986) 81–106.
+[27] M.A. Hearst, S.T. Dumais, E. Osuna, J. Platt, B. Scholkopf, Support vector machines, IEEE Intell. Syst. Appl. 13 (4) (1998) 18–28.
+[28] D.F. Specht, Probabilistic neural networks, Neural Netw. 3 (1) (1990) 109–118.
+[33] P. Bu¨hlmann, T. Hothorn, Boosting algorithms: regularization, prediction and
+model ﬁtting, Stat. Sci. (2007) 477–505.
+[30] J.H. Friedman, Greedy function approximation: a gradient boosting machine,
+Ann. Stat. (2001) 1189–1232.
+[31] F. Pedregosa, G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel,
+M. Blondel, P. Prettenhofer, R. Weiss, V. Dubourg, J. Vanderplas, A. Passos,
+D. Cournapeau, M. Brucher, M. Perrot, E. Duchesnay, Scikit-learn: Machine
+learning in Python, J. Mach. Learn. Res. 12 (2011) 2825–2830.
+[32] L. Breiman, J. Friedman, C.J. Stone, R.A. Olshen, Classiﬁcation and Regression
+Trees, CRC press, Boca Raton, FL, USA, 1984.
+[29] G. Bebis, M. Georgiopoulos, Feed-forward neural networks, IEEE Potentials 13
+(4) (1994) 27–31.
+[34] J. Davis, M. Goadrich, The relationship between precision-recall and roc curves,
+in: Proceedings of the 23rd International Conference On Machine Learning,
+ACM, 2006, pp. 233–240.
+[35] I. Tsiropoulos, M. Andersen, J. Hallas, Adverse events with use of antiepileptic
+drugs: a prescription and event symmetry analysis, Pharmacoepidemiol. Drug
+Saf. 18 (6) (2009) 483–491.
+[36] G. Lindberg, J. Hallas, Cholesterol-lowering drugs and antidepressants–a study
+of prescription symmetry, Pharmacoepidemiol Drug Saf. 7 (6) (1998) 399–402.
+[37] D.J. Cher, Myocardial infarction and acute cholecystitis: an application of sequence symmetry analysis, Epidemiology 11 (4) (20 0 0) 446–449.
+[38] P. Bytzer, J. Hallas, Drug-induced symptoms of functional dyspepsia and nausea. A symmetry analysis of one million prescriptions, Aliment. Pharmacol.
+Ther. 14 (11) (20 0 0) 1479–1484.
+[39] G. Corrao, E. Botteri, V. Bagnardi, A. Zambon, A. Carobbio, C. Falcone, O. Leoni,
+Generating signals of drug-adverse effects from prescrip- tion databases and
+application to the risk of arrhythmia associated with antibacterials, Pharmacoepidemiol Drug Saf. 14 (1) (2005) 31–40.
+[40] E.L. Thacker, S. Schneeweiss, Initiation of acetylcholinesterase inhibitors and
+complications of chronic airways disorders in elderly patients, Drug Saf. 29
+(11) (2006) 1077–1085.
+[41] L. Silwer, M. Petzold, J. Hallas, C.S. Lundborg, Statins and nonsteroidal anti-inﬂammatory drugsan analysis of prescription symmetry, Pharmacoepidemiol
+Drug Saf. 15 (7) (2006) 510–511.
+[42] S. Vegter, D. Jong-van den Berg, T. Lolkje, Misdiagnosis and mistreatment of a
+common side-effect–angiotensin-converting enzyme inhibitor-induced cough,
+Br. J. Clin. Pharmacol. 69 (2) (2010) 200–203.
+[43] S. Vegter, P. de Boer, K.W. van Dijk, S. Visser, et al., The effects of antitussive
+treatment of ace inhibitor-induced cough on therapy compliance: a prescription sequence symmetry analysis, Drug Saf. 36 (6) (2013) 435–439.
+
+38
+
+T. Hoang et al. / Computer Methods and Programs in Biomedicine 161 (2018) 25–38
+
+[44] K.B. Pouwels, S.T. Visser, H.J. Bos, E. Hak, Angiotensin-converting enzyme inhibitor treatment and the development of urinary tract infections: a prescription sequence symmetry analysis, Drug Saf. 36 (11) (2013) 1079–1086.
+[45] J.F. van Boven, S. Vegter, et al., Inhaled corticosteroids and the occurrence of
+oral candidiasis: a prescription sequence symmetry analysis, Drug Saf. 36 (4)
+(2013) 231–236.
+[46] L.M. Kalisch Ellett, N.L. Pratt, J.D. Barratt, D. Rowett, E.E. Roughead, Risk of
+medication-associated initiation of oxybutynin in elderly men and women, J.
+Am. Geriatr. Soc. 62 (4) (2014) 690–695.
+[47] M. Takada, M. Fujimoto, K. Yamazaki, M. Takamoto, K. Hosomi, Association of
+statin use with sleep disturbances: data mining of a spontaneous reporting
+database and a prescription database, Drug Saf. 37 (6) (2014) 421–431.
+[48] L. Rasmussen, J. Hallas, K.G. Madsen, A. Pottegård, Cardiovascular drugs and
+erectile dysfunction–a symmetry analysis, Br. J. Clin. Pharmacol. 80 (5) (2015)
+1219–1223.
+[49] Y. Takeuchi, K. Kajiyama, C. Ishiguro, Y. Uyama, Atypical antipsychotics and the
+risk of hyperlipidemia: a sequence symmetry analysis, Drug Saf. 38 (7) (2015)
+641–650.
+[50] K.B. Pouwels, N.N. Widyakusuma, J.H. Bos, E. Hak, Association between statins
+and infections among patients with diabetes: a cohort and prescription
+sequence symmetry analysis, Pharmacoepidemiol Drug Saf. 25 (10) (2016)
+1124–1130.
+[51] G.E. Caughey, E.E. Roughead, N. Pratt, S. Shakib, A.I. Vitry, A.L. Gilbert, Increased risk of hip fracture in the elderly associated with prochlorperazine: is
+a prescribing cascade contributing? Pharmacoepidemiol Drug Saf. 19 (9) (2010)
+977–982.
+[52] J.A. Cole, F.A. Farraye, H.J. Cabral, Y. Zhang, K.J. Rothman, Irritable bowel syndrome and hysterectomy: a sequence symmetry analysis, Epidemiology 18 (6)
+(2007) 837–838.
+[53] S.R. Garrison, C.R. Dormuth, R.L. Morrow, G.A. Carney, K.M. Khan, Nocturnal
+leg cramps and prescription use that precedes them: a sequence symmetry
+analysis, Arch. Intern. Med. 172 (2) (2012) 120–126.
+
+[54] I.A. Wahab, N.L. Pratt, L.M. Kalisch, E.E. Roughead, Comparing time to adverse drug reaction signals in a spontaneous reporting database and a claims
+database: a case study of rofecoxib-induced myocardial infarction and rosiglitazone-induced heart failure signals in australia, Drug Saf. 37 (1) (2014) 53–64.
+[55] E.E. Roughead, E.W. Chan, N.-K. Choi, M. Kimura, T. Kimura, K. Kubota,
+E.C.-C. Lai, K.K. Man, T.A. Nguyen, N. Ooba, et al., Variation in association between thiazolidinediones and heart failure across ethnic groups: retrospective
+analysis of large healthcare claims databases in six countries, Drug Saf. 38 (9)
+(2015) 823–831.
+[56] L. Breiman, et al., Classiﬁcation and Regression Trees, Chapman & Hall, New
+York, NY, USA, 1984.
+[57] R. Caruana, A. Niculescu-Mizil, An empirical comparison of supervised learning
+algorithms, in: W.W. Cohen, A. Moore (Eds.), Proceedings Of The 23rd International Conference On Machine Learning, (Eds.), ACM, New York, NY, USA, 2006,
+pp. 161–168.
+[58] R. Caruana, N. Karampatziakis, A. Yessenalina, An empirical evaluation of
+supervised learning in high dimensions, in: W.W. Cohen, A. McCallum,
+S.T. Roweis (Eds.), Proceedings Of The 25th International Conference On Machine Learning, (Eds.), ACM, New York, NY, USA, 2008, pp. 96–103.
+[59] A. Beygelzimer, E. Hazan, S. Kale, H. Luo, Online gradient boosting, in:
+C. Cortes, N.D. Lawrence, D.D. Lee, M. Sugiyama, R. Garnett (Eds.), Proceedings
+Of The Advances In Neural Information Processing Systems 28, (Eds.), Morgan
+Kaufmann Publishers Inc, San Francisco, CA, USA, 2015, pp. 2458–2466.
+[60] G. Wang, K. Jung, R. Winnenburg, N.H. Shah, A method for systematic discovery of adverse drug events from clinical notes, J. Am. Med. Inform. Assoc. 22
+(6) (2015) 1196–1204.
+[61] R.W. White, S. Wang, A. Pant, R. Harpaz, P. Shukla, W. Sun, W. DuMouchel,
+E. Horvitz, Early identiﬁcation of adverse drug reactions from search log data,
+J. Biomed. Inform. 59 (2016) 42–48.
+
+

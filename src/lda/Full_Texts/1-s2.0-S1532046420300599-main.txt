@@ -1,0 +1,1149 @@
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+Exploiting adversarial transfer learning for adverse drug reaction detection
+from texts
+
+T
+
+Zhiheng Lia, Zhihao Yanga, , Ling Luoa, Yang Xiangb, Hongfei Lina
+⁎
+
+a
+b
+
+College of Computer Science and Technology, Dalian Univercity of Technology, Dalian 116024, China
+School of Biomedical Informatics, University of Texas Health Science Center at Houston, Houston 77030, USA
+
+ARTICLE INFO
+
+ABSTRACT
+
+Keywords:
+ADR detection
+Adversarial learning
+Text classification
+
+Adverse Drug Reactions (ADRs) are extremely hazardous to patients. ADR Detection aims to automatically determine whether a sentence is related to an ADR, which is a fundamental study for public health monitoring
+tasks, particularly for pharmacovigilance. Benchmark corpora are mostly sampled from biomedical literature or
+social media, but most of them are on small scales. Correspondingly, existing ADR detection models are either
+trained with additional corpora that are annotated manually or jointly trained with the ADR detection and the
+entity mention extraction task. However, directly training a method with additional corpora sampled from
+different sources may introduce noises and impact the performance of neural networks. Besides, jointly training
+a method with different tasks requires the annotation for other tasks, which still increases the annotation
+workload. To address the above issues, we formulate ADR detection as a text classification task and introduce an
+adversarial transfer learning framework into ADR detection. Our method focuses on exploiting a source corpus to
+improve the performance on small target corpora which only contain hundreds of training instances. Also,
+adversarial learning is applied to prevent corpus-specific features from being introduced into shared space so
+that corpora from different sources can be leveraged with minimum extra noises. Experimental results on three
+different benchmark corpora show that our proposed method consistently outperforms other state-of-the-art
+methods, especially on small corpora.
+
+1. Introduction
+
+235 positive annotated sentences are available in the two sub-datasets
+in TwiMed). To improve the performances on small corpora, on one
+hand, more sentences are annotated manually and added into the original training set [6]. On the other hand, joint learning and multi-task
+learning methods [7–8] are used to jointly trained the models with ADR
+detection and named entity extraction tasks. Although great improvements have been achieved by these methods on ADR detection task,
+these methods either inevitably require extra annotation workload or
+are only trained with a single dataset.
+In ADR detection, there are several benchmark corpora available,
+such as CADEC (CSIRO Adverse Drug Event Corpus) [9], Twitter [10]
+and TwiMed [11]. Although these corpora are sampled from different
+sources, there are many similarities among the sentences in these corpora. For example, although the sentences in Fig. 1 are sampled from
+different domains (i.e., biomedical literature and social media), the
+existence of the word cause is an essential corpus-shared feature that
+indicates an induce relation to an ADR in the sentences. And taking
+advantage of these corpus-shared features may alleviate the impact
+caused by the lack of annotated training data and result in the
+
+Adverse Drug Reactions (ADRs) are extremely dangerous to patients
+and are one of the main causes of mortality for patients all over the
+world [1]. Since many ADRs happen to certain people in certain conditions after a long-time exposure, traditional post-market ADR surveillance systems, which heavily suffer from under-reporting, data incompleteness and delayed-reporting [2], are insufficient in detecting
+these ADRs. Recently, medical reports [3] and social network data [4,5]
+about ADRs are abundant and generated rapidly. Also, advanced natural language process (NLP) and machine learning (ML) algorithms
+make it more possible to aid the detection of ADRs from large volumes
+of unstructured data automatically.
+ADR detection is commonly formulated as a binary text classification task. Different from other classification tasks in the general domain, due to the privacy issues and expensive cost of data annotation
+(e.g., approximately 8000 tweets need to be annotated to increase the
+number of ADR class instances by 1000) [6], available annotated corpora for ADR detection are mostly on small scales (e.g. only 191 and
+
+⁎
+
+Corresponding author.
+E-mail address: yangzh@dlut.edu.cn (Z. Yang).
+
+https://doi.org/10.1016/j.jbi.2020.103431
+Received 8 October 2019; Received in revised form 13 April 2020; Accepted 20 April 2020
+Available online 24 April 2020
+1532-0464/ © 2020 Elsevier Inc. All rights reserved.
+
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Z. Li, et al.
+
+With the emergence of annotated data, traditional machine learning
+(ML) methods are exploited to detect ADRs. Since the publicly available
+annotated ADR corpora are merely on small scales, Sarker and Gonzalez
+[6] combined distinct corpora (ADE, Twitter and DailyStrength2) together to train SVMs with different feature sets derived from the combined training sets. They observed that combining corpora from similar
+sources may help improve the performance of ADR detection. In addition, Zhang et al. [16] and Rastegar-Mojarad et al. [17] investigated
+ensemble models that combine various ML classifiers with various
+features. Recently, Alimova and Tutubalina [18] focused on identification of ADRs from user reviews with a feature-rich classifier. These
+ML-based methods rely solely on domain knowledge and handcrafted
+features. Hence, they usually lead to an unsatisfactory generalization.
+In recent years, neural network-based methods have been introduced to the ADR detection task. Huynh1 et al. [19] investigated
+different neural network (NN) architectures for ADR detection without
+using any engineered features. Wu et al. [20] proposed a complex
+method with hierarchical tweet representations and multi-head selfattention for detecting ADRs in tweets. In their method, features extracted from sentiment lexicons and drug side effect lexicons are also
+exploited to boost the performance. Moreover, joint learning and multitask learning methods [7–8,21] are applied to jointly train the method
+with the ADR detection, ADR mention extraction and Indication mention extraction tasks. Although these efforts improve the performance
+of ADR detection on specific corpora, they did not consider integrating
+and leveraging other existing corpora. And in multi-task learning
+method, annotation of named entities are required, which still increases
+the annotation workload. Therefore, to take advantage of the existing
+corpora without using additional annotation data, we exploit an adversarial transfer learning framework to improve the performances on
+ADR detection when only small amount of annotated is available for
+training.
+
+Fig. 1. Sentences sampled from distinct corpora.
+
+improvement of ADR detection performances on small datasets.
+Therefore, transfer learning framework [12] which can benefit from the
+corpora sampled from different domains are widely used in many studies. However, besides the corpus-shared features, the corpora sampled
+from different domains may have corpus-specific features. For example,
+in the sentence “i swear food has nicotine in it, cause im addicted to it”, the
+word cause is short for the word because and doesn’t convey an ADR
+relation in this sentence. This kind of abbreviation may only occur in
+informal languages like social media (e.g. Twitter), and thus become a
+corpus-specific feature that will impact the performance of ADR detection in the training process. Therefore, how to take advantage of the
+corpus-shared features as well as reduce the impact of corpus-specific
+features has become a challenging problem for the ADR detection task.
+In this paper, we propose an adversarial transfer learning (ATL)
+framework to integrate the corpus-shared features into ADR detection.
+The adversarial transfer learning is incorporating the adversarial
+learning strategy into transfer learning. Specifically, we design a
+shared-private feature extractor in which the shared feature extractor is
+applied to capture corpus-shared features from both source and target
+corpora, while the private one is utilized to generate a sentence representation according to the corpus-specific features from the input
+sentence. To prevent corpus-specific features from worsening the performance, we introduce adversarial learning to ensure that only corpusshared features are exploited into shared space. Experimental results
+show that our proposed method achieves better generalization than
+previous state-of-the-art methods on all tested corpora. In addition, the
+adversarial learning strategy is proven effective on the target corpus
+with only hundreds of training instances. In summary, the main contributions of this work are as follows:
+1. We propose an adversarial transfer learning framework to incorporate the corpora from different domains to improve the performance on small datasets in ADR detection. To our best knowledge, it is
+the first work to show that adversarial transfer learning are effective for
+the ADR detection task.
+2. We design a shared feature extractor with a corpus discriminator
+to take advantage of corpus-shared features and prevent corpus-specific
+features from being introduced into shared space.
+3. We conduct our experiment on three different benchmark ADR
+detection corpora, and the experimental results demonstrate that our
+proposed method achieves better generalization and consistently outperforms existing state-of-the-art methods. We also visualize the feature
+embeddings generated by each module in our method and discuss the
+effectiveness of our method on small datasets.
+
+2.2. Adversarial learning
+Adversarial networks have been proven effective in many tasks. In
+computer vision, adversarial learning frameworks are applied to train
+generative models [22,23]. In domain adaptation, adversarial learning
+is introduced into many methods [24–26] to transfer features from one
+source domain to its corresponding target domain and improve the
+models’ ability to extract domain–invariant features. In some typical
+NLP tasks, adversarial learning has been explored for multi-feature
+fusion. Liu et al. [27] extended the original binary adversarial learning
+to multi-class version and constructed a multi-task learning model for
+text classification in the general domain. Cao et al. [28] employed
+adversarial transfer learning framework to make full use of the information of Chinese word segmentation task and to improve the performance in Chinese named entity recognition task. Wang et al. [29]
+adopted an adversarial learning strategy to capture the consistency and
+diversity of relation patterns in different languages. In biomedical domain, Rios et al. [30] applied an adversarial process to learn domain
+invariant features to improve biased classifiers.
+Relevant work in bio-NLP includes the use of adversarial learning
+and multi-task learning [7,21] for jointly training the methods with
+different corpora and tasks. Compared to our work, their motivations
+and network structures are highly different. In particular, Bekoulis et al.
+[21] focused on extracting fine-grained information which provide
+important cues in pharmacovigilance and applied a multi-task learning
+framework that can simultaneously extract ADRs from various sources,
+while Chowdhury et al. [7] focused on jointly trained their method with
+different tasks (i.e. ADR classification, ADR extraction, and Indication
+extraction). To our knowledge, we are the first to introduce adversarial
+transfer learning into the ADR detection task. From this perspective, our
+
+2. Related work
+2.1. Adverse Drug reaction detection
+Early studies used lexicon-based approaches to detect ADRs from
+biomedical texts and clinical reports [13,14]. This kind of approach
+takes advantage of the lexicons created from databases such as UMLS
+Methathesaurus1 and SIDER [15]. However, lexicon-based approaches
+cannot detect expressions not included in the lexicons and thus the
+recall of these approaches are impacted by the limitation of lexicons.
+1
+
+2
+
+National Library of Medicine. 2008. UMLS Knowledge Sources.
+2
+
+http://www.dailystrength.org/
+
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Z. Li, et al.
+
+designed by incorporating a separate memory cell with gating mechanism to alleviate the gradient vanishing problem suffered by traditional RNNs when processing long sequences [33]. Given the assumption that both forward and backward memories are informative, as
+shown in Fig. 2, bidirectional LSTM (Bi-LSTM) network [34] is adopted
+to learn shared information between the source and target corpora.
+Formally, the hidden state of the shared Bi-LSTM can be expressed as
+follows:
+
+hi f = LSTM f (hi f 1, wiemb)
+
+(1)
+
+hib = LSTM b (hib+ 1, wiemb)
+
+(2)
+
+hi = [hi f ; hib]
+
+(3)
+
+where hi is computed by {w1emb, w2emb,
+, wnemb}
+is computed by {wiemb, wiemb
++1 ,
+
+from left to right and hib
+from right to left. [;] is a concatenation option. And the shared representation of a sentence generated by Bi-LSTM is for corpusk {sourcecorpus, targetcorpus} .
+Local features such as lexicons of ADR and drug phrases in a sentence are usually important for the determination of whether the sentence conveys an ADR. In our method, CNNs [35] are applied as private
+feature extractors to capture corpus-specific local features and perform
+sentence representations by merging all these features. Given a wordwi ,
+a fixed size (win ) window is used to compress its surrounding words to
+integrate context information:
+f
+
+Fig. 2. The architecture of our proposed method. The red and green parts are
+the target and source space, respectively, including a private-feature extractor
+(private CNN), a pooling layer and a sentence classifier. The blue part is shared
+space consisting of a shared-feature extractor (Shared Bi-LSTM), a pooling layer
+and a corpus discriminator. And the feature extractors shared the same embedding layer.
+
+goal is to investigate an effective method for ADR detection with limited available data.
+
+x i = [w embwin 1 ,
+i
+
+3. Method
+
+ci = Wc
+
+We regard the ADR detection task as a sentence classification problem (i.e. determine whether a sentence expresses an ADR) and propose
+an adversarial transfer learning framework which takes advantage of a
+source corpus to improve the performances of ADR detection on small
+target corpora. Fig. 2 illustrates the architecture of our proposed
+method. The method consists of 3 components: a shared-private feature
+extractor, source and target sentence classifiers, and a corpus discriminator. Due to limited features available in small target training
+sets, the private feature extractor trained with a single dataset is not
+enough to obtain rich features for a sentence classifier to predict the
+label. Thus, the shared-private feature extractor is designed to capture
+both corpus-specific and corpus-shared features, so that the sentence
+classifiers can make full use of the rich features in both source and
+target training sets. Furthermore, the method applies a corpus discriminator to prevent the corpus-specific features from being introduced into the shared space. It contains a gradient reversal layer
+(GRL) [31] which is used to implement the adversarial learning strategy
+and a classifier that is utilized to determine the source of the input
+sentence based only on the corpus-shared features. Details of each
+component will be described in the following sections.
+
+2
+
+, wiemb,
+
+, wiemb}
+
+, w embwin 1 ]
+i+
+
+(4)
+
+2
+
+(5)
+
+x i + bc
+
+where Wc is the transformation matrix that is shared across all words of i
+in a sentence and bc is the bias term. The private representation of a
+sentence is cpk = {c1k , c2k, , cnk } .
+Max pooling operations are conducted over times on both shared
+and private representations to find out the most useful features in each
+dimension j of features:
+
+X jk = max(x jk )
+
+(6)
+
+where x jk denotes hjk or c jk .
+3.2. Source and target sentence classifiers
+Sentence classifiers are applied to determine whether the input
+sentence is related to an ADR. To classify a sentence, we integrate
+corpus-shared features into private sentence representations, so that the
+information learned from the source corpus can alleviate the impact
+caused by the lack of annotated data in the target corpus. As shown in
+Fig. 2, both the source and target sentence classifiers take the features
+generated from the shared-private feature extractor as inputs. In the
+sentence classifier, first, the private and shared representations are
+concatenated. And then, the concatenated representation is fed to a
+linear layer with the Softmax function to classify the sentence. The
+probability of sentence i related to an ADR is calculated by:
+
+3.1. Shared-private feature extractor
+The input of shared-private feature extractor is the word sequence
+of a sentence. Similar to other neural network methods, words in a
+sentence are mapped into low-dimensional distributed representations
+to capture semantic information among words [32]. For a given sentence S = {w1, w2, , wn} from the source or the target corpus, each word
+wi is projected to corresponding embedding spaces and denoted as wiemb .
+Motivated by that representative corpus-shared features between
+the source (larger) and the target (smaller) corpus can be used to improve the performance of ADR detection on the smaller corpus, our
+method applies a shared feature extractor to model global information
+such as writing-styles and the meaning of a sentence. In our method, the
+shared feature extractor must be capable of processing long sequences
+so that global features can be captured. Long short-term memory
+(LSTM) is a variant of recurrent neural networks (RNNs), which is
+
+(7)
+
+p(yi [Cik ; Hik ]) = softmax(Wo [Cik ; Hik ] + bo )
+
+where Wo and bo are the weight parameters and [;] denotes the concatenation operation. In our method, we use the cross-entropy loss as
+the training objective function, which is calculated by:
+
+Lk =
+
+[yik logyik + (1
+
+yik ) log (1
+
+yik )]
+
+(8)
+
+where Lk is the loss of the source or target sentence classifier.
+and yik
+are the true and predict labels of the i-th input instance of corpus k ,
+respectively.
+
+yik
+
+3.3. Corpus discriminator
+Inspired by adversarial networks [23], we exploit adversarial
+3
+
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Z. Li, et al.
+
+learning into shared space to ensure that the shared feature extractor
+(i.e. the shared Bi-LSTM in Fig. 2) filters corpus-specific features and
+learns corpus-shared features. We propose a discriminator to estimate
+which corpus the input sentence comes from. The corpus discriminator
+can be expressed as follows:
+
+D(H k ;
+
+d)
+
+= softmax(Wd H k + bd )
+
+corpora as the target corpus. The source corpus used in our method is
+the ADE corpus [3]), which contains 2972 MEDLINE case reports that
+are manually annotated at sentence level. And the three target corpora
+are: 1) CADEC (CSIRO Adverse Drug Event Corpus) [9], which is
+sourced from posts on social media, and contains texts that are largely
+written in colloquial language and often deviate from formal English
+grammar and punctuation rules; 2) Twitter [10], which is created from
+tweets collected using generic and brand names of the drugs, along with
+their phonetic misspellings; and 3) TwiMed [11], which is curated from
+Twitter messages and PubMed sentences. In this study, we divided the
+TwiMed corpus into TwiMed (PubMed) and TwiMed (Twitter) sub-datasets and evaluated our method on these two sub-datasets, respectively. The statistics of the source and target corpora are shown in
+Table 1. TwiMed (PubMed) and TwiMed (Twitter) are on small scales.
+Owing to corpora’s data terms and conditions, at the time of this experiment, some data are partially no longer accessible (e.g. some tweets
+were deleted).
+We used the Pytorch library [38] to implement our proposed
+method. The dimensionality of word embeddings is set as 100. The
+number of hidden units of the private and shared feature extractors are
+70 and 50, respectively. The window size of the private feature extractors is 5. To alleviate overfitting, we used dropout [39] to randomly
+drop units and their connections and the dropout rates of the input and
+output of the shared Bi-LSTM are set as 0.2 and 0.5, respectively. In the
+training process, the learning rate of Adam is set as 0.0001 and the
+mini-batch size is set as 16.
+Precision (P), recall (R) and F1-score (F1) are used to evaluate the
+performance of our method. The F1-score is defined as F1 = 2∙P∙R/
+(P + R), which can quantify the overall performance by balancing
+precision and recall.
+
+(9)
+
+where d denotes the parameters of the corpus discriminator. Wd and bd
+are the weight parameters.
+Similar to other adversarial networks [23,28], adversarial loss Ladv
+is introduced to train the shared feature extractor so that the discriminator cannot reliably recognize which corpus the sentence comes
+from based on the corpus-shared features. The adversarial loss can be
+calculated by:
+K
+
+Ladv = minmax
+s
+
+d
+
+Sk
+
+logD (Es (sik ))
+
+k=1 i=1
+
+(10)
+
+where s denotes the parameters of the shared Bi-LSTM. K is the
+number of corpora. Sk is the number of training sentences of corpus k .
+Es denotes the shared Bi-LSTM. sik is the i -th sentence of corpus k . There
+is a minimax optimization that the shared Bi-LSTM generates a representation to mislead the corpus discriminator and the discriminator
+tries its best to correctly determine the source of the input sentence.
+A GRL [31] is utilized to implement the minimax optimization.
+During the forward propagation, the errors of the corpus discriminator
+are minimized, while, during the backpropagation, GRL opposes the
+sign of gradient to filter corpus-specific features, which are captured by
+the shared Bi-LSTM to classify the source of the input sentence. Finally,
+the discriminator and the shared Bi-LSTM reach a paddle point where
+the discriminator cannot differentiate well the source of a sentence
+according to the features captured by the shared Bi-LSTM. Consequently, the features learned by the shared Bi-LSTM are the discriminative information shared by the source and target corpora.
+
+4.2. Baseline methods
+Due to the privacy issues as well as corpora’s data terms and conditions, for fair comparisons, we have to reimplement the baseline
+methods based on our datasets listed in Table 1. Following the existing
+studies [20,28], we compared our method with baseline methods listed
+in Table 2, which includes: (1) CNN, convolutional neural network
+[19], (2) LSTM, Bi-LSTM network [19], (3) RCNN, combining CNN and
+LSTM [19], (4) HTR-MSA, hierarchical tweet representation method
+[20]; and (5) CNN-Transfer, a widely used transfer learning method in
+which a shared feature extractor built with CNN is simultaneously
+trained with source and target corpora, while two private sentence
+classifiers are trained with two corpora respectively. For fair comparisons, all the baseline methods are training without using additional
+domain features.
+Due to the differences in the size of the experimental data, we reimplemented the baseline methods performing a 10-fold cross-validation using the source corpus and each target corpus and report precision, recall and F1-scores of various methods in Table 2.
+
+3.4. Training
+The loss function of our proposed model can be expressed as follows:
+
+L = Lsource S (x ) + Ltarget (1
+
+S (x )) + Ladv
+
+(11)
+
+where Lsource and Ltarget are the losses of the source and target sentence
+classifiers, respectively. S (x ) is a switching function to identify the
+source of the input sentence. It is defined as follows:
+
+S (x) =
+
+1, ifx
+0, ifx
+
+Csource
+Ctarget
+
+(12)
+
+where Csource and Ctarget are source and target corpora, respectively.
+In this study, the word2vec [36] tool is employed to pre-train word
+embeddings using texts downloaded from PubMed3. And during the
+training process, at each interaction, a batch of instances are selected
+from {sourcecorpus, targetcorpus} in turn to update the parameters.
+Adaptive moment estimation (Adam) [37] is used to optimize the
+parameters in our method with respect to the objective function.
+
+4.3. Comparisons with the State-of-the-art methods
+We compared the experimental results of our proposed method with
+previous state-of-the-art text classification methods on ADR detection.
+All the methods are built with neural networks and do not apply
+handcrafted features.
+As shown in Table 2, CNN and LSTM methods have their own advantages on distinct corpora. When trained with a small corpus, LSTM
+achieves higher recall and F1-score than CNN does. In addition, the
+methods combining with both CNN and LSTM networks, such as RCNN
+and our method, generally achieve higher performances, because of
+integrating the superiorities of both kind of networks. Moreover, our
+method achieves the best overall F1-scores on three corpora (i.e.
+CADEC, Twitter and TwiMed), since it also takes advantage of the
+corpus-shared features learned from the source corpus. It also can be
+
+4. Results
+4.1. Datasets and experimental settings
+The motivation of our study is to take advantage of the information
+in a source corpus to improve the performances on small corpora
+sampled form different sources. Therefore, we utilized a corpus sampled
+from biomedical literature as the source corpus and three smaller
+3
+
+https://www.ncbi.nlm.nih.gov/pubmed/
+4
+
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Z. Li, et al.
+
+each other, the higher improvement will be achieved. Thus, the F1scores on CADEC and TwiMed (PubMed) are improved compared with
+those of CNN (81.98 vs. 81.21; 71.55 vs. 70.24). However, the corpusspecific features impact the performance on Twitter and TwiMed
+(Twitter). Compared with CNN-Transfer, our method applies ATL to
+prevent corpus-specific features from being introduced into shared
+space. Hence, our method achieves higher F1-scores than CNN-Transfer
+on all the corpora listed in Table 2.
+The results of different methods on the Twitter corpus are much
+lower than the results on other corpora. It is because detecting ADRs
+from tweets is much difficult for 3 reasons: 1) tweets contain colloquial
+language and typographical mistakes, such as misspelling of the names
+of drugs, diseases, and ADRs; 2) the use of non-medical terms (e.g.
+never sleeping or sleep deprived are used to describe the ADR insomnia)
+in tweets is very prevalent; and 3) in different contexts, a medical
+concept can be considered both an ADR and a symptom. For example,
+aches and pains is an ADR in the post complaining of “on #tysabri get
+flu, aches and pains”, while a symptom in the context of “I am only
+taking 75 mg a day and it is wonderful for relieving all of my aches and
+pains”.
+Overall, the results on distinct corpora show the effectiveness and
+outstanding generalization of our method compared with other state-ofthe-art methods, especially on small corpora.
+
+Table 1
+The statistics of the source and target corpora.
+Dataset
+
+Positive
+
+Negative
+
+Total
+
+ADE
+CADEC
+Twitter
+TwiMed
+TwiMed (PubMed)
+TwiMed (Twitter)
+
+4271
+2478
+744
+426
+191
+235
+
+16,625
+4996
+5727
+1182
+809
+373
+
+20,896
+7474
+6471
+1608
+1000
+608
+
+noticed that the performances of HTR-MSA are lower than those of
+other methods on small corpora. Since HTR-MSA is a complex method
+with hierarchical tweet representations and multi-head self-attention, it
+requires a large amount of annotated data to optimize a huge number of
+parameters. Thus, it cannot achieve comparable performances on small
+corpora. In contrast, although our method has more parameters than
+CNN and LSTM, it takes advantage of the shared features in the source
+corpus and thus achieves higher performances.
+Inspired by Sarker and Gonzalez [6], who added additional annotated data into training set to improve the performance of ADR detection, we also added the training data of ADE into each corpus to train
+the baseline CNN method. The results are reported in Table 2. It can be
+noticed that compared with the CNN method trained with a single
+corpus, adding data from a distinct corpus reduces the performance on
+the target corpora, especially on small corpora. The possible reason is
+that adding ADE to training set may introduce data noises during the
+training process, due to different annotation rules (e.g. what expressions convey an ADR) and different expressions of ADRs in different
+corpora. In addition, we notice that even though TwiMed (PubMed) and
+ADE are sampled from similar sources, there is 3% decrement of the F1score on TwiMed (PubMed) after adding additional training data. The
+result is contrary to what Sarker and Gonzalez [6] claimed, which is
+training with combined data from the similar sources may improve the
+performance on target corpora. We hypothesize that because the
+method used by Sarker and Gonzalez [6] takes handcrafted features
+(e.g. n-grams, existence of certain terms, and ADR lexicon) as input, the
+feature engineering help to precisely filter data noises including corpusspecific features. In contrast, since NN-based methods are trained to
+capture features automatically from input training data, they are more
+likely to be impact by data noises from different sources. In conclusion,
+adding additional data into training sets may boost the performance of
+feature-based methods while reduce the performance of NN-based
+methods.
+In the CNN-Transfer method, the shared feature extractor is trained
+with source and target corpora simultaneously. Corpus-shared features
+as well as corpus-specific features are learned by the shared feature
+extractor. And the more the source and target corpora are similar to
+
+4.4. Effectiveness analysis on each component
+To verify the effectiveness of each component of our method, we
+removed a component each time and then calculated the corresponding
+decrement on F1-scores. Table 3 provides the experimental results on
+three corpora.
+The decrement of F1-scores caused by removing discriminator demonstrates the effectiveness of adversarial transfer learning. The adversarial learning strategy implemented by a discriminator with a GRL
+ensures that in the shared feature extractor only corpus-shared features
+can be learned, while the corpus-specific features are prevented from
+being introduced into shared space. Therefore, annotated data even
+from different sources can be exploited to boost the performance of
+ADR detection via applying ATL. However, since TwiMed (PubMed)
+and ADE are both sampled from biomedical literature, corpus-specific
+features from these two corpora are similar and useful to some extent.
+Thus, removing the discriminator leads to 0.45% improvement.
+Table 3 also shows that further removing the shared feature extractor gives a decrement of F1-scores on all the target corpora. Also,
+the F1-scores on small corpora (i.e. TwiMed (PubMed) and TwiMed
+(Twitter)) decrease to a greater extent as compared with those on
+CADEC and Twitter. Specifically, there is 3.32% and 2.17% decrement
+on TwiMed (PubMed) and TwiMed (Twitter), respectively. This
+
+Table 2
+Comparison between our method and other state-of-the-art methods.
+Corpus
+CADEC
+Twitter
+TwiMed
+TwiMed (PubMed)
+TwiMed (Twitter)
+
+P (%)
+R (%)
+F1 (%)
+P (%)
+R (%)
+F1 (%)
+P (%)
+R (%)
+F1 (%)
+P (%)
+R (%)
+F1 (%)
+P (%)
+R (%)
+F1 (%)
+
+CNN
+
+LSTM
+
+RCNN
+
+HTR-MSA
+
+CNN + corpus
+
+CNN-Transfer
+
+Ours
+
+86.78
+76.31
+81.21
+59.53
+37.37
+45.91
+70.80
+60.33
+65.15
+81.38
+61.78
+70.24
+63.76
+59.15
+61.37
+
+85.57
+76.84
+80.97
+45.38
+42.88
+44.09
+67.21
+68.31
+67.75
+79.11
+65.45
+71.63
+60.36
+70.64
+65.10
+
+81.99
+76.63
+79.22
+50.00
+42.88
+46.17
+68.52
+66.43
+67.46
+80.00
+67.02
+72.93
+61.26
+65.96
+63.52
+
+81.77
+77.64
+79.65
+37.06
+58.33
+45.33
+66.58
+63.62
+65.07
+75.00
+65.97
+70.19
+60.67
+61.70
+61.18
+
+85.40
+75.99
+80.42
+47.94
+43.82
+45.79
+60.51
+61.50
+61.00
+73.75
+61.78
+67.24
+52.75
+61.28
+56.69
+
+84.75
+79.38
+81.98
+60.23
+35.62
+44.76
+69.58
+61.74
+65.42
+81.33
+63.87
+71.55
+61.84
+60.00
+60.91
+
+84.30
+81.28
+82.76
+56.26
+39.25
+46.24
+70.84
+65.02
+67.81
+81.53
+67.02
+73.56
+63.68
+63.40
+63.54
+
+5
+
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Z. Li, et al.
+
+Table 3
+Comparison between our proposed model and simplified models on each
+corpus.
+Dataset
+
+CADEC
+
+Twitter
+
+TwiMed
+
+TwiMed (PubMed)
+
+TwiMed (Twitter)
+
+P (%)
+R (%)
+F1 (%)
+Δ (%)
+P (%)
+R (%)
+F1 (%)
+Δ (%)
+P (%)
+R (%)
+F1 (%)
+Δ (%)
+P (%)
+R (%)
+F1 (%)
+Δ (%)
+P (%)
+R (%)
+F1 (%)
+Δ (%)
+
+None
+
+- Discriminator
+
+- shared
+feature
+extractor
+
+- shared
+LSTM
++
+shared
+CNN
+
+84.30
+81.28
+82.76
+–
+56.26
+39.25
+46.24
+–
+70.84
+65.02
+67.81
+–
+81.53
+67.02
+73.56
+–
+63.68
+63.40
+63.54
+–
+
+84.07
+80.91
+82.46
+−0.3
+55.80
+37.50
+44.86
+−1.38
+70.33
+64.55
+67.32
+−0.49
+80.37
+68.59
+74.01
++0.45
+63.16
+61.28
+62.20
+−1.34
+
+86.78
+76.31
+81.21
+−1.55
+59.53
+37.37
+45.91
+−0.33
+70.80
+60.33
+65.15
+−2.66
+81.38
+61.78
+70.24
+−3.32
+63.76
+59.15
+61.37
+−2.17
+
+79.94
+80.10
+80.02
+−2.74
+47.20
+34.01
+39.53
+−6.71
+68.32
+61.27
+64.60
+−3.21
+77.64
+65.45
+71.02
+−2.54
+61.54
+57.87
+59.65
+−3.89
+
+Fig. 3. F1-scores of the baseline CNN method and our method training with
+small training sets sampled from CADEC. The red and blue columns indicate the
+F1-scores achieved by the baseline CNN and our method, respectively.
+
+In conclusion, our method can improve the performance on small
+corpora effectively. And the results indicated that our study can significantly lower the amount of time spent on annotating ADR related
+data, and instead, existing annotated data from distinct sources can be
+exploited to boost the ADR detection performance.
+4.6. Visualization of feature representations on each component
+
+demonstrates the importance and effectiveness of using large corpus to
+improve the performances on small corpora on the ADR detection task.
+We also replaced the Bi-LSTM layer in the shared feature extractor
+with a CNN layer. We observe in Table 3 that the shared feature extractor with a CNN layer performs poorer in our ATL-based method. We
+hypothesize that because corpus-shared features are global features
+which can be captured by integrating the representation of an entire
+sentence. However, CNNs focus more on local features, which probably
+are some corpus-specific features. In our method, corpus-specific features are already captured by CNNs in private feature extractors.
+Therefore, in the shared feature extractor, a Bi-LSTM layer is more
+suitable for processing long-term context and capture corpus-shared
+features.
+
+To give a more intuitive picture of the effect of shared feature extractor, discriminator and GRL, we visualized the distribution of sentence feature embeddings encoded by shared feature extractor in each
+method. Fig. 4 shows the results when taking Twitter (orange and green
+spots indicate negative and positive instances) as the target corpora and
+ADE (navy and light blue spots indicate negative and positive instances)
+as the source corpus. Since the discriminator in our method is applied to
+estimate where the input sentence comes from, it cannot classify
+whether the sentence is related to an ADR. Therefore, in Fig. 4, positive
+and negative spots from the same corpus are mixed together.
+Fig. 4 (a) shows that there are no differences between the features
+captured by shared feature extractor from source and target corpora
+and the corpus-shared and corpus-specific features are mixed together.
+When adding a classifier as the corpus discriminator, the shared feature
+extractor focuses on classifying the source of the input sentence, and
+thus after training process corpus-specific features are learned. Hence,
+in Fig. 4 (b), there are obvious differences between feature representations from different corpora. Fig. 4 (c) shows that the feature
+embeddings from different corpora are well-mixed due to applying the
+adversarial learning strategy. The mixed spots indicate the corpusshared features learned by shared feature extractor when adding discriminator and GRL. Overall, Fig. 4 proves that adversarial learning can
+prevent corpus-specific features from being introduced into shared
+space.
+
+4.5. Effectiveness analysis on small training set
+To evaluate the effectiveness of our method on small corpora, we
+randomly sampled 20% of CADEC as test set and 20%, 40%, 60%, 80%
+and 100% of the rest of data as training sets. We trained the baseline
+CNN method and our method with five training sets and evaluate the
+methods on the test set, respectively. The experimental results are
+shown in Fig. 3.
+It can be observed that when adding ATL the improvement of
+training with 20% training set is larger than that of training with 100%
+training set (i.e. 1.21% vs. 0.34%). The comparation demonstrates the
+effectiveness of our method in boosting the performance on small
+training sets. And exploiting a large corpus sampled from a different
+source can compensate for the lack of annotated data in a target corpus.
+In addition, when only 40% of the training data is used to train our
+method, the F1-score reaches 82.03%. In addition, when 60% and 80%
+training sets are utilized, the F1-scores reach 82.16% and 82.66%, respectively. There are 0.97% and 0.34% improvements on F1-scores
+when compared with using 100% training set to train our method. In
+contrast, without applying ATL, the F1-score is 81.17% when training
+with 60% training set, which is 1.62% lower than that training with
+100% training set. The results indicate that applying ATL method can
+help reduce the demand for annotated data in a target corpus. And
+when only 60% of the training data is utilized to train our method, it
+can achieve comparable performance.
+
+5. Conclusions
+In this work, we focused on the problem of automatic text classification of sentences to detect ADR mentions. In particular, we attempted
+to investigate approaches taking advantages of a source corpora to
+improve the performance on small scale corpora without introducing
+extra noises. In this paper, we proposed a novel adversarial transfer
+learning framework for ADR detection, which takes advantage of data
+from large corpus and can exploit corpus-shared features to improve the
+performance on small corpora. Experiments on three different widely
+used corpora demonstrate that our method outperforms previous stateof-the-art methods and achieve satisfactory generalization. And the
+experimental results on small datasets show that our method can
+6
+
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Z. Li, et al.
+
+(a) The feature embeddings generated
+by shared feature extractor on
+Twitter and ADE.
+
+(b) The feature embeddings generated by
+shared feature extractor with corpus
+discriminator on Twitter and ADE.
+
+(c) The feature embeddings generated by
+shared feature extractor with discriminator
+and GRL on Twitter and ADE.
+
+Fig. 4. The visualization of sentence feature embeddings in different methods.
+
+achieve comparable performance while using less annotated training
+data. Besides, the visualization of the sentence representation generated
+by shared feature extractor proves the effectiveness of our proposed
+method using ATL.
+In the future, we would like to exploit information from multiple
+corpora for the task of ADR mention extraction, which is the next step
+after classifying the sentences containing ADRs. Since named entity
+recognition (NER) is another fundamental task in the biomedical NLP
+domain, there are large amount of annotated data from different
+sources can be used for the task. Considering the effectiveness of adversarial learning method on the ADR detection task, we expect that
+exploiting the information from multiple sources from the NER task will
+produce similar improvement for the ADR mention extraction task.
+
+[6] Abeed Sarker, Graciela Gonzalez, Portable Automatic Text Classification for
+Adverse Drug Reaction Detection via Multi-Corpus Training, J. Biomed. Inform. 53
+(2015) 196–207, https://doi.org/10.1016/j.jbi.2014.11.002.
+[7] Shaika Chowdhury, Chenwei Zhang, Philip S. Yu, Multi-Task Pharmacovigilance
+Mining from Social Media Posts, 2 (2018). http://arxiv.org/abs/1801.06294%0A,
+http://dx.doi.org/10.1145/3178876.3186053.
+[8] Shweta Yadav, Asif Ekbal, Sriparna Saha, Pushpak Bhattacharyya, A Unified MultiTask Adversarial Learning Framework for Pharmacovigilance Mining, (2019)
+5234–5245.
+[9] Sarvnaz Karimi, Alejandro Metke-Jimenez, Madonna Kemp, Chen Wang, Cadec: A
+Corpus of Adverse Drug Event Annotations, J. Biomed. Inform. 55 (2015) 73–81,
+https://doi.org/10.1016/j.jbi.2015.03.010.
+[10] Abeed Sarker, Azadeh Nikfarjam, Graciela Gonzalez, Social Media Mining Shared
+Task Workshop, Proceedings of the Social Media Mining Shared Task Workshop at
+the Pacific Symposium on Biocomputing, 2016, pp. 581–592.
+[11] Nestor Alvaro, Yusuke Miyao, Nigel Collier, TwiMed: Twitter and PubMed
+Comparable Corpus of Drugs, Diseases, Symptoms, and Their Relations, JMIR Publ.
+Health Surveillance 3 (2) (2017) e24.
+[12] Sinno Jialin Pan, Transfer Learning, Data Classification: Algorithms Appl. (2014)
+537–570.
+[13] Adrian Benton, et al., Identifying Potential Adverse Effects Using the Web: A New
+Approach to Medical Hypothesis Generation, J. Biomed. Inform. 44 (6) (2011)
+989–996, https://doi.org/10.1016/j.jbi.2011.07.005.
+[14] Robert Leaman, et al., Towards Internet-Age Pharmacovigilance: Extracting
+Adverse Drug Reactions from User Posts to Health-Related Social Networks, in: The
+Workshop on Biomedical Natural Language Processing (BioNLP), (2010) pp.
+117–225.
+[15] Michael Kuhn, et al., A Side Effect Resource to Capture Phenotypic Effects of Drugs,
+Mol. Syst. Biol. 6 (343) (2010) 1–6, https://doi.org/10.1038/msb.2009.98.
+[16] Zhifei Zhang, Jian-yun Nie, Xuyao Zhang, An Ensemble Method for Binary
+Classification of Adverse Drug Reactions From Social Media, Proceedings of the
+Social Media Mining Shared Task Workshop at the Pacific Symposium on
+Biocomputing, (2016).
+[17] Majid Rastegar-Mojarad, Ravikumar Komandur Elayavilli, Yu. Yue, Hongfang Liu,
+Detecting Signals in Noisy Data -Can Ensemble Classifiers Help Identify Adverse
+Drug Reaction in Tweets? Social Media Mining Shared Task Workshop, (2016).
+[18] Ilseyar Alimova, Elena Tutubalina, Automated Detection of Adverse Drug Reactions
+from Social Media Posts with Machine Learning, Lecture Notes in Computer Science
+(Including Subseries Lecture Notes in Artificial Intelligence and Lecture Notes in
+Bioinformatics) (2018) 3–15.
+[19] Trung Huynh, Yulan He, Alistair Willis, Stefan Ruger, Adverse Drug Reaction
+Classification With Deep Neural Networks, Coling, (2016) 877–887.
+[20] Chuhan Wu, et al., Detecting Tweets Mentioning Drug Name and Adverse Drug
+Reaction with Hierarchical Tweet Representation and Multi-Head Self-Attention,
+(2018) 34–37. http://sideeffects.embl.de/.
+[21] Giannis Bekoulis, Johannes Deleu, Thomas Demeester, Chris Develder. 2019.
+“Adversarial Training for Multi-Context Joint Entity and Relation Extraction,
+(2019) 2830–2836.
+[22] Emily Denton, Arthur Szlam, Rob Fergus, Deep Generative Image Models Using a
+Laplacian Pyramid of Adversarial Networks, Adv. Neural Inform. Process. Syst.
+(2015) 1486–1494.
+[23] Ian Goodfellow, et al., Generative Adversarial Nets, Adv. Neural Inform. Process.
+Syst. (2014) 2672–2680.
+[24] Konstantinos Bousmalis, et al., Domain Separation Networks, Adv. Neural Inform.
+Process. Syst. (Nips) (2016) 343–351.
+[25] Yaroslav Ganin, et al., Domain-Adversarial Training of Neural Networks, JMLR 17
+(1) (2016) 2096–12030 http://arxiv.org/abs/1806.05594.
+[26] Eric Tzeng, Judy Hoffman, Kate Saenko, and Trevor Darrell, Adversarial
+Discriminative Domain Adaptation, in: Proceedings - 30th IEEE Conference on
+Computer Vision and Pattern Recognition, CVPR 2017 2017-Janua, (2017) pp.
+2962–2971.
+[27] Pengfei Liu, Xipeng Qiu, and Xuanjing Huang, Adversarial Multi-Task Learning for
+
+CRediT authorship contribution statement
+Zhiheng Li: Conceptualization, Methodology, Software, Data
+curation, Writing - original draft. Zhihao Yang: Supervision. Ling Luo:
+Visualization, Investigation. Yang Xiang: Software, Validation.
+Hongfei Lin: Writing - review & editing.
+Declaration of Competing Interest
+The authors declare that they have no known competing financial
+interests or personal relationships that could have appeared to influence the work reported in this paper.
+Acknowledgements
+This work was supported by the grants from the National Key
+Research and Development Program of China (No. 2016YFC0901902).
+References
+[1] Munir Pirmohamed, Sally James, Shaun Meakin, Chris Green, Adverse Drug
+Reactions as Cause of Admission to Hospital: Prospective Analysis of 18,820
+Patients, BMJ 329 (7456) (2004) 15–19.
+[2] Abeed Sarker, et al., Utilizing Social Media Data for Pharmacovigilance: A Review,
+J. Biomed. Inform. 54 (2015) 202–212 http://www.ncbi.nlm.nih.gov/pubmed/
+25720841%0Ahttp://www.pubmedcentral.nih.gov/articlerender.fcgi?artid=
+PMC4408239.
+[3] Harsha Gurulingappa, Abdul Mateen-Rajput, Luca Toldo, Extraction of Adverse
+Drug Effects from Medical Case Reports, J. Biomed. Semant. 3 (1) (2012) 15 http://
+www.jbiomedsem.com/content/3/1/15.
+[4] Rachel Ginn, et al., Mining Twitter for Adverse Drug Reaction Mentions: A Corpus
+and Classification Benchmark.” In Proceedings of the fourth workshop on building
+and evaluating resources for health and biomedical text processing, (1) (2014).
+http://www.fda.gov/Drugs/GuidanceComplianceRegulatoryInf.
+[5] Azadeh Nikfarjam, et al., Pharmacovigilance from Social Media: Mining Adverse
+Drug Reaction Mentions Using Sequence Labeling with Word Embedding Cluster
+Features, J. Am. Med. Inform. Assoc. 22 (3) (2015) 671–681.
+
+7
+
+Journal of Biomedical Informatics 106 (2020) 103431
+
+Z. Li, et al.
+Text Classification, (2017). http://arxiv.org/abs/1704.05742.
+[28] Pengfei Cao, et al., Adversarial Transfer Learning for Chinese Named Entity
+Recognition with Self-Attention Mechanism, Proceedings Ofthe 2018 Conference on
+Empirical Methods in Natural Language Processing, 2018, pp. 182–192.
+[29] Xiaozhi Wang, et al., Adversarial Multi-Lingual Neural Relation Extraction, The
+27th International Conference on Computational Linguistics, (2018).
+[30] Anthony Rios, Ramakanth Kavuluru, Lu. Zhiyong, Generalizing Biomedical Relation
+Classification with Neural Adversarial Domain Adaptation, Bioinformatics 34 (17)
+(2018) 2973–2981.
+[31] Yaroslav Ganin, Victor Lempitsky, Unsupervised Domain Adaptation by
+Backpropagation, (2014), (i). http://arxiv.org/abs/1409.7495.
+[32] Yoshua Bengio, Réjean Ducharme, Pascal Vincent, Christian Jauvin, A Neural
+Probabilistic Language Model, J. Mach. Learn. Res. 3 (2003) 1137–1155.
+[33] Jeffrey L. Elman, Finding Structure in Time, Cogn. Sci. 14 (2) (1990) 179–211.
+[34] Sepp Hochreiter, Jürgen Schmidhuber, Long Short-Term Memory, Neural Comput.
+
+[35]
+[36]
+[37]
+[38]
+[39]
+
+8
+
+9 (8) (1997) 1735–1780 http://scholar.google.com/scholar?hl=en%7B&
+%7DbtnG=Search%7B&%7Dq=intitle:Copyright+%7B©%7D2001.+All+Rights
++Reserved.%7B#%7D0.
+Daojian Zeng, et al., Relation Classification via Convolutional Deep Neural
+Network, Coling 2011 (2014) 2335–2344 http://www.nlpr.ia.ac.cn/cip/liukang.
+files/camera_coling2014_final.pdf.
+Tomas Mikolov, et al., Distributed Representations of Words and Phrases and Their
+Compositionality, in: Advances in Neural Information Processing Systems 26 (NIPS
+2013), (2013) http://arxiv.org/abs/1806.06259.
+Diederik P. Kingma, Jimmy Lei Ba, Adam: A Method for Stochastic Optimization,
+(2014), arXiv:1412.6980.
+Adam Paszke, et al., Automatic Differentiation in PyTorch, in: 31st Conference on
+Neural Information Processing Systems (Nips) (2017) pp. 1–4.
+Nitish Srivastava, et al., Dropout: A Simple Way to Prevent Neural Networks from
+Overfitting, J. Mach. Learn. Res. 15 (2014).
+
+

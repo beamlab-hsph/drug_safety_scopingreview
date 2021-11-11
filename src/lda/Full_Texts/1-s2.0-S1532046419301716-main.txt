@@ -1,0 +1,1272 @@
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+Named entity recognition from Chinese adverse drug event reports with
+lexical feature based BiLSTM-CRF and tri-training
+
+T
+
+Yao Chena, Changjiang Zhoua, Tianxin Lia, Hong Wua, Xia Zhaob, Kai Yec, Jun Liaoa,
+
+⁎
+
+a
+
+School of Science, China Pharmaceutical University, Nanjing, China
+Adverse Drug Reaction Monitoring Center of Wuxi, Wuxi, China
+c
+MandalaT Software Corporation, Wuxi, China
+b
+
+ARTICLE INFO
+
+ABSTRACT
+
+Keywords:
+Adverse drug reaction
+Named entity recognition
+Chinese natural language processing
+Lexical feature based bidirectional long shortterm memory
+Tri-training
+
+Background: The Adverse Drug Event Reports (ADERs) from the spontaneous reporting system are important
+data sources for studying Adverse Drug Reactions (ADRs) as well as post-marketing pharmacovigilance. Apart
+from the conventional ADR information contained in the structured section of ADERs, more detailed information
+such as pre- and post- ADR symptoms, multi-drug usages and ADR-relief treatments are described in the free-text
+section, which can be mined through Natural Language Processing (NLP) tools.
+Objective: The goal of this study was to extract ADR-related entities from free-text section of Chinese ADERs,
+which can act as supplements for the information contained in structured section, so as to further assist in ADR
+evaluation.
+Methods: Three models of Conditional Random Field (CRF), Bidirectional Long Short-Term Memory-CRF
+(BiLSTM-CRF) and Lexical Feature based BiLSTM-CRF (LF-BiLSTM-CRF) were constructed to conduct Named
+Entity Recognition (NER) tasks in free-text section of Chinese ADERs. A semi-supervised learning method of tritraining was applied on the basis of the three established models to give un-annotated raw data with reliable
+tags.
+Results: Among the three basic models, the LF-BiLSTM-CRF achieved the highest average F1 score of 94.35%.
+After the process of tri-training, almost half of the un-annotated cases were tagged with labels, and the performances of all the three models improved after iterative training.
+Conclusions: The LF-BiLSTM-CRF model that we constructed could achieve a comparatively high F1 score, and
+the fusion of CRF, while BiLSTM-CRF and LF-BiLSTM-CRF in tri-training might further strengthen the reliability
+of predicted tags. The results suggested the usefulness of our methods in developing the specialized NER tools for
+identifying ADR-related information from Chinese ADERs.
+
+1. Introduction
+Adverse Drug Reaction (ADR) is an injury caused by taking a
+medication at a known normal prophylactic, diagnostic, or therapeutic
+dose [1], which can be a significant cause of morbidity and can indirectly compromise the treatment outcomes and adherence [2]. Collection of the ADR information is important for studying the clinical
+manifestation, trends, and mechanisms of ADRs and for post-marketing
+pharmacovigilance [3]. ADR information can be collected from multiple sources, such as the Adverse Drug Event (ADE) Reports (ADERs)
+from the Spontaneous Reporting System (SRS) [4–6], Electronic Medical Records (EMRs) [7,8], comments in social media [9–13], medical
+literatures [14,15]. Among these sources, ADERs from the SRS are often
+primary references for pharmacovigilance, which has a broad coverage
+⁎
+
+of data from large hospitals, small clinics, pharmacies, drug manufacturers, monitoring departments as well as individuals [16]. Therefore, mining the ADERs from the SRS is of great importance for more
+comprehensive studies of ADRs.
+An ADER is commonly composed of the structured and free-text
+section. The structured section contains the patients’ demographic,
+disease, drug, ADR and evaluation information, which have been
+commonly used for direct statistical analysis [4–6]. The free-text section contains detailed ADR-related information such as pre- and postADR symptoms, multi-drug usages, and ADR-relief treatments, which
+are relatively under-utilized because of the unstructured format. The
+ADR-related information contained in free-text section, which often
+named as ADE procedure description (ADEPD), offers important clues
+to the manifestations, trends, causes and mechanisms of ADRs.
+
+Corresponding author at: School of Science, China Pharmaceutical University, #639 Longmian Avenue, Jiangning District, Nanjing 211198, China.
+E-mail address: liaojun@cpu.edu.cn (J. Liao).
+
+https://doi.org/10.1016/j.jbi.2019.103252
+Received 10 December 2018; Received in revised form 12 July 2019; Accepted 14 July 2019
+Available online 16 July 2019
+1532-0464/ © 2019 Elsevier Inc. All rights reserved.
+
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Y. Chen, et al.
+
+Fig. 1. The distribution of reporting units and the distribution hospital levels of the ADE reports in this study, in which hospitals and Class C account for the most
+respectively.
+
+machine learning and deep learning methods. Supervised machine
+learning methods CRF and deep learning methods such as LSTM and
+their combinations have been widely applied in NER tasks [26,27]. In
+addition, semi-supervised machine learning such as co-training and tritraining that based on small-sized annotated datasets are often used for
+corpus extension and model promotion [28]. The highly successful
+category of NER methods is the combination of CRF and deep learning
+methods. Examples are the combination of CRF and Bidirectional Recurrent Neural Network (Bi-RNN) to tag gene [19] and disease mentions [15], and the supplementation of components such as semantic
+feature [29] and lexical feature [18,30] to enhance NER performances.
+Overall, methods such as CRF, LSTM and their variants or combinations
+are popular and proven to be effective in NER tasks, and lexical feature
+may be valuable for the recognition of domain-specific entities. When
+applied in NER tasks, the semi-supervised method of tri-training are
+commonly conducted on the basis of CRF and SVM only [31–33],
+without the mixture use of CRF and neural networks methods such as
+LSTM previously.
+The main purpose of this study was to automatically identify ADRrelated entities from the narrative descriptions of Chinese ADERs so as
+to serve as supplements when evaluating the structured section of cases,
+which can further assist in ADR evaluation. In this paper, we employed
+two highly successful NER models of CRF and BiLSTM-CRF, as well as
+one generated Lexical Feature based BiLSTM-CRF (LF-BiLSTM-CRF)
+model to conduct NER tasks respectively in the Chinese ADEPDs in this
+paper. Large amounts of data were manually annotated for model
+training. To take full advantage of the un-annotated raw data, we also
+explored a semi-supervised iterative training strategy of tri-training on
+the basis of three established models to crosswise give un-annotated
+cases tags with high confidence, and subsequently add the newly tagged
+cases into the training sets to retrain the basic models.
+
+Therefore, tools are needed for mining ADR-related information from
+this section to further analyze and evaluate the ADR.
+Named Entity Recognition (NER), which focuses on locating and
+classifying named entities in text into pre-defined categories, is commonly non-ignorable step of information extraction, as well as some
+other Natural Language Processing (NLP) tasks. For example, when
+conducting relation extraction tasks, another branch of NLP, locating
+the targeted entities in the text is commonly the step before relation
+classification. Apart from general extraction of entities such as person,
+place and organization names [17], NER has been extensively explored
+in biomedical fields, such as the identification of chemical compounds
+[18], genes and proteins [19], disorders [20], diseases [15], drugs [21],
+ADRs [1]. Relevant NER technologies have been developed to identify
+ADR entities from social media using the Bidirectional Long Short-Term
+Memory (BiLSTM) method [10–12], or the combined BiLSTM and Bidirectional Gated Recurrent Unit (BiGRU) method [13]. The popular
+exploration of ADR recognition from social media may be partly because of its accessibility and temporality, but the information contained
+in social media is also sparse and informal [22–24]. There is a need to
+develop NER tools to extract ADR-related entities from the free texts of
+ADERs that contain high-density information.
+In this work, we developed specialized NER tools for mining the
+free-text section of Chinese ADERs deposited in SRS. This is the first
+attempt to apply NER technologies for mining the free-text section of
+Chinese ADERs. Different from English NER, the study of Chinese NER
+started rather late and fewer architectures have been established [7].
+Apart from the conventional linguistic features of the narrative text,
+such as incomplete syntax and multiple symbols referring to different
+meanings, another important characteristic of Chinese language is that
+the segmentation of Chinese text is much more complicated because of
+the lack of explicit word boundaries and capitalization [25]. The Chinese language features coupled with the specialized ADR-related texts
+both augmented the difficulty of recognizing entities from Chinese
+ADERs. As a result, the application of extracting ADR-related information from Chinese narrative texts was quite limited.
+The routine ways for NER can be divided into four categories, including rule-based, lexicon-matching, machine learning and deep
+learning methods. Rule-based NER requires tedious efforts in manual
+rule-developing. If a rule is missing, the corresponding class of entities
+would be unidentified. For domain-specific NER tasks, lexiconmatching methods are of advantage in recognizing terminologies,
+however, the existing medical lexicons can hardly satisfy all the conditions of NER tasks. The preferred NER methods in recent years are
+
+2. Materials and methods
+2.1. Data source
+The raw ADER data used in our experiment were collected from
+ADR monitoring center of Jiangsu Province ranging from 2010 to 2016,
+these ADERs were mainly derived from medical workers from hospitals
+and pharmacies, as well as follow-up records from pharmaceutical
+companies. In China, hospitals are categorized into Class I–III, and each
+Class is divided into three levels of A–C, in which Class III A hospitals
+are rated as the best. In Fig. 1, we present the distribution of different
+2
+
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Y. Chen, et al.
+
+sources of ADERs and different classes of hospitals of data used in this
+study, from which we can see that reports from hospitals accounted for
+72.64%, and most of them came from Class I, which were commonly
+primary or community hospitals. The diversity of submitting institutions and reporters enriched the samples and at the same time made the
+linguistic features of data source more complicated.
+An ADER regularly consists of patients’ demographic information,
+treatment information, drug information, ADR information and evaluation information in a structured format. ADERs are primary sources
+for detecting and evaluating ADR-related information, while the
+ADEPDs of which have not been sufficiently exploited. An ADEPD
+usually includes the reasons for medication, drugs involved in this
+event and the generated ADRs during or after medication, which we
+defined as entities of Reason, Drug and ADR respectively. The ADEPDs
+contain comprehensive descriptions of ADRs, which in some cases may
+include information that omitted by reporters. For example, in the case
+of ‘The patient was injected with ceftizoxime and XiYanPing(喜炎平) successively for upper respiratory infection, rash appeared on the patients face
+and hands when injecting XiYanPing’, the corresponding structured section only recorded the ‘drug-ADR’ pair of ‘XiYanPing-rash’, ignoring the
+potential causality between ceftizoxime and rash. In fact, even there is a
+higher probability that the ADE was caused by XiYanPing, trade name of
+a traditional Chinese medicine injection, the combined use of ceftizoxime should also be taken into consideration.
+
+adjoining adjectives made the annotation more complicated. Moreover,
+the symptoms of ADR sometimes may also be the original reason for
+medication, such as fever and pruritus, which generated the literal
+overlaps between Reason and ADR and as a result undoubtedly augmented the challenges of tagging and recognizing entities in our experiment. Specifically, the term ADR we use here indicates the adverse
+reaction itself, while not take its relation with drug into account.
+The annotation work was conducted with a tool we developed
+which is available at (https://github.com/cpuchenyao/NER_RE_
+Annotation). We applied ‘BIO’ tags to represent the boundaries of entities (B-beginning of an entity, I-inside an entity, O-outside of an entity). Table 2 gives an example as well as its tagging format.
+The annotating work took four rounds. The first round was sampling
+for pre-processing to catch the rules of data and at the same time make
+standard annotating regulations. The next two rounds were formal
+annotating of all data, in which the third one was more likely to remove
+the ambiguity in the previous rounds. The last round was about
+proofreading, that was to eliminate inconformity among annotators.
+The distribution of finally annotated entities in each dataset is represented in Table 3.
+2.3. Model architecture
+The methods applied in this study can be divided into two parts. In
+the first part, we applied three models to recognize entities of Reason,
+Drug and ADR from ADERs, including a CRF model and two BiLSTMCRF models. The difference between two BiLSTM-CRF models is that
+LF-BiLSTM-CRF appended with the domain-specific lexical feature. The
+second part involves tri-training, which is more like a filtering mechanism to give reliable tags to cases from the unlabeled dataset with
+the joint effect of three models in the first part. The architecture of this
+study is shown in Fig. 2.
+
+2.2. Data processing and annotating
+There were ~130,000 reports involved in this study, we randomly
+selected 30,000 of them for manual annotation. It took about one
+month to annotate these 30,000 reports in duplicate by 10 undergraduates from the college of pharmacy under the guidance of qualified
+ADR supervisors after all the discordance between annotations of the
+same case were eliminated. Owing to the variety of reporting departments’ styles and the reporters’ specialty literacy, some of the cases are
+unusable, for example, the cases containing no entity or the cases that
+radically have no relevance to ADR. In this manner, we excluded the
+invalid and repetitive cases and finally obtained 24,890 ADEPDs annotated cases, in which we selected 15,000 cases as training set, 8000
+cases as testing set and the left 1890 cases used for validation in the
+training process of two BiLSTM-CRF models. The ratio of the training
+set to the testing set was higher than the conventional sample division,
+which was set to cater to the size expansion of training sets in tritraining.
+To cover the majority of the cases in our dataset, we only considered
+three entities including Reason, Drug and ADR. The definition or annotation rules, as well as examples and notes of corresponding entities
+are presented in Table 1. Qualifiers that may involve the relationships
+between entities such as negation of causality between drug and fever in
+the case of ‘the patient didn’t have a fever when the emesis happened’ were
+not considered in this study, which may tremendously complicate the
+task of NER and we planned to solve this problem in our future works of
+relation extraction. The entity of Drug was relatively easier to identify,
+while for the Reason and ADR entities, the body parts and some other
+
+2.3.1. CRF model
+CRF is a probabilistic structure model to conduct the labeling and
+segmenting of sequence data firstly put forward by Lafferty et al. in
+2001[34]. It has been widely used in NER tasks in different languages
+as a supervised machine learning method and has shown outstanding
+performances [35,36]. The CRF model typically solves three basic
+problems, including feature selection, training parameters and decoding. It is a conditional probability distribution model with the
+probabilistic distribution P(X|Y) of random variable sequence Y at the
+condition of given random variable sequence X to represent the linearchain CRF when it satisfies the Markov random field, in which X represents input observed sequences and Y represents the output labeling
+sequences in sequential labeling issues [34].
+In this study, we applied CRF++ [37] as an implementation of
+CRF, which commonly gives the sequences with largest probability as
+outputs. Among its four examples of basenp, chunking, japaneseNE and
+seg, we selected the japaneseNE for the similarity of indistinct boundary
+between Chinese and Japanese. Parameters and template can be
+changed to better adapt to the data, in which we chose Unigram template that took three characters and corresponding tags as observed
+
+Table 1
+The definition/annotation rules and corresponding examples and notes of three entities of Reason, Drug and ADR.
+Entity
+
+Definition/Annotation rule
+
+Example
+
+Note
+
+Reason
+
+Diseases or symptoms involved drug use
+Other treatment involved with drug use
+
+diabetes, fever
+infection after caesarean section
+
+Body parts and adjoining adjectives be annotated as
+a whole
+
+Drug
+
+Generic name of drugs,
+Trade name of drugs
+Abbreviation of drugs
+
+Levofloxacin
+Lipitor
+10%GS, 0.9%NS
+
+Dosage form and concentration combined when
+they exist
+
+ADR
+
+The adverse reactions the patients have during or after
+the treatment
+
+headache, whole-length sporadic rash, stomach
+bleeding, gum bleeding
+
+Body parts and adjoining adjectives be annotated as
+a whole
+
+3
+
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Y. Chen, et al.
+
+Table 2
+One example of our cases and its BIO-format tags, which were combinations of entities and locations of each character.
+Sentence
+
+BIO tags
+
+患者因咳嗽、咳痰来医院诊治, 给予阿奇霉素静滴, 在静滴过程中患者出现寒颤。
+(The patient came to the hospital because of a cough and expectoration,
+azithromycin was injected. The patient felt a shiver during injection.)
+
+患(O)者(O)因(O)咳(B-Reason)嗽(I-Reason)、(O)咳(B-Reason)痰(I-Reason)来(O)医(O)院
+(O)诊(O)治(O), (O)给(O)予(O)阿(B-Drug)奇(I-Drug)霉(I-Drug)素(I-Drug)静(O)滴(O), (O)
+在(O)静(O)滴(O)过(O)程(O)中(O)患(O)者(O)出(O)现(O)寒(B-ADR)颤(I-ADR)
+
+embedding layer, dropout layer, BiLSTM layer and CRF layer. A preprocess of word segmentation should be conducted in Chinese language
+firstly in which we used a tool named jieba [41] that had been widely
+used in Chinese word segmentation. In addition to the routine word
+segmentation with default settings of jieba, we also integrated disease
+and symptom concepts from ICD-10, drug names from drug dictionary
+for Chinese medical insurance, database of package inserts of drug and
+NCCD [42], ADR terms from WHO Adverse Reactions Terminology
+(WHOART) respectively as the external lexicons to facilitate segmentation of the medical specific vocabularies in narrative texts. To further
+augment the vocabulary, we also added some related corpus such as
+medical idioms and terminology of Traditional Chinese Medicine from
+Sogou word bank [43], a Chinese website offering free employment of
+classified word dictionaries. The category of lexicons and the corresponding number of concepts were shown in Table 4, all of which were
+employed in the process of word segmentation, which then would be
+converted into segmentation embedding and acted as lexical feature of
+neural network. In this way, we got two applications of BiLSTM-CRF,
+one with routine word segmentation, and the other brought domainspecific lexical feature in, which we named as LF-BiLSTM-CRF.
+The features of word segmentation were converted into 20-dimensional embeddings in the embedding layer, which we described as segto-id. In addition, we also used a tool of word2vec from Google to
+generate character embeddings of all sequential information of characters(char-to-id) with 100 dimensions. Seg-to-id and char-to-id were
+concatenated in the embedding layer as training input. To reduce the
+happenings of overfitting during training, we also set a dropout rate at
+0.5. In addition, the main hyper-parameters including the initial
+learning rate, gradient threshold, batch size, number of LSTM units
+were set as 0.001, 5, 20 and 100 respectively. The CRF layer was designed to score the sequences and the most probable results would be
+considered as tags for characters.
+
+Table 3
+Numbers of each kind of entity in 15,000 cases in the training set, 8000 cases in
+the testing set and 1890 cases in the validation set.
+Entities
+
+Training set
+
+Testing set
+
+Validation set
+
+Reason
+Drug
+ADR
+
+17,938
+33,207
+37,575
+
+9740
+18,005
+20,036
+
+2197
+4049
+4704
+
+Fig. 2. The architecture of this study, which can be divided into two parts. The
+first part is about the setting and training of initial three models with manually
+annotated data. The second part is utilizing tri-training to generate new cases
+with tags on the basis of established models and then retrain the models with
+updated labeled data.
+
+2.3.3. Tri-training with unlabeled data
+The manual tagging of data is time-consuming and size-limited. To
+take full advantage of the raw data, we applied a tri-training architecture from Chou’s study [32] to further utilize the unlabeled data. As
+a semi-supervised model, tri-training was firstly proposed by Zhou [44]
+in 2005, which used three classifiers and a voting mechanism to solve
+the confidence issue of co-labeled answers.
+In tri-training, let L and U denote the original labeled and unlabeled
+dataset respectively, the initial three models of M1, M2 and M3 are
+trained by bootstrap sampling from L (which respectively represented
+as L1, L2 and L3). In each round, Mj and Mk (i, j, k (1, 2, 3) ) are used
+to label the instances from U, and the instances with the same answer
+and corresponding probability exceeding threshold value(t) will be
+added into the training set of model Mi, and the newly updated training
+set Li’ will be used to retrain Mi in the next round(Fig. 4). The recycle
+ends when the three training sets can’t be updated.
+The three basic models for tri-training were composed of CRFs only
+in Chou’s study, which may result in the lack of generalization ability
+and increase the probability of identical mistakes being made. In this
+study, we innovatively applied the assembling of probability distribution algorithm and neural network algorithms in tri-training. To the
+best of our knowledge, this work is the first example of using tritraining in the fusion of CRF and BiLSTM-CRF algorithms to conduct
+NER tasks.
+
+window.
+2.3.2. BiLSTM-CRF model and LF- BiLSTM-CRF model
+LSTM is a solution to the vanishing gradient in RNN, which controls
+the rate of input data delivered into memorial unit by special gates
+[38]. To utilize the preceding and subsequent information in the sequence labeling tasks, the BiLSTM model was proposed [39], in which
+
+ht and ht denote the forward and backward output of input sentence x t
+at moment t respectively. The outputs of BiLSTM are independently
+selected tags with the highest scores, while lacking of constraints from
+anteroposterior tags may result in confusion among entities. Application of CRF can strengthen the constraints of corpus, so as to improve
+the predicting accuracy of named entities. In BiLSTM-CRF, BiLSTM can
+automatically learn features from training set, combining the word
+embeddings, character embeddings, position embeddings or some other
+embeddings as latent features, and then fed into the CRF layer to output
+the label sequence with the maximum scores [21]. In this study, we
+referenced Lample et al.’s [40] BiLSTM-CRF model to do the NER task,
+and the architecture of which was clarified in Fig. 3.
+The structure of our model can be divided into four layers, including
+
+4
+
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Y. Chen, et al.
+
+lexicon
+
+character
+sequence
+
+jieba
+
+segmentation
+embedding
+
+word2vec
+
+character
+embedding
+
+preprocessing
+
+embedding layer
+
+dropout
+
+forward LSTM
+backward LSTM
+
+CRF
+
+dropout layer
+
+BiLSTM layer
+
+CRF layer
+
+Fig. 3. The architecture of BiLSTM-CRF, which includes four layers of embedding layer, dropout layer, BiLSTM layer and CRF layer. The lexicons were added at the
+step of jieba for segmentation.
+Table 4
+The distribution of collected lexicons from other sources.
+
+Table 5
+The performances of three models with initial 10,000 training set.
+
+Category of
+sources
+
+Disease
+
+Drug
+
+ADR
+
+Sogou
+
+NCCD
+
+Sum
+(distinctive)
+
+Number of
+concepts
+
+56,016
+
+22,991
+
+2,127
+
+81,730
+
+42,553
+
+131,278
+
+3. Results
+In this study, we used F1 score to evaluate the performances of our
+models, which concurrently considers the precision and the recall. The
+results can be divided into two parts. The first part was about the respective performances of CRF, BiLSTM-CRF and LF-BiLSTM-CRF at an
+initial level. The second part was their performances during and after
+tri-training.
+To satisfy the condition of tri-training, we set the size of initial
+training set at 10,000 after bootstrap sampling from 15,000 labeled
+data, the aim of which was to avoid that nondistinctive answers of three
+models would be given when training with the same dataset.
+Variations may exist in performances of the models trained by different sampled datasets, so we conducted the experiments for 20 times
+with different sampled training data and applied average value and
+standard deviation to show the predicting results, which were listed in
+Table 5. From Table 5 we can see that model LF-BiLSTM-CRF achieved
+the highest average F1 scores of each entity and the overall average F1
+score was 94.35%. As to the recognition of each entity, all of the three
+models obtained the best performances on Drug entity and the worst
+performances on Reason entity.
+
+Model
+
+Entity
+
+Precision (%)
+
+Recall (%)
+
+F1 score (%)
+
+CRF
+
+Reason
+Drug
+ADR
+overall
+
+92.05
+97.85
+92.67
+94.41
+
+±
+±
+±
+±
+
+0.34
+0.23
+0.10
+0.32
+
+88.21
+96.39
+92.58
+93.08
+
+±
+±
+±
+±
+
+0.66
+0.10
+0.22
+0.28
+
+90.09 ± 0.25
+97.12 ± 0.14
+92.63 ± 0.14
+93.81 ± 0.08
+
+BiLSTM-CRF
+
+Reason
+Drug
+ADR
+overall
+
+91.66
+97.39
+93.24
+94.48
+
+±
+±
+±
+±
+
+0.50
+0.28
+0.32
+0.25
+
+90.48
+96.55
+93.20
+93.91
+
+±
+±
+±
+±
+
+0.99
+0.21
+0.42
+0.37
+
+91.07 ± 0.50
+96.97 ± 0.15
+93.22 ± 0.29
+94.05 ± 0.69
+
+LF-BiLSTM-CRF
+
+Reason
+Drug
+ADR
+overall
+
+91.84
+97.47
+93.36
+94.59
+
+±
+±
+±
+±
+
+0.66
+0.20
+0.41
+0.33
+
+90.80
+96.57
+93.48
+94.10
+
+±
+±
+±
+±
+
+0.68
+0.30
+0.33
+0.30
+
+91.31 ± 0.52
+97.02 ± 0.22
+93.42 ± 0.29
+94.35 ± 0.29
+
+Table 6
+The sizes of newly updated training data and left unlabeled data in each
+iteration.
+Iteration
+
+CRF
+
+BiLSTM-CRF
+
+LF-BiLSTM-CRF
+
+Left cases
+
+Iteration = 0
+Iteration = 1
+Iteration = 2
+
+10,000
+20,000
+30,138
+
+10,000
+20,000
+20,000
+
+10,000
+20,000
+30,016
+
+100,000
+75,132
+57,809
+
+When it comes to the models’ performances in tri-training, the
+iterations of retraining of CRF, BiLSTM-CRF and LF-BiLSTM-CRF were
+2, 1 and 2 respectively. We listed their initial and updated sizes of
+
+no
+
+Mj
+unlabeled data
+
+predicting
+results
+
+test
+
+Consistant tags
+Probability > t
+
+Mk
+yes
+
+ADE reports
+retrain
+
+annotate
+
+labeled data
+
+pseudo-tagged
+data
+
+Mi
+
+labeled data
+for Mi
+
+train
+
+Bootstrap sampling
+
+5
+
+Fig. 4. The process of tri-training in each
+round, in which Mi is initially trained by
+labeled data sampled from manually annotated cases. When predicting results of unlabeled cases of Mj and Mk satisfy the conditions of filtering, the predicting tags would
+be treated as pseudo tags of corresponding
+unlabeled cases, and then used to retrain Mi
+in the next round, combining with the initial
+training data for Mi.
+
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Y. Chen, et al.
+
+targeted entities of Reason for medication, the recognition of which can
+achieve relatively high performances when defined as disease only
+[15,45], however, in a similar work from Tao et al. [46] that aimed to
+extract entities of Reason and some other medication-related entities
+from prescriptions, it only achieved an F1 score at 40.9% of the Reason.
+The recognition of Drug or chemical usually can perform well
+[18,21,27,28,47] with F1 scores ranging from 79.26% to 92.04% in
+medical texts. When it comes to the recognition of ADR that mainly
+conducted in social media texts, among the several researches we referenced [10,12,26], Xie et al.’s [12] study achieved the highest F1
+score at 84.0% of adverse events of e-cigarette. In comparison, all of the
+three entities of our study obtained competitive performances.
+Several works that based on BiLSTM-CRF to do medical NER tasks
+have outperformed the baseline models like CRF, some of which combined the effects of character embedding, word embedding and some
+other features, with the integral F1 scores at 84.87–92.04%
+[21,29,40,48,49]. As to tri-training, it proceeded one less iteration than
+the work we referenced [32], but still promoted the performances of
+each base model.
+
+Table 7
+The performances of each model before and after iterations of updating of
+training sets through tri-training.
+Iteration
+
+Model
+
+Entity
+
+Precision (%)
+
+Recall (%)
+
+F1 score
+(%)
+
+Iteration = 0
+
+CRF
+
+Reason
+Drug
+ADR
+Overall
+Reason
+Drug
+ADR
+Overall
+Reason
+Drug
+ADR
+Overall
+
+91.98
+97.89
+92.63
+94.48
+91.74
+97.29
+92.97
+94.34
+92.20
+97.08
+93.12
+94.42
+
+88.02
+96.41
+92.44
+93.04
+90.03
+96.56
+93.41
+93.91
+91.00
+96.28
+93.85
+94.19
+
+89.96
+97.15
+92.54
+93.75
+90.88
+96.92
+93.19
+94.13
+91.59
+96.68
+93.48
+94.30
+
+Reason
+Drug
+ADR
+Overall
+Reason
+Drug
+ADR
+Overall
+Reason
+Drug
+ADR
+Overall
+
+92.03
+97.90
+92.44
+94.41
+92.35
+97.62
+93.00
+94.60
+92.59
+97.21
+92.90
+94.45
+
+88.12
+96.53
+92.72
+93.22
+90.79
+96.81
+94.00
+94.40
+90.78
+96.55
+94.04
+94.32
+
+90.04
+97.21
+92.58
+93.81
+91.56
+97.21
+93.49
+94.50
+91.68
+96.88
+93.47
+94.39
+
+Reason
+Drug
+ADR
+Overall
+Reason
+Drug
+ADR
+Overall
+Reason
+Drug
+ADR
+Overall
+
+92.18
+97.93
+92.42
+94.44
+92.35
+97.62
+93.00
+94.60
+92.67
+97.80
+92.47
+94.49
+
+88.34
+96.69
+93.08
+93.47
+90.79
+96.81
+94.00
+94.40
+90.40
+96.09
+94.24
+94.16
+
+90.22
+97.31
+92.75
+93.96
+91.56
+97.21
+93.49
+94.50
+91.52
+96.94
+93.35
+94.32
+
+BiLSTM-CRF
+
+LF-BiLSTMCRF
+
+Iteration = 1
+
+CRF
+
+BiLSTM-CRF
+
+LF-BiLSTMCRF
+
+Iteration = 2
+
+CRF
+
+BiLSTM-CRF
+
+LF-BiLSTMCRF
+
+4.2. Findings and error analysis
+From the distribution of F1 scores, we can find that the recognition
+of Reason achieved the worst performance while the recognition of
+Drug entity performed best. The results were comprehensible because
+the definition or annotating rules of Reason was much more diverse,
+which included the conventional diseases and some other treatments
+involved drug use, furthermore, the adjoining body parts and adjectives
+were also included. The concept overlaps between Reason and ADR
+further made the recognition more difficult. Another important error in
+recognizing Reason and ADR, especially in ADR was the colloquial
+expressions of symptoms, for example, the symptom of “anorexia” can
+hardly be recognized when expressed as “in no mood to have meals”.
+The main errors in Drug NER were the recognition of some traditional
+Chinese medicine and infrequent trade name, as well as some English
+abbreviations. One particular case, for example, “NS” frequently represents “normal saline”, sometimes on behalf of “nephrotic syndrome”, while in “NS (-)” there is another meaning of “nervous system”.
+The decisive factor for the unsatisfactory proceeding of tri-training
+was the failure of successive reduction in iterations of error rate, which
+was calculated by
+
+training sets, as well as left unlabeled cases in each iteration in Table 6
+and corresponding performances before and after tri-training in
+Table 7, where the ‘iteration = 0′ represents the original state of
+each model. From Table 6 we can see that both CRF and LF-BiLSTMCRF captured twice iterations, the final sizes of training data of which
+were about triple of their initial ones, and at the same time, nearly half
+of non-repetitive unlabeled cases from the overall 100,000 were automatically tagged.
+Table 7 shows the updated performances of each model with original and new training data, from which we can see that the performance of BiLSTM-CRF model didn’t change in the second iteration
+because of failure of retraining, but it achieved the biggest increase in
+F1 score of 0.37. We present the distribution and tendency of results in
+Fig. 5, from which we can see that BiLSTM-CRF achieved the highest F1
+score with fewest training data.
+
+eit =
+
+|{x , y}
+|{x , y}
+
+L , htj (x ) = hkt (x )
+L , htj (x ) = hkt (x )|
+
+y|
+(1)
+
+where eit denoted the error rate of model i in iteration t , x and y denoted
+the cases and corresponding labels in labeled data set, htj (x ) and hkt (x )
+denoted the predicting results of case x in model j and model k respectively in t th iteration. According to the equation, eit is determined
+by the performances of the other two models, and its value will be
+relatively bigger when model j and model k give fewer same results or
+more incorrect results at the same time. In other words, whether or not
+to retrain is irrelevant to the model itself, neither has direct relevance to
+the certain one of the other two.
+The F1 score of LF-BiLSTM-CRF reduced after one iteration, which
+may have a link to the noises that brought in at the second iteration,
+even though many constraints had been set. Owing to LF-BiLSTM-CRF
+had a better performance, predictions given by CRF or BiLSTM-CRF that
+were consistent with those from LF-BiLSTM-CRF may be of higher reliability. Vice versa, adding predictions given by inferior models may
+have a possibility to degrade the original model, and with the iteration
+proceeding, the noises may also accumulate, which may result in the
+poorer performance of LF-BiLSTM-CRF in the second iteration compared with that in the first iteration.
+Considering that model LF-BiLSTM-CRF outperformed the other two
+models, we also conducted validation experiment of tri-training that
+
+4. Discussion
+4.1. Comparison with earlier studies
+This work applied multiple methods of NER in recognizing entities
+of Reason, Drug and ADR from Chinese ADERs, and we compared the
+performances of this study with some related works from the perspective of language, entity and method in this section. Currently, the
+Chinese medical NER are mainly conducted on clinical texts such as
+admission notes or discharge summaries of EMRs [7,25], from which
+problems, procedures, tests and medication are commonly targeted
+entities, with no specifically distinguished ADR. With regard to the
+6
+
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Y. Chen, et al.
+
+Fig. 5. The sizes of updated training sets of three models and their corresponding F1 scores in each iteration.
+
+5. Conclusions
+
+based on three LF-BiLSTM-CRFs trained by different sample datasets,
+but unfortunately, none of the several attempts carried forward to the
+second iteration. We attributed it to the similarities among basic
+models, which may increase the possibility of making same incorrect
+predictions in crosswise identification and at the same time bring more
+noises in. Diversity among basic models maybe beneficial in the propelling of tri-training.
+Despite the failure to give the majority of unlabeled data pseudo
+tags so as to expand the sizes of training sets, the newly added training
+data also gave improvements to the corresponding models’ performances. All of the three models’ performances improved as training sets
+expanded, however, it is interesting that the model of BiLSTM-CRF
+achieved the biggest increase of F1 score as well as the highest F1 score
+after tri-training, while it only updated for once. This suggests that the
+accuracy of predictions is comparatively more conclusive than the volume of newly added cases in tri-training.
+
+In this work, we applied three models of CRF, BiLSTM-CRF and LFBiLSTM-CRF to recognize ADR-related entities of the reasons for
+treatment, drugs used and corresponding ADRs from Chinese ADERs.
+Extensive efforts were directed at the annotation of the ADR-related
+free-text as well as those of other specialized areas, because of the lack
+of publicly available corpus for ADR research, especially in the Chinese
+language. Our models achieved comparatively high performances from
+the perspective of each kind of entity, among which the LF-BiLSTM-CRF
+performed best with the supplementary domain-specific lexical feature
+into BiLSTM-CRF. The results of tri-training also proved the enhanced
+ability of uniting BiLSTM-CRF and CRF to generate cases with reliable
+pseudo tags from unlabeled data, so as to expand the dataset to train
+models when the labeled data are not sufficient. The applications of
+lexical feature and tri-training suggest the models’ compatibility, which
+can be adjusted according to the size and features of data in similar
+tasks. This is the first study to conduct domain-specific NER task in the
+free-text section of Chinese ADERs, which may be developed into a
+useful tool for ADR study, especially for ADR evaluation and supervision.
+
+4.3. Limitations
+In this study, although our models achieved comparatively high F1
+scores compared with some relative studies, there are still some limitations. The first one is about the category of entities. Apart from the
+three defined entities of Reason, Drug and ADR, to comply with the
+majority of cases, some other types of informative entities such as
+clinical examination and dosage in a few of cases were not included.
+The neglect of these entities may lead to the loss of some targeted information, for example, dosage is a vital property when evaluating
+whether an ADE is caused by overdose. The second limitation is about
+the neglect of the entities’ qualifiers that sometimes maybe a kind of
+negation, which means that in this study we only considered the entity
+itself while not took the relations between entities into consideration.
+Features can be added to distinguish entities’ status, for example, present symptoms, history symptoms and symptoms that never happen,
+which may also increase the complexity of recognizing as well as annotating to a great extent. The last limitation is about the limited gain in
+tri-training. Other than the improvement of basic models themselves,
+we consider more diversity among basic models and constraints for the
+added cases should be set to reduce the noises and error rates, so as to
+multiply the iterations as well as improve performances in tri-training.
+
+Declaration of Competing Interest
+The authors of this work do not have any kind of conflict of interests.
+Acknowledgements
+Funding: This work was supported by 2017–2018 annual scientific
+research project (info category) of Jiangsu Food and Drug
+Administration (No. 20170308) and ‘Double First-Class’ University
+project (No. CPU2018GY19). The authors would like to thank the team
+of annotators for their efforts in annotating corpus and the support of
+supervisors from ADR monitoring center of Wuxi, Jiangsu Province, as
+well as the computing support from High Performance Computing
+Center of China Pharmaceutical University.
+7
+
+Journal of Biomedical Informatics 96 (2019) 103252
+
+Y. Chen, et al.
+
+References
+[1] H.J. Dai, M. Touray, J. Jonnagaddala, S. Syedabdul, Feature engineering for recognizing adverse drug reactions from twitter posts, Inform. Int. Interdisciplinary J.
+7 (2016) 27, https://doi.org/10.3390/info7020027.
+[2] W. Zheng, H. Lin, Z. Zhao, B. Xu, Y. Zhang, Z. Yang, J. Wang, A graph kernel based
+on context vectors for extracting drug-drug interactions, J. Biomed. Inform. 61
+(2016) 34–43, https://doi.org/10.1016/j.jbi.2016.03.014.
+[3] I.R. Edwards, J. Aronson, Adverse drug reactions: definitions, diagnosis, and
+management, The Lancet 356 (2000) 1255–1259, https://doi.org/10.1016/S01406736(00)02799-9.
+[4] C. Pageot, J. Bezin, A. Smith, M. Arnaud, F. Salvo, F. Haramburu, B. Begaud,
+A. Pariente, Impact of medicine withdrawal on reporting of adverse events involving therapeutic alternatives: a study from the french spontaneous reporting database, Drug Saf. 40 (2017) 1099–1107, https://doi.org/10.1007/s40264-0170561-y.
+[5] S. Schwan, A. Sundstrom, E. Stjernberg, E. Hallberg, P. Hallberg, A signal for an
+abuse liability for pregabalin—results from the Swedish spontaneous adverse drug
+reaction reporting system, Eur. J. Clin. Pharmacol. 66 (2010) 947–953, https://doi.
+org/10.1007/s00228-010-0853-y.
+[6] K.A. Agu, A.C. Oparah, Adverse drug reactions to antiretroviral therapy: results
+from spontaneous reporting system in Nigeria, Perspect. Clin. Res. 4 (2013)
+117–124, https://doi.org/10.4103/2229-3485.111784.
+[7] Y. Wu, M. Jiang, J. Lei, H. Xu, Named entity recognition in Chinese clinical text
+using deep neural network, Stud. Health Technol. Inform. 216 (2015) 624–628,
+https://doi.org/10.3233/978-1-61499-564-7-624.
+[8] X. Dong, L. Qian, Y. Guan, L. Huang, Q. Yu, J. Yang, A multiclass classification
+method based on deep learning for named entity recognition in electronic medical
+records, Sci. Data Summit (2016) 1–10, https://doi.org/10.1109/NYSDS.2016.
+7747810.
+[9] C. Dong, H. Wu, J. Zhang, C. Zong, Multichannel LSTM-CRF for Named Entity
+Recognition in Chinese Social Media, 2017, 197–208. http://doi.org/10.1007/9783-319-69005-6_17.
+[10] A. Cocos, A.G. Fiks, A.J. Masino, Deep learning for pharmacovigilance: recurrent
+neural network architectures for labeling adverse drug reactions in Twitter posts, J.
+Am. Med. Inform. Assoc. 24 (2017) 813–821, https://doi.org/10.1093/jamia/
+ocw180.
+[11] S. Gupta, S. Pawar, N. Ramrakhiyani, G.K. Palshikar, V. Varma, Semi-supervised
+recurrent neural network for adverse drug reaction mention extraction, BMC Bioinf.
+19 (2018) 212, https://doi.org/10.1186/s12859-018-2192-4.
+[12] J. Xie, X. Liu, D.D. Zeng, Mining e-cigarette adverse events in social media using BiLSTM recurrent neural network with word embedding representation, J. Am. Med.
+Inform. Assoc. 25 (2018) 72–80, https://doi.org/10.1093/jamia/ocx045.
+[13] C. Dong, H. Wu, J. Zhang, C. Zong, Multichannel LSTM-CRF for Named Entity
+Recognition in Chinese Social Media, 2017, 197–208, http://doi.org/10.1007/9783-319-69005-6_17.
+[14] S. Sumathipala, K. Yamada, M. Unehara, Protein named entity classification with
+probabilistic features derived from GENIA corpus and MEDLINE, in: 2014 Joint 7th
+International Conference on Soft Computing and Intelligent Systems (SCIS) and
+15th International Symposium on Advanced Intelligent Systems (ISIS), 2014, pp.
+1257–1261. http://doi.org/10.1109/SCIS-ISIS.2014.7044640.
+[15] Q. Wei, T. Chen, R. Xu, Y. He, L. Gui, Disease named entity recognition by combining conditional random fields and bidirectional recurrent neural networks,
+Database 2016 (2016), https://doi.org/10.1093/database/baw140.
+[16] S.N. Pal, D. Chris, F. Dennis, O. Sten, WHO strategy for collecting safety data in
+public health programmes: complementing spontaneous reporting systems, Drug
+Saf. 36 (2013) 75–81, https://doi.org/10.1007/s40264-012-0014-6.
+[17] D. Nadeau, S. Sekine, A survey of named entity recognition and classification,
+Lingvisticae Investigationes 30 (2007) 3–26, https://doi.org/10.1075/li.30.1.
+03nad.
+[18] Y. Zhang, J. Xu, C. Hui, J. Wang, Y. Wu, M. Prakasam, X. Hua, Chemical named
+entity recognition in patents by domain knowledge and unsupervised feature
+learning, Database J. Biol. Databases Curat. 2016 (2016), https://doi.org/10.1093/
+database/baw049 baw049.
+[19] R.T. Mcdonald, F. Pereira, Identifying gene and protein mentions in text using
+conditional random fields, BMC Bioinf. 6 (2005) 1–7, https://doi.org/10.1186/
+1471-2105-6-S1-S6.
+[20] S. Saha, A. Ekbal, U.K. Sikdar, Named Entity Recognition and Classification in
+Biomedical Text Using Classifier Ensemble, Inderscience Publishers, 2015.
+[21] D. Zeng, C. Sun, L. Lin, B. Liu, LSTM-CRF for drug-named entity recognition,
+Entropy 19 (2017), https://doi.org/10.3390/e19060283.
+[22] L. Derczynski, I. Augenstein, K. Bontcheva, USFD: Twitter NER with Drift
+Compensation and Linked Data, arXiv: Computation and Language, 2015, 48–53.
+http://doi.org/10.18653/v1/W15-4306.
+[23] C. Cherry, H. Guo, The Unreasonable Effectiveness of Word Representations for
+Twitter Named Entity Recognition, north american chapter of the association for
+computational linguistics, 2015, pp. 735-745, http://doi.org/10.3115/v1/N151075.
+[24] H. He, X. Sun, F-score driven max margin neural network for named entity
+
+[25]
+[26]
+
+[27]
+[28]
+
+[29]
+[30]
+[31]
+[32]
+[33]
+
+[34]
+[35]
+[36]
+[37]
+[38]
+[39]
+
+[40]
+[41]
+[42]
+
+[43]
+[44]
+[45]
+[46]
+[47]
+[48]
+[49]
+
+8
+
+recognition in Chinese social media, In: Conference of the European Chapter of the
+Association for Computational Linguistics, vol. 2, 2017, pp. 713–718. http://doi.
+org/10.18653/v1/e17-2113.
+J. Lei, B. Tang, X. Lu, K. Gao, M. Jiang, H. Xu, A comprehensive study of named
+entity recognition in Chinese clinical text, J. Am. Med. Inform. Assoc. 21 (2014)
+808–814, https://doi.org/10.1136/amiajnl-2013-002381.
+A. Nikfarjam, A. Sarker, K. O’Connor, R. Ginn, G. Gonzalez, Pharmacovigilance
+from social media: mining adverse drug reaction mentions using sequence labeling
+with word embedding cluster features, J. Am. Med. Inform. Assoc. Jamia 22 (2015)
+671–681, https://doi.org/10.1093/jamia/ocu041.
+M. Khabsa, C.L. Giles, Chemical entity extraction using CRF and an ensemble of
+extractors, J. Cheminf. 7 (2015) 1–9, https://doi.org/10.1186/1758-2946-7-S1S12.
+T. Munkhdalai, M. Li, K. Batsuren, H.A. Park, N.H. Choi, K.H. Ryu, Incorporating
+domain knowledge in chemical and biomedical named entity recognition with word
+representations, J. Cheminf. 7 (2015) S9, https://doi.org/10.1186/1758-2946-7S1-S9.
+I.J. Unanue, E.Z. Borzeshi, M. Piccardi, Recurrent neural networks with specialized
+word embeddings for health-domain named-entity recognition, J. Biomed. Inform.
+76 (2017) 102–109, https://doi.org/10.1016/j.jbi.2017.11.007.
+J.P.C. Chiu, E. Nichols, Named entity recognition with bidirectional LSTM-CNNs,
+Trans. Assoc. Comput. Linguist. 4 (2016) 357–370.
+Y.H. Cai, X. Cheng, Biomedical named entity recognition with tri-training learning,
+biomedical engineering and informatics, 2009. BMEI '09, in: 2nd International
+Conference on, 2009, pp. 1–5. http://doi.org/10.1109/BMEI.2009.5304799.
+Chien-Lung Chou, Chia-Hui Chang, Ya-Yun Huang, Boosted web named entity recognition via tri-training, ACM Trans. Asian Low-Resour. Lang. Inf. Process. 16 (2)
+(2016) 1–23, https://doi.org/10.1145/300865810.1145/2963100.
+C. Chou, C. Chang, S. Wu, Semi-supervised sequence labeling for named entity
+extraction based on tri-training: case study on Chinese person name extraction, in:
+International Conference on Computational Linguistics, 2014, pp. 33-40. http://doi,
+org/10.3115/v1/W14-6205.
+J.D. Lafferty, A. Mccallum, F. Pereira, Conditional random fields: probabilistic
+models for segmenting and labeling sequence data, International Conference on
+Machine Learning, 2001, pp. 282–289.
+A.L. Han, D.F. Wong, L.S. Chao, Chinese named entity recognition with conditional
+random fields in the light of chinese characteristics, in: Intelligent Information
+Systems, 2013, pp. 57–68. http://doi.org/10.1007/978-3-642-38634-3_8.
+A. Ekbal, S. Bandyopadhyay, A conditional random field approach for named entity
+recognition in bengali and hindi, Linguist. Issues Lang. Technol. 2 (2009).
+CRF++: Yet Another CRF toolkit. http://taku910.github.io/crfpp/, 2013 (accessed
+15 March 2018).
+F.A. Gers, J. Schmidhuber, F. Cummins, Learning to forget: continual prediction
+with LSTM, Neural Comput. 12 (2000) 2451–2471.
+A. Graves, S. Fernandez, J. Schmidhuber, Bidirectional LSTM networks for improved phoneme classification and recognition, in: International Conference on
+Artificial Neural Networks, 2005, pp. 799-804, http://doi.org/10.1007/11550907_
+126.
+G. Lample, M. Ballesteros, S. Subramanian, K. Kawakami, C. Dyer, Neural
+Architectures for Named Entity Recognition, 2016, pp. 260–270. http://doi.org/10.
+18653/v1/N16-1030.
+“Jieba” (Chinese for “to stutter”) Chinese text segmentation: built to be the best
+Python Chinese word segmentation module, 2017. https://github.com/fxsjy/jieba
+(accessed 15 March 2018).
+L. Wang, Y. Zhang, M. Jiang, J. Wang, J. Dong, Y. Liu, C. Tao, G. Jiang, Y. Zhou,
+H. Xu, Toward a normalized clinical drug knowledge base in China—applying the
+RxNorm model to Chinese clinical drugs, J. Am. Med. Inform. Assoc. 25 (2018)
+809–818, https://doi.org/10.1093/jamia/ocy020.
+Sogou pinyin dict, 2018. https://pinyin.sogou.com/dict/ (accessed 23 March
+2018).
+Z. Zhou, M. Li, Tri-training: exploiting unlabeled data using three classifiers, IEEE
+Trans. Knowl. Data Eng. 17 (2005) 1529–1541, https://doi.org/10.1109/TKDE.
+2005.186.
+E. Pons, B.F.H. Becker, S.A. Akhondi, Z. Afzal, E.M. Van Mulligen, J.A. Kors,
+Extraction of chemical-induced diseases using prior knowledge and textual information, Database 2016 (2016), https://doi.org/10.1093/database/baw046.
+C. Tao, M. Filannino, Z. Uzuner, Prescription extraction using CRFs and word embeddings, J. Biomed. Inform. 72 (2017) 60–66, https://doi.org/10.1016/j.jbi.2017.
+07.002.
+L. Luo, Z. Yang, P. Yang, Y. Zhang, L. Wang, H. Lin, J. Wang, An Attention-based
+BiLSTM-CRF approach to document-level chemical named entity recognition,
+Bioinformatics 34 (2017), https://doi.org/10.1093/bioinformatics/btx761.
+M. Gridach, Character-level neural network for biomedical named entity recognition, J. Biomed. Inform. 70 (2017) 85–91, https://doi.org/10.1016/j.jbi.2017.05.
+002.
+C. Dong, J. Zhang, C. Zong, M. Hattori, H. Di, Character-based LSTM-CRF with
+Radical-Level Features for Chinese Named Entity Recognition, Springer
+International Publishing, 2016.
+
+

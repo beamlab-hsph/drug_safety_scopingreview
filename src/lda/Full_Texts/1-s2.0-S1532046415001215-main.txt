@@ -1,0 +1,2313 @@
+Journal of Biomedical Informatics 56 (2015) 356–368
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+A supervised adverse drug reaction signalling framework imitating
+Bradford Hill’s causality considerations
+Jenna Marie Reps a,⇑, Jonathan M. Garibaldi a, Uwe Aickelin a, Jack E. Gibson b, Richard B. Hubbard b
+a
+b
+
+School of Computer Science, University of Nottingham, NG8 1BB, UK
+Division of Epidemiology and Public Health, University of Nottingham, UK
+
+a r t i c l e
+
+i n f o
+
+Article history:
+Received 16 March 2015
+Revised 8 June 2015
+Accepted 15 June 2015
+Available online 24 June 2015
+Keywords:
+Big data
+Pharmacovigilance
+Longitudinal observational data
+Causal effects
+Signal detection
+
+a b s t r a c t
+Big longitudinal observational medical data potentially hold a wealth of information and have been
+recognised as potential sources for gaining new drug safety knowledge. Unfortunately there are many
+complexities and underlying issues when analysing longitudinal observational data. Due to these
+complexities, existing methods for large-scale detection of negative side effects using observational data
+all tend to have issues distinguishing between association and causality. New methods that can better
+discriminate causal and non-causal relationships need to be developed to fully utilise the data.
+In this paper we propose using a set of causality considerations developed by the epidemiologist
+Bradford Hill as a basis for engineering features that enable the application of supervised learning for
+the problem of detecting negative side effects. The Bradford Hill considerations look at various perspectives of a drug and outcome relationship to determine whether it shows causal traits. We taught a
+classiﬁer to ﬁnd patterns within these perspectives and it learned to discriminate between association
+and causality. The novelty of this research is the combination of supervised learning and Bradford
+Hill’s causality considerations to automate the Bradford Hill’s causality assessment.
+We evaluated the framework on a drug safety gold standard known as the observational medical
+outcomes partnership’s non-speciﬁed association reference set. The methodology obtained excellent
+discrimination ability with area under the curves ranging between 0.792 and 0.940 (existing method
+optimal: 0.73) and a mean average precision of 0.640 (existing method optimal: 0.141). The proposed
+features can be calculated efﬁciently and be readily updated, making the framework suitable for big
+observational data.
+Ó 2015 Elsevier Inc. All rights reserved.
+
+1. Introduction
+Side effects of prescription drugs, also known as adverse drug
+reactions (ADRs), occur unpredictably and present a major healthcare issue. It is possible that a generally healthy individual may
+take a prescription drug for a minor problem and end up with a
+potentially life threatening ADR. As a consequence, it is essential
+to monitor all marketed drugs and develop methods that are capable of identifying ADRs at the earliest possible point in time. The
+potential beneﬁts of utilising longitudinal observational data for
+detecting (also known as signalling) ADRs have been highlighted
+[1]. However, unsupervised methods developed to signal ADRs
+using longitudinal observational data have been found to obtain
+high false positive rates consistently across data sources [2,3].
+This is due to the complexities of observational data, such as
+⇑ Corresponding author.
+E-mail address: jenna.reps@nottingham.ac.uk (J.M. Reps).
+http://dx.doi.org/10.1016/j.jbi.2015.06.011
+1532-0464/Ó 2015 Elsevier Inc. All rights reserved.
+
+missing data and confounding, making it difﬁcult for the methods
+to distinguish between association and causality. Reference sets
+detailing known ADRs and non ADRs have been created to aid
+the development of ADR signalling methods for longitudinal data
+by enabling a fair evaluation of the methods’ ADR signalling performances [4]. However, the creation of reference sets now presents
+the opportunity of generating labelled data and developing a
+supervised framework that can be applied to longitudinal observational data to signal ADRs. The success of a supervised framework
+relies on identifying suitable features for discriminating between
+causal and non-causal relations. The Bradford Hill causality considerations are a collection of nine factors that are often considered by
+experts to evaluate whether a drug and health outcome pair may
+correspond to an ADR [5–7]. Therefore, the Bradford Hill causality
+considerations seem an ideal basis for engineering suitable causal
+discriminative features to be used as input to train an ADR signalling classiﬁer. The aim of this paper is to investigate whether
+such a classiﬁer can be trained to successfully automate the
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+process of using the Bradford Hill causality considerations to identify causality.
+Our proposed supervised Bradford Hill’s methodology is evaluated by considering the problem of signalling ADRs that occur
+shortly after being prescribed a medication. The data used in this
+study are from a large UK electronic healthcare database that contains medical records for millions of patients in the UK. The database
+is over 300 GB in size, therefore it is important to consider the efﬁciency of the feature engineering. The Bradford Hill’s causality considerations were developed by an epidemiologist in the 1960s with
+experience in identifying causal relationships between drugs and
+health outcomes. They have been successfully implemented, by
+the process of manual review, as a means to determine causality
+in many epidemiological studies [8]. The considerations state that
+nine factors should be considered when assessing causality between
+a drug and health outcome. The factors are: (i) association strength,
+(ii) temporality, (iii) consistency, (iv) speciﬁcity, (v) biological gradient, (vi) experimentation, (vii) analogy, (viii) coherence and (ix)
+plausibility. As longitudinal observational databases contain data
+that can give insight into many of these considerations, we should
+take advantage of the data available to create a supervised signal
+detection framework that can imitate the causality review process.
+The problem of identifying ADRs has often relied on the use of
+spontaneous reporting system (SRS) data. SRS data are composed
+of reported cases where somebody has suspected that a drug
+caused an ADR [9]. Common methods for detecting ADRs using
+SRS data are the disproportionality methods [10] that calculate a
+measure of association strength between the drug and health outcome based on inferring approximate background rates using all
+the reports. However, it is not possible to calculate the actual background incidence rates corresponding to the drug or health outcome using SRS data. Issues with under-reporting [11] can limit
+the ability to detect ADRs using SRS data and consequently, there
+has been an interest in using longitudinal observational data to
+aid ADR detection. Recent advances in using SRS data for signalling
+ADRs have focused on utilising all the SRS data and have considered non-association strength features [12,13]. It was shown that
+considering a variety of features lead to an improvement in ADR
+detection compared to standard methods [12]. However, this idea
+is currently unexplored for ADR detection using longitudinal
+observational databases, although there has been preliminary
+work suggesting Bradford Hill based features may add a new perspective for analysing electronic healthcare records [14].
+Longitudinal observational data has been a recent focus of
+attention for extracting new drug safety knowledge due to it being
+a cheaper and often safer alternative to experimentation such as
+randomised controlled trials. Existing method for signalling ADRs
+using longitudinal observational databases include adapted disproportionality methods [15,16], association rule mining techniques
+[17,18], or adaptions of epidemiological studies [19]. All the large
+scale signalling methods are unsupervised, focus mostly on the
+measure of association strength and tend to have a high false
+positive rate in real life data [2,3], although some supervised
+techniques have been developed for speciﬁc cases. In [20], an
+ensemble technique combining simple epidemiology study designs
+to identify paediatric ADRs was shown to perform well. This suggested that incorporating supervised learning for ADR detection
+might lead to the improvement of signalling ADRs. For supervised
+learning to be fully utilised in this ﬁeld, it is important to identify
+suitable features for the model. This motivates the idea of using a
+standard set of causal considerations widely implemented by
+experts in the ﬁeld of epidemiology as a basis to engineer features.
+Numerous observational databases, including electronic healthcare
+records, tend to have hierarchies in the data recording [21,22].
+It may be important to consider the hierarchies when searching
+for causal relationships because the relationship may be
+
+357
+
+non-obvious when considering a high level item due to it occurring
+less frequently, but obvious when an abstract perspective is taken.
+If not taken into consideration, the hierarchal nature of the databases may weaken a signal. Therefore, we also propose features
+based on medical event coding hierarchies.
+Outside of the ﬁeld of drug safety, existing methods developed
+with the aim of identifying causal relationships within longitudinal
+observational data are often based on Bayesian networks [23]. Due
+to the complexity of creating a complete Bayesian network, many
+of the proposed methods are considered inappropriate for ‘big’
+data [24]. However, constraint-based causal detection has been
+suggested as a means to handle ‘big’ data by applying metaheuristics that reduce the problem space [25]. Unfortunately these methods cannot overcome the common issues found within medical
+longitudinal data such as selection bias and do not consider
+hierarchal structures, and are therefore not currently suitable for
+signalling ADRs.
+The continuation of this paper is as follows. Section 2 details the
+database used within this research and the proposed supervised
+Bradford Hill framework. In Section 3 we present the results of
+the supervised Bradford Hill framework’s performance for signalling ADRs using a real database containing millions of UK
+patient records. The implications of the results are discussed in
+Section 4. The paper concludes with Section 5.
+2. Materials and methods
+2.1. THIN database
+The data used in this paper were extracted from The Health
+Improvement Network (THIN) database, an electronic healthcare
+database containing UK primary care records for over 3.7 million
+active patients [26] (www.thin-uk.com). As the database contains
+time stamped records of medical events (e.g., myocardial infarction
+or vomiting) and drug prescriptions, each patient’s medical state
+can be observed over time and temporal relationships between
+drugs and medical events can be identiﬁed. The THIN data used
+in this research contained over 200 million medical records and
+over 350 million prescription records.
+The THIN database consists of heterogeneous data with multiple
+hierarchal structures. The database contains three key tables; the
+patient table, the medical table and the therapy table. For privacy
+reasons the patients’ identities are not stored in the database,
+instead, each patient is assigned a unique reference known as the
+patientID that is used to determine which patient each record in
+the database corresponds to. The patient table contains information
+about each patient such as their date of birth, gender and date of
+registration or date of death (if they have died). The medical and
+therapy tables contain time stamped records of any medical or therapy event experienced by the patients, respectively. The database is
+normalised such that medical event descriptions and drug details
+are stored into separate tables and linked with unique references.
+The unique reference of a medical event is known as the Read code
+[22] and the unique reference of a drug is known as a drugcode.
+The Read codes have a hierarchical coding system encompassing ﬁve levels of speciﬁcity, with level one Read codes representing
+very general events and level ﬁve Read codes representing very
+speciﬁc events. The level of a Read code is determined by its length.
+An example of a level one Read code is ‘1’ and an example of a level
+5 Read code is ‘11a1b’. The level 1 Read code ‘G’ is the parent of any
+Read code starting with ‘G’. For example, the level 1 Read code ‘G’
+representing the medical event ‘Circulatory system disease’, it is
+the parent of the Read codes:
+Level 2 : ‘G5’ – ‘Other forms of heart disease’.
+Level 3 : ‘G57’ – ‘Cardiac dysrhythmias’.
+
+358
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+Level 4 : ‘G57y’ – ‘Other cardiac dysrhythmias’.
+Level 5 : ‘G57y1’ – ‘Severe sinus bradycardia’.
+We deﬁne an equivalence relationship between Read codes as,
+Readcodem k Readcoden if the level k parent of Readcodem is the
+same as the level k parent of Readcoden . For example,
+G512 G5724. Prescription drugs are recorded via a drugcode and
+have an associated British National Formula (BNF) code [27].
+The BNF code also has a hierarchal structure and can be used to
+identify similar drugs. In the THIN database there are more than
+66,000 drugcodes and 100,000 Read codes.
+2.1.1. THIN processing
+Care needs to be taken with newly registered patients as
+patients can move to new general practices at any point in their life
+and may have existing medical conditions that get recorded when
+they join the new practice. Newly registered patients have the
+potential to bias results as doctors may record medical events that
+are pre-existing, but these events will have an incorrect timestamp. It has been shown that the probability of pre-existing
+medical events being recorded into the THIN database for newly
+
+registered patients is signiﬁcantly reduced after a year of the
+patient being registered [28]. Consequently, to prevent newly registered patients biasing results, the ﬁrst year after registration is
+ignored in this study. We also ignore drug prescription records that
+occurred within the ﬁnal month of the latest THIN data collection
+date as including these might cause under-reporting.
+2.2. Supervised ADR signalling framework
+The supervised ADR framework (SADR) involves three steps.
+Fig. 1 presents the ﬂowchart of the framework, showing how the
+framework is used to signal new ADRs once a classiﬁer is trained.
+The ﬁrst step is to extract the dataset based on existing reference
+sets developed for evaluating signal detection methods for longitudinal observational data [29]. This step involves identifying the
+drug-health outcome pairs and their label (e.g., is the drug a known
+ADR or non-ADR of the health outcome?). The second step of the
+SADR framework is to implement feature engineering to combine
+existing drug safety measure features and create novel features
+that cover the Bradford Hill strength, temporality, speciﬁcity,
+experimentation and biological gradient considerations. The other
+
+(a) Steps
+
+(b) Flowchart
+Fig. 1. The overall ﬂowchart of the SADR framework.
+
+359
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+considerations were not included due to the information not generally being available in a single longitudinal observational database. Features speciﬁc to the hierarchal structures of medical
+event codings are also proposed. The third step is training a binary
+classiﬁer using the reference set labels and Bradford Hill consideration based features to produce a supervised ADR signal detection
+model that can discriminate between causality and association. To
+evaluate the suitability of the various features, the classiﬁer is
+trained on a subset of the labelled data and is validated on the
+remaining subset of the labelled data to investigate the agreement
+between the prediction and truth and ensure the classiﬁer is
+generalizable (i.e., should perform as well on new data). Due to
+limited deﬁnitive knowledge of known ADRs and non-ADRs, this
+is the best approach to determine the performance of the classiﬁer
+for signalling ADRs. In this paper we use the random forest binary
+classiﬁer as this was shown to perform well for the THIN data in
+previous work [20] and this was also supported by preliminary
+results.
+The SADR framework is only applied to drug and Read code
+pairs where the Read code occurred for 3 or more patients within
+the month of the drug prescription. This restriction is due to this
+paper focusing on ADRs that occur shortly after the drug is
+ingested, so a month period is a trade off between ensuring the
+ADR is recorded while reducing the amount of noise. If the Read
+code occurs for less than 3 patients within the month after the drug
+then it would be very difﬁcult to statistically show the corresponding medical event is an ADR and the three or more limit is a
+common threshold applied in pharmacovigilance [30].
+
+2.2.1. Step 1: Create Dataset
+The observational medical outcomes partnership (OMOP) have
+provided a non-speciﬁed association (NSA) reference set containing drug-health outcome of interest (HOI) pairs known to
+correspond to ADRs or non-ADRs [29]. This reference set was generated speciﬁcally for evaluating signal generating methods to
+enable a fair comparison. This set states whether the HOI occurs
+shortly after drug exposure, or after long term exposure.
+Matching the OMOP NSA reference set with the THIN data
+caused some issues. THIN record their prescriptions using a unique
+drug coding system (a transformation of the multilex code) and
+there is currently no way to map the THIN prescription coding to
+the OMOP reference set coding without requiring extensive manual work from the THIN staff. To overcome this issue we managed
+to identify suitable BNF codes for the OMOP drugs and used the
+BNF as a way to match the OMOP drug and the THIN drugcodes.
+There is a mapping between the THIN Read codes and the OMOP
+health outcome codes, however this is not one-to-one as the
+Read clinical coding suffers from redundancy. Consequently, it
+was common to have multiple drug-Read code pairs for each
+drug-HOI pair.
+There were issues ﬁnding a suitable BNF code for Amphotericin.
+We could not ﬁnd any prescriptions of drugs with the BNF code
+05020300 (Amphotericin) in the THIN data as Amphotericin was
+recorded with the BNF codes 05020000, 13100200 or 12030200
+but these also corresponded to non-Amphotericin drugs.
+Therefore we excluded Amphotericin from the analysis. Table 1
+shows the BNF mappings of the drugs used and the number of
+HOI or Read codes paired with each drug in the dataset. It can be
+seen there were multiple Read codes for each HOI. As the performance of a classiﬁer is likely to improve with a larger training
+set, we decided to keep the drug-Read code pairs rather than
+aggregating them into drug-HOI pairs, although this does means
+some of the signals may be weaker.
+At this point we had a list of 4249 drug-Read code pairs,
+drug i  Readcodej , and their ground truth labels (e.g., whether the
+
+Table 1
+Mapping between OMOP drugs and BNF codes used to map OMOP drugs to THIN
+drugs.
+Drug
+
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+
+BNF
+
+ACE inhibitor
+antibiotics
+antibiotics
+antibiotics
+antiepileptics
+benzodiazepines
+benzodiazepines
+beta blockers
+bisphosphonates
+tricyclic antidepressants
+typical antipsychotics
+typical antipsychotics
+typical antipsychotics
+warfarin
+
+02.05.05.01
+05.01.08.00
+05.01.03.00
+05.01.05.00
+04.08.01.00
+04.01.02.00
+04.08.02.00
+02.04.00.00
+06.06.02.00
+04.03.01.00
+04.02.01.00
+04.06.00.00
+23.00.00.00
+02.08.02.00
+
+Count
+HOI
+
+Read
+
+527
+292
+232
+299
+417
+345
+6
+499
+282
+443
+307
+7
+1
+327
+
+566
+301
+243
+315
+440
+371
+6
+528
+301
+478
+332
+7
+1
+345
+
+pair is a known ADR or non-ADR). The next step was to generate
+suitable features for each pair.
+
+2.2.2. Step 2: Features Engineering
+Features based on the ﬁve factors of the Bradford Hill considerations and speciﬁc to the hierarchal medical event coding structures were calculated per drug-Read code pair. A summary of
+these features can be found in Table A.7 within Appendix A. A total
+of 17 different features were proposed based on the Bradford Hill
+considerations and another 10 are proposed based on hierarchical
+structures. For some of the factors we considered numerous similar
+features that may be correlated as this is the ﬁrst extensive study
+combining features based on the Bradford Hill considerations and
+it is not known which features may be more suitable. We investigated the importance of the features based on the average total
+decrease in Gini impurity gained by splitting the tree’s node on a
+particular feature within the random forest (the importance function in the R randomForest library) [31].
+The data used to generate the features includes the unique ID of
+the patient, the patient’s age, the patient’s gender, the dosage of
+the drug and a value indicating how noisy the data point may be
+due to how many other drugs the patient was prescribed in the
+month before and after the prescription. To calculate the features
+we extract certain records from the THIN database,
+ xi;:
+k ¼ ðpatientID; age; gender; dosage; noiseÞ is a vector corresponding the details of the kth prescription of drug i within the
+database.
+ yi;:
+k ¼ ðpatientID; age; gender; dosage; noiseÞ is a vector corresponding the details of the kth prescription of drug i within the
+database but where there has been no recording of the same
+drugcode within the past 13 months for the patient.
+ zi;:
+k ¼ ðpatientID; age; gender; dosage; noiseÞ is a vector corresponding the details of the kth prescription of drug i within the
+database but where there has been no recording of any drug
+from the same drug family within the past 13 months for the
+patient.
+The age is the patient’s age when prescribed the drug, the gender is 1 if male and 0 otherwise and the dosage is the dosage of the
+prescription. The noise value corresponds to the number of other
+drugcodes that are prescribed for the same patient within 30 days
+before and 30 days after the drug prescription of interest. The
+instances when a patient experiences a medical event (Readcodej )
+within a hazard period centred on the drug (drug i ) are,
+
+360
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+½u;v ;i;j
+
+ xk
+¼ ðpatientID; age; gender; dosage; noise; first3; first4Þ is a
+vector corresponding the details of the kth time Readcodej is
+recorded between u and v days after the drug i is recorded
+within the database.
+½u;v ;i;j
+
+ yk
+¼ ðpatientID; age; gender; dosage; noise; first3; first4Þ is a
+vector corresponding the details of the kth time Readcodej is
+recorded between u and v days after drug i is recorded for the
+ﬁrst time in 13 months for the patient within the database.
+½u;v ;i;j
+
+ zk
+¼ ðpatientID; age; gender; dosage; noise; first3; first4Þ is a
+vector corresponding the details of the kth time Readcodej is
+recorded between u and v days after the drug i is recorded and
+no drug from the same drug family is recorded for the patient
+within the previous 13 months within the database.
+In the above vectors the ﬁrst ﬁve elements correspond to the
+same details as the prescription vector but the binary element
+ﬁrst3 is 1 iff there are no previous recordings of any
+Readcode3 Readcodej for the patient and ﬁrst4 is 1 iff there are
+no previous recordings of any Readcode4 Readcodej for the
+patient.
+i;:
+We deﬁne X i;: ¼ fxi;:
+1 ; . . . ; xm g to be the set of all vectors detailing
+
+each prescription of drug i , so jX i;: j is the total number of prescriptions of drug i . Y i;: and Z i;: are similarly used to denote the set of vectors detailing each prescription of drug i such that the drug has not
+been prescribed within the previous 13 months or a similar drug
+has not been recorded within the previous 13 months respectively.
+½u;v ;i;j
+
+We deﬁne X ½u;v ;i;j ¼ fx1
+
+½u;v ;i;j
+
+; . . . ; xm
+
+g, so the cardinality of X ½u;v ;i;j
+
+(denoted jX ½u;v ;i;j j) corresponds to the number of prescription of
+drug i that have the Readcodej recorded within their ½u; v  hazard
+period.
+
+Similarly,
+½u;v ;i;j
+
+½u;v ;i;j
+
+Y ½u;v ;i;j ¼ fy1
+
+½u;v ;i;j
+
+; . . . ; ym
+
+g
+
+and
+
+Attr i;j
+1
+
+.
+
+
+X ½1;30;s;j
+
+
+¼ X ½1;30;i;j  jX i;: j 
+jX
+j
+s–i
+
+Attr i;j
+2
+
+.
+
+
+X ½1;30;s;j
+
+
+¼ Y ½1;30;i;j  jY i;: j 
+jY
+j
+s–i
+
+.
+
+
+X ½1;30;s;j
+ ½1;30;i;j 
+i;:
+jZ
+j
+Attr i;j
+ jZ j 
+3 ¼ Z
+
+(i) Strength – This factor represents the association strength, as
+generally a causal relationship is likely to have a large value
+of association, so a higher association means a higher likelihood of a causal relationship. A common way to calculate
+the association strength for drug safety (which could also
+be applied in general) is by investigating variation in the risk
+of experiencing a health outcome in patients exposed to a
+drug (or antecedent) and those unexposed.
+The risk of Readcodej during a deﬁned time period after drug i
+for a speciﬁc set of THIN records is simply the number of
+prescriptions of drug i in the set where Readcodej was
+recorded within a deﬁned time period after drug i divided
+by the total number of prescriptions of drug i in the set.
+Similarly, the risk of Readcodej during a deﬁned time period
+after any drug other than drug i for a speciﬁc set of THIN
+records is the number of prescriptions of any non-drug i drug
+in the set where Readcodej was recorded within the deﬁned
+time period afterwards divided by the total number of prescriptions of any non-drug i drug in the set.
+The risk difference is the risk of the health outcome in the
+group of patients exposed to the drug minus the risk of the
+health outcome in some control group of patients. The risk
+difference used in this study is the risk of Readcodej during
+the 1–30 day period after drug i minus the risk of the
+Readcodej during the 1–30 day period after any other drug.
+The 1–30 day period was chosen as we are interested in
+acutely occurring ADRs, but this period could be adjusted
+to signal ADRs that take longer to occur. The formal calculations for the different set of THIN records X, Y and Z are,
+
+,
+
+!
+s;:
+
+jX j
+
+s–i
+
+,
+X
+
+s–i
+
+!
+s;:
+
+jY j
+
+s–i
+
+X s;:
+jZ j
+
+ð1Þ
+
+!
+
+s–i
+
+(ii) Speciﬁcity – The speciﬁcity factor has been interpreted in
+many ways. The original interpretation is that it investigates
+whether the drug is observed to cause one or many medical
+events. There has been a debate regarding this consideration
+as some researchers believe it to be generally uninformative
+[32]. However, it has been argued that it can have a use for
+identifying causal relationships [33]. Some researchers consider the speciﬁcity to correspond to how speciﬁc the relationship is, for example is the association mainly found in
+a certain age and gender subpopulation or is the drug associated to a very speciﬁc medical event? One way to easily
+calculate whether the association tends to occur for a speciﬁc age range is to calculate the average age of the patients
+experiencing the medical event within the 1–30 day period
+after the drug and compare this to the average age of all
+the patients prescribed the drug,
+
+Attr i;j
+4
+
+!,
+
+¼
+
+n
+X
+½1;30;i;j
+m
+xk2
+
+¼
+
+n
+X
+½1;30;i;j
+m
+yk2
+
+k¼1
+
+Attr i;j
+5
+
+k¼1
+
+Attr i;j
+6 ¼
+
+m
+
+½u;v ;i;j
+
+; . . . ; zm
+g.
+Z ½u;v ;i;j ¼ fz1
+The proposed features are,
+
+,
+X
+
+n
+X
+½1;30;i;j
+zk2
+
+m
+X
+n
+xi;:
+k2
+
+!
+
+k¼1
+
+!,
+n
+
+m
+X
+
+!
+yi;:
+k2
+
+k¼1
+
+!,
+n
+
+k¼1
+
+m
+X
+zi;:
+k2
+
+ð2Þ
+
+!
+
+k¼1
+
+Another speciﬁcity consideration is whether the association
+occurs more for one speciﬁc gender, an easy way to calculate
+a measure for this is to compare the fraction of patient that
+experience the medical event within the 1–30 day period
+after the drug who are male divided by the fraction of
+patients that are prescribed the drug who are male,
+
+!,
+
+¼
+
+n
+X
+½1;30;i;j
+m
+xk3
+
+Attr i;j
+8 ¼
+
+n
+X
+½1;30;i;j
+m
+yk3
+
+Attr i;j
+7
+
+k¼1
+
+k¼1
+
+Attr i;j
+9 ¼
+
+m
+
+n
+X
+½1;30;i;j
+zk3
+k¼1
+
+m
+X
+n
+xi;:
+k3
+
+!
+
+k¼1
+
+!,
+n
+
+m
+X
+
+!
+yi;:
+k3
+
+k¼1
+
+!,
+n
+
+m
+X
+zi;:
+k3
+
+ð3Þ
+
+!
+
+k¼1
+
+and the ﬁnal speciﬁcity feature is how speciﬁc the medical
+event is, which can be determined by the level of the Read
+code. We create a feature indicating whether the Read code
+is a level 5, level 4, level 3 or level 2 Read code,
+
+Attr i;j
+10
+
+8
+5
+>
+>
+>
+>
+>
+>
+<4
+¼ 3
+>
+>
+>
+2
+>
+>
+>
+:
+1
+
+if Readcodej is a level 5 Read code
+if Readcodej is a level 4 Read code
+if Readcodej is a level 3 Read code
+
+ð4Þ
+
+if Readcodej is a level 2 Read code
+otherwise
+
+(iii) Temporality – This factor investigates the direction of the
+relationship. If the relationship is causal then the drug must
+occur before the medical event. In [34], the authors used
+temporality features to train a classiﬁer to discriminate
+between indicators and adverse events. This has also been
+seen in [35], where the authors used the temporality
+
+361
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+measures to identify off-target drugs. Similarly, for this factor we consider how often Readcodej occurs during the 1–
+30 day period after a prescription of drug i compared to the
+1 to 30 day period before drug i ,
+
+
+.
+
+ ½1;30;i;j   ½30;1;i;j 
+Attr i;j
+ X
+
+11 ¼ X
+.
+
+
+ ½1;30;i;j   ½30;1;i;j 
+i;j
+Attr 12 ¼ Y
+ Y
+
+
+.
+
+ ½1;30;i;j   ½30;1;i;j 
+Attr i;j
+ Z
+
+13 ¼ Z
+
+ð5Þ
+
+(iv) Biological gradient – In the context of detecting ADRs this
+relates to the dosage of the drug. It is generally the case,
+but not always [36], that there is a monotonic increasing
+relationship between the dosage of the drug and the probability of experiencing the ADR [37]. Due to this, Bradford
+Hill’s considerations suggest that the dosage should be considered when determining causality, as medical events that
+occur more with high dosages are more likely to correspond
+to ADRs. A simple and efﬁcient feature of the biological gradient criterion is to compare the average dosage given to
+patients who experienced the medical event within a month
+of taking the drug divided by the average dosage of the
+patients prescribed the drug,
+
+Attri;j
+14 ¼
+
+m
+
+!,
+
+n
+X
+½1;30;i;j
+xk4
+
+n
+
+k¼1
+
+Attri;j
+15 ¼
+
+m
+
+n
+X
+½1;30;i;j
+yk4
+k¼1
+
+Attri;j
+16
+
+¼
+
+n
+X
+½1;30;i;j
+m
+zk4
+k¼1
+
+m
+X
+xi;:
+k4
+
+!
+
+k¼1
+
+!,
+n
+
+m
+X
+yi;:
+k4
+k¼1
+
+!,
+n
+
+m
+X
+
+ð6Þ
+!
+ð7Þ
+
+!
+zi;:
+k4
+
+ð8Þ
+
+Attr i;j
+18
+
+¼
+
+k¼1
+
+Attr i;j
+19 ¼
+
+m
+
+ð9Þ
+(vi) Hierarchical speciﬁc – We also propose features for dealing
+with the hierarchical medical event coding structures found
+
+n
+X
+½1;30;i;j
+yk5
+k¼1
+
+Attr i;j
+20 ¼
+
+m
+
+n
+X
+½1;30;i;j
+zk5
+
+m
+X
+n
+xi;:
+k5
+k¼1
+
+!,
+n
+
+m
+X
+yi;:
+k5
+k¼1
+
+!,
+
+k¼1
+
+n
+
+m
+X
+zi;:
+k5
+
+!
+
+ð10Þ
+!
+ð11Þ
+
+!
+ð12Þ
+
+k¼1
+
+To deal with the hierarchical structures we also generate features
+that can give insight into when the association might correspond
+to a medical event that has previously been recorded but as a more
+general Read code. Firstly we calculate the number of times the
+level 3 version of Readcodej is recorded for the ﬁrst time ever within
+a 1–30 day period after drug i divided by the number of times the
+level 4 version of Readcodej is recorded for the ﬁrst time within
+the 1–30 day period after drug i ,
+
+Attri;j
+21
+
+k¼1
+
+
+ 
+c 
+ ½1;30;i;j  ½1;30;i;j
+
+½1;30;i;j
+½30;1;i;j
+ y
+
+\
+[
+2
+[
+y
+y
+y
+s1
+s1
+k1
+ k1
+
+s
+s–k
+ 
+
+¼
+ i;  i;
+
+ y y 2 [ yi; 
+ k1 k1 s–k s1 
+
+!,
+
+n
+X
+½1;30;i;j
+m
+xk5
+
+n
+X
+½1;30;i;j
+¼
+xp6
+
+,
+n
+X
+
+p¼1
+
+It could be possible to generate an improved feature of the
+biological gradient by investigating the correlation between
+the time to the health outcome and the dosage.
+Unfortunately this would be inefﬁcient when analysing hundreds or thousands of drug and health outcome pairs, so the
+comparison of the averages were chosen instead.
+(v) Experimentation – This has been openly interpreted. Some
+people believe this factor refers to using results of experiments, such as clinical trials, while others consider it to
+correspond to investigating the outcome from when a patient
+has a repeat of the antecedent event [36]. For the latter, in the
+context of ADRs, it is clear that when a patient experiences an
+ADR it will occur every time after the drug is ingested (under
+the same conditions) but should not be present when the
+drug stops being ingested. Therefore, if the drug is prescribed
+two or more distinct times (break of 13 months or more
+between prescriptions) for a patient and the medical event
+always follows but stops when the drug stops, then this
+would be strong evidence to suggest a causal relationship.
+Therefore, we calculate the number of people who
+experience Readcodej within a 1–30 day period after drug i
+for two or more distinct prescriptions and never during the
+1–30 day period before divided by the number of patients
+who have two or more distinct prescriptions,
+
+Attri;j
+17
+
+within THIN (and also in many other medical databases).
+The ﬁrst feature is related to the noise caused by patients
+taking multiple prescriptions. If a patient is taking more than
+one drug then the medical event may be caused by the other
+drug, so the more drugs a patient is taking the higher the risk
+of confounding due to other drugs. The noise value in the
+prescription vector tells us how many others drugs the
+patient has taken around the prescription, so we calculate
+the average number of other drugs recorded within the 1–
+30 day period before or after drug i for the patients experiencing Readcodej divided by the average over all prescriptions of drug i ,
+
+½1;30;i;j
+
+xp7
+
+ð13Þ
+
+p¼1
+
+The ﬁnal two features consider the temporality measure but when
+considering more general versions of the Read code. These features
+calculate similar values to those used in the temporality section but
+when reducing all the Read codes to their level 4 versions or level 3
+versions respectively,
+
+Attri;j
+22
+
+Attri;j
+23
+
+Attri;j
+24
+
+Attri;j
+25
+
+Attri;j
+26
+
+Attri;j
+27
+
+ ,
+
+
+  [
+
+ [
+ 
+
+
+½1;30;i;k
+½30;1;i;k
+ 
+
+¼ 
+X
+X
+ 
+
+ fkjk4 jg
+
+fkjk4 jg
+ ,
+
+
+  [
+
+ [
+
+
+
+
+¼ 
+X ½1;30;i;k  
+X ½30;1;i;k 
+ fkjk3 jg
+
+fkjk3 jg
+ ,
+
+
+  [
+
+ [
+ 
+
+
+½1;30;i;k
+½30;1;i;k
+ 
+
+¼ 
+Y
+Y
+ 
+
+ fkjk4 jg
+
+fkjk4 jg
+ ,
+
+
+  [
+
+ [
+ 
+
+
+½1;30;i;k
+½30;1;i;k
+ 
+
+¼ 
+Y
+Y
+ 
+
+ fkjk3 jg
+
+fkjk3 jg
+,
+
+
+  [
+
+ [
+ 
+
+
+¼ 
+Z ½1;30;i;k  
+Z ½30;1;i;k 
+ fkjk4 jg
+
+fkjk4 jg
+,
+
+
+  [
+
+ [
+ 
+
+
+½1;30;i;k
+½30;1;i;k
+ 
+
+¼ 
+Z
+Z
+ 
+
+ fkjk3 jg
+
+fkjk3 jg
+
+ð14Þ
+
+ð15Þ
+
+ð16Þ
+
+ð17Þ
+
+ð18Þ
+
+ð19Þ
+
+After calculating the features for each drug i  Readcodej pair we
+have
+
+the
+
+corresponding
+
+i;j
+i;j
+ðAttr i;j
+1 ; Attr 2 ; . . . ; Attr 27 Þ.
+i;j
+i;j
+17
+
+feature
+
+vector
+
+Attri;j 2 R27 Attri;j ¼
+
+The Bradford Hill consideration features
+
+i;j
+i;j
+are Attr 2 R ; Attr ¼ ðAttr i;j
+1 ; Attr 2 ; . . . ; Attr 17 Þ. The hierarchal
+i;j
+knowledge features are Attri;j 2 R10 ; Attri;j ¼ ðAttr i;j
+18 ; Attr 26 ; . . . ;
+i;j
+i;j
+3
+Attri;j
+27 Þ. The association strength features are Attr 2 R ; Attr ¼
+i;j
+i;j
+ðAttr i;j
+1 ; Attr 2 ; Attr 3 Þ.
+
+362
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+The majority of the features described above investigate the
+30 day period after the drug. This was due to our problem focussing on signalling ADRs that occur within 30 days of the drug prescription. For signalling ADRs that occur over a larger time
+period, the proposed features can simply be modiﬁed by adjusting
+the length of the time period observed after the potential cause
+was recorded from [1,30] to any time period of any length ([a; b]).
+
+hierarchal features or only the association strength features.
+Table 2 lists the various feature subsets investigated for comparison and details the included features.
+The performance measures we used were the same as in the previous study [39] using the NSA reference set to enable a comparison. Using the classiﬁer’s prediction and the ground truth, the
+number of true positives (TP) is the number of drug-HOIs where
+the classiﬁer predicts the drug-HOIs are ADRs and the ground truth
+is that the drug-HOIs are ADRs. The number of false positives (FP) is
+the number of drug-HOIs where the classiﬁer predicts the
+drug-HOIs are ADRs and the ground truth is that the drug-HOIs
+are non-ADRs. The number of false negatives (FN) is the number
+of drug-HOIs where the classiﬁer predicts the drug-HOIs are
+non-ADRs and the ground truth is that the drug-HOIs are ADRs.
+Finally, the number of true negatives (TN) is the number of
+drug-HOIs where the classiﬁer predicts the drug-HOIs are
+non-ADRs and the ground truth is that the drug-HOIs are non-ADRs.
+The area under the receiver operating characteristic (ROC) curve
+(AUC) considers the trade off between the sensitivity of the classiﬁcation and the speciﬁcity. ROC curves are drawn by plotting the sensitivity (TP/(TP + FN)) against one minus the speciﬁcity (TN/
+(TN + FP)) at different threshold stringencies. The AUC of the ROC
+plot gives an indication of how well the classiﬁer performs. To compare the classiﬁers the DeLong’s test at a 5% signiﬁcance level [40] is
+applied to the AUCs. The DeLong’s test is a nonparametric inference
+that is applied to determine whether the AUC between two paired
+ROC curves is signiﬁcantly different. The average precision (AP), precision at cutoff 10 (P10), false positive rate (FPR = FP/(FP + TN)) and
+Recall5 (=TP/(TP + FN)) at a FPR of 5% are also calculated.
+
+2.2.3. Step 3: Train the classiﬁer
+After engineering the features for each of the drug-Read code
+pairs from the OMOP NSA reference set, where the Read code
+was recorded at least 3 times within 30 days after the drug in
+THIN, we trained a random forest classiﬁer. To fairly evaluate the
+SADR framework, we decided to measure the trained classiﬁer’s
+performance on each drug separately. This was accomplished by
+creating 9 training/testing sets. Each training set contained all
+the data-points for 8 of the drugs and its corresponding testing
+set contained all the data points for the remaining drug. If we
+trained the classiﬁer on all the labelled data then it would not be
+possible to validate that the classiﬁer would work on new data.
+However, leaving out the labelled data for one drug during training
+and then applying the trained classiﬁer on the left out drug’s data
+to compare the prediction and truth is effectively mimicking the
+situation of applying the classiﬁer to new data.
+The software used for the classiﬁcation was R and the ‘caret’
+[38] library. A parameter grid search was applied to ﬁnd the optimal number of parameters to use for each decision tree in the forest (the mtry parameter) and 10-fold cross validation was
+implemented to reduce over ﬁtting.
+2.3. Evaluation method
+
+3. Results
+
+To investigate the importance of various proposed features, we
+investigate the performance of the SADR framework (training a
+random forest using both the Bradford Hill consideration and
+hierarchal-based features) with a random forest trained using only
+the Bradford Hill consideration based features or only the
+
+3.1. Evaluation of the SADR framework
+The results are presented in Table 3. The ﬁrst three columns
+detail the data used for testing, stating which drug was excluded
+from the training data and how many drug-Read code pairs corresponding to ADRs and non-ADRs (nADR) were in the testing set.
+The next four columns detail the training set, the optimal mtry
+found by tuning the random forest on the training set using
+10-fold cross validation using the AUC as the performance measure
+and the classiﬁer’s AUC (plus standard deviation) obtained by the
+cross-validation. The ﬁnal ﬁve columns present the various measures of performance of the trained random forest on the test set
+(effectively its performance on new data). Figs. 2–4 show the
+ROC plots of the SADR framework.
+The combination of Bradford Hill and hierarchal features used
+as inputs into a random forest for signalling ADRs resulted in an
+
+Table 2
+The feature subsets used for comparison to determine the usefulness of including
+more Bradford Hill considerations and features related to the hierarchal structure of
+the database.
+Method
+
+Number of
+features
+
+Feature set name
+
+Features included
+
+SADR
+Comparison 1
+Comparison 2
+Comparison 3
+
+27
+17
+10
+3
+
+All features
+Bradford Hill
+Hierarchal
+Association strength
+
+Attr 1  Attr 27
+Attr 1  Attr 17
+Attr 18  Attr 27
+Attr 1  Attr 3
+
+Table 3
+Performance of SADR framework when trained on 8 of the drugs and tested on the remaining drug. The mtry is the value corresponding to the optimal training model’s mtry
+returned by the grid search when 10-fold cross validation is implemented.
+Test set
+Drug
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+
+benzodiazepines
+antiepileptics
+ACE inhibitor
+bisphosphonates
+beta blockers
+warfarin
+typical antipsychotics
+tricyclic antidepressants
+antibiotics
+
+Overall average
+a
+
+Training set and performance
+
+Test set results
+
+ADRa
+
+nADR
+
+ADR
+
+nADR
+
+mtry
+
+AUC (SD)
+
+AUC
+
+AP
+
+P10
+
+FPR
+
+Recall5
+
+36
+41
+76
+44
+38
+33
+40
+54
+43
+
+342
+403
+491
+258
+492
+313
+301
+425
+819
+
+369
+364
+329
+361
+367
+372
+365
+351
+362
+
+3502
+3441
+3353
+3586
+3352
+3531
+3543
+3419
+3025
+
+5
+5
+5
+5
+5
+10
+5
+5
+15
+
+0.871(0.035)
+0.879(0.045)
+0.877(0.030)
+0.870(0.039)
+0.867(0.045)
+0.881(0.036)
+0.874(0.039)
+0.883(0.039)
+0.879(0.037)
+
+0.940
+0.792
+0.875
+0.795
+0.922
+0.863
+0.883
+0.828
+0.862
+
+0.730
+0.442
+0.711
+0.550
+0.766
+0.704
+0.728
+0.598
+0.533
+
+1.000
+0.700
+1.000
+0.800
+1.000
+1.000
+1.000
+1.000
+0.800
+
+0.003
+0.007
+0.002
+0.016
+0.004
+0.000
+0.007
+0.005
+0.026
+
+0.611
+0.439
+0.592
+0.477
+0.711
+0.606
+0.675
+0.574
+0.558
+
+–
+
+–
+
+–
+
+–
+
+–
+
+0.862
+
+0.640
+
+0.922
+
+0.008
+
+0.583
+
+–
+
+The ADR and nADR columns indicate the number of drug-outcome pairs labelled as ADRs or non-ADRs in the test/training sets.
+
+363
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+(a) Ace Inhibitors
+
+(b) Antibiotics
+
+(c) Antiepileptics
+
+(d) Benzodiazepines
+
+Fig. 2. Receiver operating characteristic curve plots for the different drug test sets. Comparison between SADR framework (all features), Comparison 1 (Bradford Hill features
+only), Comparison 2 (hierarchal features only) and Comparison 3 (association strength features only).
+
+average AUC of 0.862 and MAP of 0.640 across all nine drug test
+sets. The top 10 drug-Read code pairs ranked by the classiﬁer’s
+conﬁdence of the pair belonging to the ADR class were all true
+ADRs for 6 out of the 9 drug test sets. The FPR ranged between
+0.000 and 0.026 at the classiﬁer’s natural threshold and at a 5%
+FPR the average recall was 0.583.
+3.2. Comparison of the SADR framework against random forests with
+other feature sets
+The SADR framework (random forest using all the Bradford Hill
+and hierarchal features) had higher minimum, maximum and
+
+mean AUCs, 0.792, 0.940 and 0.862 respectively, across the 9 test
+sets compared to the random forests using only the Bradford Hill
+features (comparison 1), only the hierarchal features (comparison
+2) or only the association strength features (comparison 3), see
+Table 4. The p-values comparing the AUC of the SADR framework
+with the three comparisons for each drug test set are displayed
+in Table 5. The SADR framework was signiﬁcantly better than the
+random forest using association strength features for all drugs
+except the Tricyclic antidepressants, although this p-value
+approached signiﬁcance (0.0584). The SADR framework was significantly better than the random forest using the hierarchal features
+for the majority of drugs (6 out of the 9 drugs). However, the SADR
+
+364
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+(a) Betablockers
+
+(b) Bisphosphonates
+
+(c) Tricyclic antidepressants
+
+(d) Typical antipsychotics
+
+Fig. 3. Receiver operating characteristic curve plots for the different drug test sets. Comparison between SADR framework (all features), Comparison 1 (Bradford Hill features
+only), Comparison 2 (hierarchal features only) and Comparison 3 (association strength features only).
+
+framework was only signiﬁcantly better than the random forest
+using the Bradford Hill features for 4 out of the 9 drugs.
+3.3. Feature importance
+The importance of the features is presented in Table 6.
+Interestingly the feature chosen as the most important is the
+experimentation feature (68.7 importance), followed by the association strength (44.6–47.9 importance) and the hierarchal features
+based on noise or the ratio to how often the Read code level 3 version occurs for the ﬁrst time after the drug compared to the level 4
+
+version. The highest of the speciﬁcity features is the average age of
+the patients prescribed any drug that experience the Read code
+divided by the average of the patients prescribed the drug. In general, the features that considered all the drug prescriptions tended
+to have a higher average Gini decrease value.
+The hierarchal features investigating how many times the level
+3 version of the Read code occurs 30 days after the drug compared
+to 30 days before had the lowest mean Gini decrease, ranging
+between 3.6 and 6. Apart from these features, all the other features
+seem to be useful for the model as they had average Gini decrease
+values greater than 10.
+
+365
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+Table 6
+The importance of the features within the random forest based on the total decrease
+in Gini impurity.
+
+Fig. 4. Receiver operating characteristic curve plots for the Warfarin test set.
+
+Table 4
+Summary of the performances of the SADR framework compared with random forests
+trained on various subsets of the features proposed in Section 2.2.2 across the 9 drug
+test sets. The greatest min AUC, max AUC and average AUC obtained on the 9 drug test
+sets across the four methods are highlighted in bold.
+Method
+
+Feature set
+
+Min
+AUC
+
+Max
+AUC
+
+Average
+AUC
+
+SADR
+Comparison 1
+Comparison 2
+Comparison 3
+
+Bradford Hill and Hierarchal
+Bradford Hill
+Hierarchal
+Strength Ensemble
+
+0.792
+0.737
+0.721
+0.637
+
+0.940
+0.900
+0.869
+0.797
+
+0.862
+0.830
+0.787
+0.742
+
+4. Discussion
+The results show that the SADR framework (a random forest
+using feature engineering based on the Bradford Hill considerations and hierarchal clinical codings) leads to the optimal classiﬁer
+for discriminating between causality and association. This suggests
+that using the proposed features can enable supervised learning to
+be applied successfully to the problem of signalling ADRs in longitudinal observational data. The SADR framework obtained an average AUC of 0.862, a MAP of 0.640, an average FPR of 0.008 and an
+average recall at 5% FPR of 0.583 on the OMOP NSA reference set. In
+previous studies the High throughput Screening by Indiana
+University obtained the highest AUC of 0.734 [39], with MAP,
+
+Category
+
+Set
+
+Att
+
+Gini decrease
+
+Experimentation
+Association
+Association
+Association
+Heirarchal
+Heirarchal
+Speciﬁcity
+Heirarchal
+Heirarchal
+Speciﬁcity
+Speciﬁcity
+Speciﬁcity
+Heirarchal
+Speciﬁcity
+peciﬁcity
+Temporality
+Biological Gradient
+Heirarchal
+Biological Gradient
+Heirarchal
+Biological Gradient
+Temporality
+Temporality
+Speciﬁcity
+Heirarchal
+Heirarchal
+Heirarchal
+
+X
+Z
+X
+Y
+X
+X
+X
+Y
+Z
+X
+Y
+Z
+X
+Z
+Y
+X
+X
+Z
+Y
+Y
+Z
+Y
+Z
+–
+Z
+Y
+X
+
+Attr17
+Attr3
+Attr1
+Attr2
+Attr18
+Attr21
+Attr4
+Attr19
+Attr20
+Attr7
+Attr5
+Attr6
+Attr22
+Attr9
+Attr8
+Attr11
+Attr14
+Attr26
+Attr15
+Attr24
+Attr16
+Attr12
+Attr13
+Attr10
+Attr27
+Attr25
+Attr23
+
+68.7
+47.9
+46.7
+44.6
+41.7
+33.2
+29.6
+28.5
+28.4
+25.8
+25.0
+23.0
+21.4
+21.2
+20.5
+20.4
+19.7
+16.9
+16.6
+16.5
+16.4
+14.1
+13.2
+11.0
+6.0
+5.0
+3.6
+
+FPR and recall at 5% FPR scores of 0.141, 0.266 and 0.367 respectively. This shows that a supervised approach made possible by
+the feature engineering can lead to improved ADR signalling. The
+supervised approach achieved a much lower false positive rate
+meaning it is extremely unlikely to signal non-ADRs.
+Although the supervised approach outperformed the unsupervised methods, it may be argued that the additional complexity of
+the supervised approach makes it less suitable. However, we purposely suggested simple features that are quick to calculate and
+do not require tuning (e.g., once you know what time period of
+interest to investigate ½a; b, there are no parameters to tune when
+calculating the features). Conversely, the existing unsupervised
+methods are generally more complex and often have parameters
+that need to be tuned for new datasets and this requires applying
+the methods numerous times. It is the data extraction and calculation of association strength (such as risk) from the big longitudinal
+observational data that is often the time consuming aspect of both
+the unsupervised and supervised methods. Due to the simplicity of
+our proposed features, the framework combining the proposed feature engineering and classiﬁcation is actually likely to be quicker
+that the existing unsupervised methods. In addition, the simplicity
+of the features also means that they could be calculated using distributed computing tools such as Hadoop [41]. In theory, this would
+
+Table 5
+The p-values from the DeLong’s bootstrap test to compare the AUC for the paired ROC curves between the SADR framework and each comparison. The bold values correspond to
+cases where the SADR framework did not obtain a signiﬁcantly better AUC value.
+Test set
+
+Comparison 1 (Bradford Hill)
+
+Comparison 2 (Hierarchal)
+
+Comparison 3 (Strength Ensemble)
+
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+OMOP
+
+0.0046
+0.8309
+0.2307
+0.0010
+0.1033
+0.0045
+0.4236
+0.3258
+0.0028
+
+0.0000
+0.0445
+0.0000
+0.1410
+0.0095
+0.0115
+0.0019
+0.0755
+0.1974
+
+0.0000
+0.0025
+0.0116
+0.0000
+0.0000
+0.0129
+0.0011
+0.0584
+0.0004
+
+benzodiazepines
+antiepileptics
+ACE inhibitor
+bisphosphonates
+beta blockers
+warfarin
+typical antipsychotics
+tricyclic antidepressants
+antibiotics
+
+366
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+make the feature extraction scalability quasi-linear and could make
+the framework suitable for many terabytes of data.
+Another advantage of the simplicity of the features is that it
+enables them to be updated efﬁciently with the addition of new
+data. For example, if we stored the number of patients prescribed
+the drug who experience the Read code within 30 days (n1 ) as well
+as the average age of the patients prescribed the drug who experience the Read code within 30 days av Age1 , when new data are
+added we can simply calculate how many new occurrences of
+the Read code occur within 30 days of the drug n2 and the average
+ages of these av Age2 to quickly update the new values
+n ¼ n1 þ n2 ; av Age ¼ ðn1  av Age1 þ n2  av Age2 Þ=ðn1 þ n2 Þ. This
+means we only have to extract the features on the big data once,
+and then we can update the features with the addition of small
+amounts of new data.
+Interestingly, the results showed that the experimentation feature seemed to be good at discriminating between causal and
+non-causal relationships. It is widely accepted that randomised
+controlled trials, a form of experimentation, are the best way to
+identify causality. The results of this paper suggest there may be
+ways to use longitudinal observational data to perform a weak
+form of experimentation that is still informative. The hierarchal
+feature corresponding to how many other drugs a patient has
+around the time of prescription could actually be interpreted as
+corresponding to the original speciﬁcity deﬁnition. If a patient is
+only taking one drug, then the relationship between the drug and
+health outcome is more speciﬁc. This was an inﬂuential feature
+in the random forest, which suggests the original speciﬁcity deﬁnition may have merit, although many have argued against its use.
+In this paper we did not consider any coherence, plausibility or
+consistency features. The consistency features could be generated
+by using alternative data, such as spontaneous reporting system
+databases, and calculating the association strength for the drug
+and medical event pair within that data. The plausibility and
+coherence features may be possible by using the chemical structure data, as this may indicate chemical structures that are associated to an ADR or by adding a human feedback loop where a
+medical expert can identify incorrectly labelled pairs. Another possibility to engineer features for plausibility would be to implement
+a crowd sourcing algorithm that can extract suspected ADRs from
+online forums or medical literature.
+It is worth noting that the Bradford Hill considerations are
+known to be limited and are consider only as a guide for inferring
+causality [42]. The Bradford Hill considerations are not deﬁnitive
+criteria for causality and any limitation in discriminating between
+causal and non-causal relationships using these considerations will
+also likely be a limitation of the SADR framework. However,
+machine learning techniques such as random forest can identify
+complex patterns, ones that are unlikely to be identiﬁed by
+
+humans, which may reduce the limitations of the considerations
+compared to when they are implemented manually. Also, using
+the reference sets to label the data may lead to limitations, as
+the reference sets may be biased towards a certain type of ADR
+(e.g., ADRs that are more obvious). In this work we did not include
+positive side effects of medication, however in future work the
+framework could be readily modiﬁed to include a third label corresponding to positive effects of medication (it would just need medical experts to provide a list of drug-health outcomes where the
+drugs are known to cause the beneﬁcial health outcomes). Such a
+modiﬁcation would enable us to identify potential new off-target
+beneﬁts of medication.
+One ﬁnal comment is that the performance of supervised learning techniques will generally improve as the number of labelled
+data to train on increases. Therefore, the proposed framework is
+expected to improve over time as more labelled data become
+available.
+
+5. Conclusion
+In this paper we proposed a novel supervised ADR signalling
+framework (SADR) utilising Bradford Hill’s causality considerations
+to enable the implementation of a classiﬁer that can accurately signal ADRs in big longitudinal observational databases that suffer
+from confounding and have hierarchal clinical code structures.
+The framework trains a random forest to discriminate between
+ADRs and non-ADRs using suitable features based on the
+Bradford Hill causality considerations (many of which have been
+previously used to signal ADRs but never combined). The trained
+random forest performed well at distinguishing between ADRs
+and non-ADRs when validated on the OMOP NSA reference set
+(AUC ranging between 0.792 and 0.940). The classiﬁer’s performance was better than existing unsupervised methods’ performances calculated in previous studies [39] highlighting the
+advantages of implementing supervised learning for signalling
+ADRs.
+Suggested future areas of work are expanding the feature engineering to include the remaining Bradford Hill causality considerations (analogy, consistency, plausibility and coherence) and using
+the Map-Reduce paradigm to enable the extraction of the features
+in quasi-linear scalability, making this framework suitable for terabytes of big healthcare data.
+
+Appendix A. Feature summaries
+Table A.7.
+
+Table A.7
+Summary of the features used within the SADR framework.
+Feature Category
+
+Description
+
+Attr 1
+
+Strength
+
+Attr 2
+
+Strength
+
+Attr 3
+
+Strength
+
+Attr 4
+Attr 5
+
+Speciﬁcity
+Speciﬁcity
+
+Attr 6
+
+Speciﬁcity
+
+The fraction of patients experiencing the health outcome within 30 days of the drug minus the fraction of patients experiencing the health
+outcome within 30 days of any other drug
+The fraction of patients experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months of the drug minus the
+fraction of patients experiencing the health outcome within 30 days of a ﬁrst time prescription in 13 months of any other drug
+The fraction of patients experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months of a drug family minus the
+fraction of patients experiencing the health outcome within 30 days of a ﬁrst time prescription in 13 months of any other drug family
+The average age of patients experiencing the health outcome within 30 days of the drug divided by the average age of patients prescribed the drug
+The average age of patients experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months of the drug divided by
+the average age of patients ﬁrst time prescriptions in 13 months of the drug
+The average age of patients experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months of the drug family
+divided by the average age of patients ﬁrst time prescription in 13 months of the drug family
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+367
+
+Table A.7 (continued)
+Feature Category
+Attr 7
+Attr 8
+
+Attr 9
+
+Attr 10
+Attr 11
+Attr 12
+Attr 13
+Attr 14
+Attr 15
+Attr 16
+Attr 17
+
+Attr 18
+
+Attr 19
+
+Attr 20
+
+Attr 21
+
+Attr 22
+
+Attr 23
+
+Attr 24
+
+Attr 25
+
+Attr 26
+
+Attr 27
+
+Description
+
+Speciﬁcity
+
+The fraction of patients that are male out of those experiencing the health outcome within 30 days of the drug divided by the male fraction of
+patients prescribed the drug
+Speciﬁcity
+The fraction of patients that are male out of those experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months
+of the drug divided by the fraction of patients prescriptions corresponding to the ﬁrst time prescription in 13 months of the drug where the
+patient is male
+Speciﬁcity
+The fraction of patients that are male out of those experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months
+of the drug family divided by the fraction of patients that are male out of all prescriptions corresponding to the ﬁrst time prescription in
+13 months of the drug family
+Speciﬁcity
+The hierarchal level of the Read code (this corresponds to how speciﬁc the health outcome is)
+Temporality
+The number of times the heath outcome occurs within 1 and 30 days after a prescription of the drug divided by the number of times the heath
+outcome occurs within 1 and 30 days before a prescription of the drug
+Temporality
+The number of times the heath outcome occurs within 1 and 30 days after a ﬁrst time in 13 months prescription of the drug divided by the
+number of times the heath outcome occurs within 1 and 30 days before a ﬁrst time in 13 months prescription of the drug
+Temporality
+The number of times the heath outcome occurs within 1 and 30 days after a ﬁrst time prescription in 13 months of the drug family divided by
+the number of times the heath outcome occurs within 1 and 30 days before a ﬁrst time prescription in 13 months of the drug family
+Biological
+The average drug dosage given to patients experiencing the health outcome within 30 days of the drug divided by the average drug dosage
+gradient
+given to patients prescribed the drug
+The average drug dosage given to patients experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months of the
+Biological
+gradient
+drug divided by the average drug dosage given to patients when considering their ﬁrst time prescription in 13 months of the drug
+Biological
+The average drug dosage given to patients experiencing the health outcome within 30 days of any ﬁrst time prescription in 13 months of the
+gradient
+drug family divided by the average drug dosage given to patients when considering all ﬁrst time prescriptions in 13 months of the drug family
+Experimentation The number of patients who were prescribe the drug and experienced the health outcome within 1 and 30 days after on two or more distinct
+time periods (with 13 months or more between consecutive prescriptions of the drug) but never experienced the health outcome within 1
+and 30 days prior to any prescription of the drug divided by the number of patients with multiple distinct prescription periods (with two or
+more drug prescriptions with a gap of 13 months of more between consecutive prescriptions)
+Hierarchal
+The average number of other drugs prescribed during the 30 days before and after the drug prescription for the prescriptions where the
+patient experienced the health outcome within 1 and 30 days after the prescription divided by the average number of other drugs prescribed
+during the 30 days before and after the drug prescription for all prescriptions of the drug
+Hierarchal
+The average number of other drugs prescribed during the 30 days before and after any ﬁrst time in 13 month prescription of the drug where
+the patient experienced the health outcome within 1 and 30 days after the prescription divided by the average number of other drugs
+prescribed during the 30 days before and after the drug prescription for any ﬁrst time in 13 months prescription of the drug
+Hierarchal
+The average number of other drugs prescribed during the 30 days before and after any ﬁrst time prescription in 13 months of the drug family
+where the patient experienced the health outcome within 1 and 30 days after the prescription divided by the average number of other drugs
+prescribed during the 30 days before and after the drug prescription for any ﬁrst time prescription in 13 months of the drug family
+Hierarchal
+The number of prescriptions where the patient has the health outcome recorded within 1 and 30 days after the drug but the patient has never
+had a similar but more general version of the health outcome recorded (level 4 version read code) divided by the number of prescriptions
+where the patient has the health outcome recorded within 1 and 30 days after the drug but the patient has never had a similar but even more
+general version of the health outcome recorded (level 3 version read code)
+Hierarchal
+The number of prescriptions where the patient has the more general level 4 version of the health outcome recorded within 1 and 30 days after
+the drug prescription divided by the number of prescriptions where the patient has the more general level 4 version of the health outcome
+recorded within 1 and 30 days before the drug prescription
+Hierarchal
+The number of prescriptions where the patient has the more general level 3 version of the health outcome recorded within 1 and 30 days after
+the drug prescription divided by the number of prescriptions where the patient has the more general level 3 version of the health outcome
+recorded within 1 and 30 days before the drug prescription
+Hierarchal
+The number of prescriptions where the patient has the more general level 4 version of the health outcome recorded within 1 and 30 days after
+the ﬁrst time in 13 month prescription of the drug divided by the number of prescriptions where the patient has the more general level 4
+version of the health outcome recorded within 1 and 30 days before the ﬁrst time in 13 months prescription of the drug
+Hierarchal
+The number of prescriptions where the patient has the more general level 3 version of the health outcome recorded within 1 and 30 days after
+the ﬁrst time in 13 month prescription of the drug divided by the number of prescriptions where the patient has the more general level 3
+version of the health outcome recorded within 1 and 30 days before the ﬁrst time in 13 months prescription of the drug
+Hierarchal
+The number of prescriptions where the patient has the more general level 4 version of the health outcome recorded within 1 and 30 days after
+the ﬁrst time prescription in 13 months of the drug family divided by the number of prescriptions where the patient has the more general
+level 4 version of the health outcome recorded within 1 and 30 days before the ﬁrst time prescription in 13 months of the drug family
+Hierarchal
+The number of prescriptions where the patient has the more general level 3 version of the health outcome recorded within 1 and 30 days after
+the ﬁrst time prescription in 13 months of the drug family divided by the number of prescriptions where the patient has the more general
+level 3 version of the health outcome recorded within 1 and 30 days before the ﬁrst time prescription in 13 months of the drug family
+
+References
+[1] M. Suling, I. Pigeot, Signal detection and monitoring based on longitudinal
+healthcare data, Pharmaceutics 4 (4) (2012) 607–640.
+[2] P.B. Ryan, D. Madigan, P.E. Stang, J. Marc Overhage, J.A. Racoosin, A.G.
+Hartzema, Empirical assessment of methods for risk identiﬁcation in
+healthcare data: results from the experiments of the Observational Medical
+Outcomes Partnership, Stat. Med. 31 (30) (2012) 4401–4415.
+[3] J.M. Reps, J.M. Garibaldi, U. Aickelin, D. Soria, J. Gibson, R. Hubbard,
+Comparison of algorithms that detect drug side effects using electronic
+healthcare databases, Soft Comput. 17 (12) (2013) 2381–2397.
+[4] P.B. Ryan, M.J. Schuemie, E. Welebob, J. Duke, S. Valentine, A.G. Hartzema,
+Deﬁning a reference set to support methodological research in drug safety,
+Drug Safety 36 (1) (2013) 33–47.
+[5] S.A. Shakir, D. Layton, Causal association in pharmacovigilance and
+pharmacoepidemiology, Drug Safety 25 (6) (2002) 467–471.
+[6] R. Holt, R. Peveler, Antipsychotic drugs and diabetes an application of the
+Austin Bradford Hill criteria, Diabetologia 49 (7) (2006) 1467–1476.
+
+[7] M. Perrio, S. Voss, S.A. Shakir, Application of the bradford hill criteria to assess
+the causality of cisapride-induced arrhythmia, Drug Safety 30 (4) (2007) 333–
+346.
+[8] R. Holt, R. Peveler, Antipsychotic drugs and diabetes – an application of the
+Austin Bradford Hill criteria, Diabetologia 49 (7) (2006) 1467–1476.
+[9] M. Rawlins, Spontaneous reporting of adverse drug reactions. i: The data, Brit.
+J. Clin. Pharmacol. 26 (1) (1988) 1–5.
+[10] E.P. van Puijenbroek, A. Bate, H.G. Leufkens, M. Lindquist, R. Orre, A.C. Egberts,
+A comparison of measures of disproportionality for signal detection in
+spontaneous reporting systems for adverse drug reactions, Pharmacoepidem.
+Drug Safety 11 (1) (2002) 3–10.
+[11] L. Hazell, S.A. Shakir, Under-reporting of adverse drug reactions, Drug Safety
+29 (5) (2006) 385–396.
+[12] O. Caster, K. Juhlin, S. Watson, G.N. Norén, Improved statistical signal detection
+in pharmacovigilance by combining multiple strength-of-evidence aspects in
+vigiRank, Drug Safety 37 (8) (2014) 617–628.
+[13] L. Van Holle, V. Bauchau, Use of logistic regression to combine two causality
+criteria for signal detection in vaccine spontaneous report data, Drug Safety
+(2014) 1–11.
+
+368
+
+J.M. Reps et al. / Journal of Biomedical Informatics 56 (2015) 356–368
+
+[14] J. Reps, J.M. Garibaldi, U. Aickelin, D. Soria, J.E. Gibson, R.B. Hubbard, Attributes
+for causal inference in electronic healthcare databases, in: CBMS 2013, The
+26th IEEE International Symposium on Computer-Based Medical Systems,
+Porto, 2013, pp. 548–549. <http://ima.ac.uk/papers/reps2013a.pdf>.
+[15] I. Zorych, D. Madigan, P. Ryan, A. Bate, Disproportionality methods for
+pharmacovigilance in longitudinal observational databases, Stat. Methods
+Med. Res. 22 (1) (2013) 39–56.
+[16] G.N. Norén, J. Hopstadius, A. Bate, K. Star, I.R. Edwards, Temporal pattern
+discovery in longitudinal electronic patient records, Data Min. Knowl. Disc. 20
+(3) (2010) 361–387.
+[17] H. Jin, J. Chen, C. Kelman, H. He, D. McAullay, C.M. OKeefe, Mining unexpected
+associations for signalling potential adverse drug reactions from
+administrative health databases, in: Advances in Knowledge Discovery and
+Data Mining, Springer, 2006, pp. 867–876.
+[18] H. Jin, J. Chen, H. He, C. Kelman, D. McAullay, C.M. O’Keefe, Signaling potential
+adverse drug reactions from administrative health databases, IEEE Trans.
+Knowl. Data Eng. 22 (6) (2010) 839–853.
+[19] R. Harpaz, W. DuMouchel, N.H. Shah, D. Madigan, P. Ryan, C. Friedman, Novel
+data-mining methodologies for adverse drug event discovery and analysis,
+Clin. Pharmacol. Therap. 91 (6) (2012) 1010–1021.
+[20] J.M. Reps, J.M. Garibaldi, U. Aickelin, D. Soria, J.E. Gibson, R.B. Hubbard,
+Signalling paediatric side effects using an ensemble of simple study designs,
+Drug Safety 37 (3) (2014) 163–170.
+[21] E.G. Brown, L. Wood, S. Wood, The medical dictionary for regulatory activities
+(meddra), Drug Safety 20 (2) (1999) 109–117.
+[22] J. Chisholm, The read clinical classiﬁcation, BMJ: Brit. Med. J. 300 (6732) (1990)
+1092.
+[23] J. Pearl, Causality: Models, Reasoning and Inference, vol. 29, Cambridge Univ
+Press, 2000.
+[24] C. Silverstein, S. Brin, R. Motwani, J. Ullman, Scalable techniques for mining
+causal structures, Data Min. Knowl. Disc. 4 (2–3) (2000) 163–192.
+[25] G.F. Cooper, A simple constraint-based algorithm for efﬁciently mining
+observational databases for causal relationships, Data Min. Knowl. Disc. 1 (2)
+(1997) 203–224.
+[26] J.D. Lewis, R. Schinnar, W.B. Bilker, X. Wang, B.L. Strom, Validation studies of
+the health improvement network (THIN) database for pharmacoepidemiology
+research, Pharmacoepidem. Drug Safety 16 (4) (2007) 393–401.
+[27] J.F. Committee, British National Formulary, vol. 65, Pharmaceutical Press,
+2013.
+
+[28] J.D. Lewis, W.B. Bilker, R.B. Weinstein, B.L. Strom, The relationship between
+time since registration and measured incidence rates in the General Practice
+Research Database, Pharmacoepidem. Drug Safety 14 (7) (2005) 443–451.
+[29] OMOP, NSA Reference Set, 2014. <http://omop.org/sites/default/ﬁles/OMOP%
+20NSA_test_ref_full.xls> (accessed: 01.11.14).
+[30] C. Li, J. Xia, J. Deng, J. Jiang, A comparison of measures of disproportionality for
+signal detection on adverse drug reaction spontaneous reporting database of
+Guangdong province in China, Pharmacoepidem. Drug Safety 17 (6) (2008)
+593–600.
+[31] A. Liaw, M. Wiener, Classiﬁcation and regression by randomforest, R News 2
+(3) (2002) 18–22.
+[32] K.J. Rothman, S. Greenland, Modern Epidemiology, Lippincott-Raven, 1998.
+[33] N.S. Weiss, Can the ‘speciﬁcity’ of an association be rehabilitated as a basis for
+supporting a causal hypothesis?, Epidemiology 13 (1) (2002) 6–8
+[34] Y. Liu, P. Lependu, S. Lyer, N.H. Shah, Using temporal patterns in medical
+records to discern adverse drug events from indications, AMIA Summ. Transl.
+Sci. Proc. 2012 (2012) 47–56.
+[35] K. Jung, P. LePendu, N. Shah, Automated detection of systematic off-label drug
+use in free text of electronic medical records, AMIA Summ. Transl. Sci. Proc.
+2013 (2013) 94–98.
+[36] M. Höﬂer, The bradford hill considerations on causality: a counterfactual
+perspective, Emerg. Themes Epidemiol. 2 (1) (2005) 11–19.
+[37] A.B. Hill, The environment and disease: association or causation?, Proc. Roy.
+Soc. Med. 58 (5) (1965) 295–300.
+[38] M.K.C. from Jed Wing, S. Weston, A. Williams, C. Keefer, A. Engelhardt, caret:
+Classiﬁcation and Regression Training, R package version 5.15-044, 2012.
+[39] Partners HealthCare, S.N. Murphy, V. Castro, J. Colecchi, A. Dubey, V. Gainer, C.
+Herrick, M. Sordo, Partners Healthcare OMOP Study Report, 2011. <http://
+omop.org/sites/default/ﬁles/PHCS_Final_OMOP_StudyReport.pdf> (accessed
+01.11.14).
+[40] E.R. DeLong, D.M. DeLong, D.L. Clarke-Pearson, Comparing the areas under two
+or more correlated receiver operating characteristic curves: a nonparametric
+approach, Biometrics 44 (3) (1988) 837–845.
+[41] K. Shvachko, H. Kuang, S. Radia, R. Chansler, The hadoop distributed ﬁle
+system, in: 2010 IEEE 26th Symposium on Mass Storage Systems and
+Technologies (MSST), IEEE, 2010, pp. 1–10.
+[42] T.A. Mirtz, L. Morgan, L.H. Wyatt, L. Greene, An epidemiological examination of
+the subluxation construct using hill’s criteria of causation, Chiropr. Manual
+Ther. 17 (1) (2009) 13–19.
+
+

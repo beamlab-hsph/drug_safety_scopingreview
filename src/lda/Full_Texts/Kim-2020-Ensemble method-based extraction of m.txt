@@ -1,0 +1,988 @@
+Journal of the American Medical Informatics Association, 27(1), 2020, 31–38
+doi: 10.1093/jamia/ocz100
+Advance Access Publication Date: 8 July 2019
+Research and Applications
+
+Research and Applications
+
+Ensemble method–based extraction of medication and
+related information from clinical texts
+phane M Meystre
+Youngjun Kim and Ste
+Biomedical Informatics Center, Medical University of South Carolina, Charleston, South Carolina, USA
+
+Corresponding Author: Youngjun Kim, PhD, Biomedical Informatics Center, Medical University of South Carolina, 135 Cannon Street, Charleston, SC 29425, USA; kimy@musc.edu
+Received 6 February 2019; Revised 22 April 2019; Editorial Decision 11 May 2019; Accepted 24 May 2019
+
+ABSTRACT
+Objective: Accurate and complete information about medications and related information is crucial for effective
+clinical decision support and precise health care. Recognition and reduction of adverse drug events is also central to effective patient care. The goal of this research is the development of a natural language processing
+(NLP) system to automatically extract medication and adverse drug event information from electronic health
+records. This effort was part of the 2018 n2c2 shared task on adverse drug events and medication extraction.
+Materials and Methods: The new NLP system implements a stacked generalization based on a search-based
+structured prediction algorithm for concept extraction. We trained 4 sequential classifiers using a variety of
+structured learning algorithms. To enhance accuracy, we created a stacked ensemble consisting of these concept extraction models trained on the shared task training data. We implemented a support vector machine
+model to identify related concepts.
+Results: Experiments with the official test set showed that our stacked ensemble achieved an F1 score of
+92.66%. The relation extraction model with given concepts reached a 93.59% F1 score. Our end-to-end system
+yielded overall micro-averaged recall, precision, and F1 score of 92.52%, 81.88% and 86.88%, respectively. Our
+NLP system for adverse drug events and medication extraction ranked within the top 5 of teams participating in
+the challenge.
+Conclusion: This study demonstrated that a stacked ensemble with a search-based structured prediction algorithm achieved good performance by effectively integrating the output of individual classifiers and could provide a valid solution for other clinical concept extraction tasks.
+Key words: drug-related side effects and adverse reactions [MeSH C25.100], medical informatics [L01.313.500], natural language
+processing (NLP) [L01.224.050.375.580], neural networks [L01.224.050.375.605]
+
+INTRODUCTION
+Accurate and complete knowledge of medication and related information is critical for safe and effective patient care. In modern electronic health record (EHR) systems, part of this information is
+recorded in structured and coded form through order entry systems,
+but another part is only documented in narrative free-text form.
+Recognition and reduction of adverse drug events (ADEs) is also
+central to effective patient care. ADEs include medication errors,
+
+adverse drug reactions, allergic reactions, and overdoses. Almost all
+ADEs are only documented in EHR text notes.
+Natural language processing (NLP) approaches, which combine
+linguistic and statistical methods, have been applied to extract information from unstructured text found in EHR systems. Several characteristics of text found in EHRs including ungrammatical phrases,
+prevailing usage of abbreviations and acronyms, and misspelled
+words make the application of NLP in this domain challenging.1
+
+C The Author(s) 2019. Published by Oxford University Press on behalf of the American Medical Informatics Association.
+V
+
+All rights reserved. For permissions, please email: journals.permissions@oup.com
+
+31
+
+32
+
+Journal of the American Medical Informatics Association, 2020, Vol. 27, No. 1
+
+Another difficulty is related to patient privacy and confidentiality
+protection requirements, making clinical text collections more difficult to access and share than text sources in other domains. Yet,
+these corpora have been very useful for training and benchmarking
+NLP systems. Identifying clinical information was the focus of several shared tasks.2–9 Datasets developed for these shared tasks with
+significant annotation efforts have facilitated clinical information
+extraction (IE) research. These shared tasks have enabled outstanding achievements in clinical IE.
+In this manuscript, we describe the NLP system the Medical University of South Carolina team developed when participating in the
+2018 n2c2 shared task on ADEs10 and medication extraction. This
+shared task focused on extraction of medication and related information from clinical texts as well as recognition of relations between
+these elements of information (eg, relations between a dosage and a
+medication name, between a reason for prescribing a medication
+and the medication name). For concept extraction, we employed a
+variety of structured prediction algorithms including deep neural
+networks.11 For relation classification, we implemented a support
+vector machine model (SVM).12
+The goal of this study was to extract medication and related information from clinical texts. We developed a flexible and easily extensible information extraction framework based on stacked ensemble
+learning.13 Our stacked learning ensemble can offer efficient integration of individual concept extraction components. The meta-classifier,
+located in the second stage of the ensemble, automatically learns the
+beneficial effects of each component. Our experimental results show
+that the ensemble of various IE components can yield more accurate
+concept extraction than individual IE components.
+Clinical NLP has tackled the extraction of clinical information
+from narrative free-text in EHRs for decades.1 Medications and
+their related concepts have often been the entity types of interest for
+extraction. Before machine learning-based methods became popular,
+rule-based approaches14–17 based on human medical expertise were
+proposed. They have been useful as complementary resources that
+contain comprehensive external medical knowledge. For this study,
+we used the MedEx18,19 system, a rule-based IE system to extract
+medication information from clinical narratives.
+Most current clinical NLP systems use statistical machine learning
+approaches that often achieve better performance than rule-based
+approaches. For example, in the 2009 and 2010 Informatics for Integrating Biology and the Bedside (i2b2) challenges, almost all best-performing systems used machine learning methods.20–22 The medication
+extraction task that is most relevant to the focus of this paper was introduced in the 2009 i2b2 challenge shared task. It focused on the
+identification of medications and attributes including dosage, frequency, treatment duration, mode of administration, and reason for
+the administration of the medication. Patrick and Li20 trained a
+conditional random fields (CRF)23 model with lexical, morphological,
+and gazetteer features and their system obtained higher results than
+any other participants. Doan et al24 extended the MedEx system to
+extract medications and related information and achieved an F1 score
+of 82.1%. Their subsequent research25 using a voting ensemble of
+rule-based and machine learning systems yielded better performance.
+Besides medications and attributes, the 2018 n2c2 shared task
+also focused on ADEs extraction. Only relatively little research on
+ADE extraction from clinical text has been attempted and published.
+Some studies26–29 have been conducted with social media texts, including Twitter messages and online health community posts. For
+this research, we created a concept extraction model trained on
+CADEC (CSIRO Adverse Drug Events Corpus), a corpus of medical
+
+forum posts annotated for ADEs.30 ADE extraction from clinical
+notes31–33 is a challenging problem of growing interest and we believe that the corpus provided with the 2018 n2c2 challenge shall facilitate this research. For a more comprehensive review of ADE
+extraction from different data sources, the reader can refer to.34,35
+
+MATERIALS AND METHODS
+Task and data description
+As introduced previously, our research focused on extraction of
+ADEs and medication information as part of the 2018 n2c2 shared
+tasks. In more details, these challenge tasks included: identification
+of (1) drug names, dosage, duration and other attributes; (2) relations between medications, their attributes and ADEs using reference standard annotations; and (3) relations between medications,
+their attributes and ADEs using annotations predicted by system 1
+(ie, end-to-end task).
+The concept extraction task involved extracting 9 types of medication and related information: drug (names), strength, duration,
+route, form, ADE, dosage, reason (for prescription) and frequency.
+When applied to narrative free-text data in EHR, this task consists
+in detecting phrases representing the information of interest and
+assigning a semantic category for each detected concept. Figure 1
+illustrates sample text with concept annotations and examples of
+each concept category. For the relation classification task, the existence and types of relations that exist between drugs and other information need to be determined. This task involves recognizing
+8 types of relations between drugs and related information.
+The challenge corpus consists of 303 training documents and
+202 test documents manually annotated by medical professionals,
+including 4 physician assistant students and 3 nurses. They were
+drawn from the MIMIC-III (Medical Information Mart for Intensive
+Care III) clinical care database.36 Figure 2 shows the number of annotated concepts and relations in each category in the training and
+test sets. The training set contains 50 951 concepts with 36 348 relations. Duration and ADE categories are far less common in the
+training set. The test set contains 32 918 annotated concepts with
+23 462 relations. For each category, the number of relations is
+slightly larger than the number of concepts. This means that concepts are rarely related to multiple drugs.
+
+Figure 1. Sample text with (A) concept annotations and (B) examples of each
+concept category. ADE: adverse drug event.
+
+Journal of the American Medical Informatics Association, 2020, Vol. 27, No. 1
+
+Concept
+
+(a)
+
+Relation
+
+Drug
+6,691
+6,702
+
+Form
+
+378
+426
+3,513
+3,546
+4,359
+4,374
+
+Route
+Form
+
+959
+1,107
+
+625
+733
+
+ADE
+4,221
+4,225
+3,855
+5,169
+
+Dosage
+Reason
+Frequency
+3,000
+
+2,681
+2,695
+2,545
+3,410
+4,012
+4,034
+
+Dosage
+Reason
+6,281
+6,310
+
+0
+
+4,230
+4,244
+
+Duration
+
+6,651
+6,654
+
+ADE
+
+10,575
+
+Strength
+
+5,476
+5,538
+
+Route
+
+6,000
+
+Frequency
+9,000
+
+12,000
+
+15,000
+
+18,000
+
+Count
+
+Relation
+
+Drug
+
+592
+643
+
+Duration
+
+Concept
+
+(b)
+16,225
+
+Strength
+
+33
+
+0
+
+3,000
+
+6,000
+
+9,000
+
+12,000
+
+Count
+
+Figure 2. Concept and relation category counts distribution. ADE: adverse drug event.
+
+Concept extraction methods
+We developed 4 different concept extraction models and created a
+meta-classifier based on the predictions from these models. We will
+first describe each model and then present our stacked ensemblebased learning method. For text pre-processing involving tokenization, lemmatization, part-of-speech tagging, and named entity recognition, we used the Stanford CoreNLP tool.37
+We trained 4 different sequential classifiers using CRF,23
+SEARN (search and learning, search-based structured prediction),38
+and bidirectional long short-term memory (Bi-LSTM)11,39 algorithms. Concept annotations from the reference standard training
+set were used to train these sequential models. As input to these
+algorithms, the training data was enriched with BIO (B: beginning,
+I: inside, or O: outside of a term) tags.
+We implemented 2 sequential classifiers using linear chain CRF
+supervised learning models (called CRF and CRFext, which will be
+described in the next paragraph). CRF is a log-linear model widely
+used in structured prediction problems rather than generative models by allowing arbitrary features.23,40,41 To train the CRF models,
+we used Wapiti,42 a simple and fast discriminative sequence labeling
+software. We adopted the feature set used in our previous medical
+concept extraction studies.43–45 Features defined for each word token included the targeted word’s lexical string, lemma, part-ofspeech tag, affixes, orthographic features, named entity tag, word
+skip-grams, word embedding features, and the predictions of external resources we will discuss subsequently. Readers can refer to Kim
+and Riloff43 and Kim et al45 for the detailed feature set description,
+including context window size.
+We implemented another version of a CRF classifier (CRFext)
+using the predictions of concept models from external resources including MedEx,18,19 CADEC,30 the 2009 i2b2 challenge,4 and the
+2010 i2b2 challenge5 data. We used MedEx as a black-box and
+postprocessed its output to be compatible with the concept categories of this task. We trained a model for each corpus (ie, text collections), using the same feature set employed to train the CRF model
+with the n2c2 challenge training data (described previously). A CRF
+model was trained with each external corpus: CADEC, i2b2 2009
+challenge, and i2b2 2010 challenge. More details about our alignment of annotation categories of each external resource with the
+concept categories of our task are available in Supplementary Appendix A. The prediction based on each external resource was
+encoded with BIO tags and a tag was assigned to each word. The
+predicted tags of the current word, the word preceding it, and the
+
+word following it were added as new features. For all CRF models,
+we set the size of the interval for the stopping criterion to be
+e ¼ 0.001. For regularization, L1 and L2 penalties were set to 0.005
+and 0.4, respectively.
+A third classifier was based on SEARN,38 an algorithm for structured prediction problems. SEARN can view the sequence classification problem as a search problem with specified search space and
+actions. In each training iteration, instead of only using the gold
+labels, it uses the mixture of the gold labels and labels predicted by
+the classifier trained in the previous iteration. To train the SEARN
+model, we used Vowpal Wabbit,46 a fast out-of-core online learning
+system supporting a number of machine learning algorithms. All features defined for CRF models, including the outputs of external
+resources, were used for the SEARN model. We set the number of
+training iterations to 20 and the initial learning rate to 0.05.
+For the fourth classifier, we used Bi-LSTM with CRF tagging as
+a deep neural network model for sequence classification. Bi-LSTM
+outputs the representation of each word in a sentence by combining
+the information computed by both forward and backward LSTMs.
+For the input of the backward LSTM, the order of the words in a
+sentence is reversed. We used the named entity recognition system of
+Lample et al47 to train the Bi-LSTM model. We set the learning rate
+to 0.005 and trained the model using stochastic gradient descent48
+optimization within 100 epochs. As pretrained word embeddings,
+we used the 100-dimensional GloVe49 embeddings built with the
+2014 dump of English Wikipedia.
+We finally applied stacked generalization to capture more concepts more accurately. The goal of this method was to combine the
+results of individual classifiers so that the stacked ensemble could
+benefit from their complementary strengths and diversity among
+each other. We created a meta-classifier by training a SEARN
+classifier based on the predictions of 4 individual classifiers. It is
+possible to use any structured prediction algorithm, including CRF
+and Bi-LSTM, in our stack framework instead of SEARN.
+We performed 10-fold cross-validations on the training set for 2
+purposes: to tune the model hyperparameters to improve microaveraged F1 score and obtain the predictions of all individual classifiers. Each classifier assigned a concept tag to each word token. We
+then used the predicted tags for the current word, 2 words before it,
+and 2 words after it as features to train the stacked ensemble. Our
+ensemble included 4 different classifiers (CRF, CRFext, SEARN,
+and Bi-LSTM). We set the number of training passes to 10 and the
+initial learning rate to 0.025.
+
+34
+
+Journal of the American Medical Informatics Association, 2020, Vol. 27, No. 1
+
+We used paired t tests to measure statistical significance. As recommended by Yeh,50 we ran 1 048 576 trials to calculate the statistical significance between 2 methods for each metric.
+
+Relation classification
+The relation classification task focused on identifying relations between medication names, their attributes, and ADEs. We trained an
+SVM classifier with a linear kernel using the LIBLINEAR51 software
+package. SVMs have been popular because of their ability to learn
+accurate models with large-scale data sets.21,22,52
+We created a binary-class SVM classifier using distance, lexical,
+and word embedding features. Features capturing the distance between 2 concepts included counting the number of characters,
+words, and concepts between them. We also defined a feature that
+indicates whether the concept pair is closest compared with pairs of
+the same kind in the file. Lexical features for the 2 concepts included
+3 preceding and 3 following words for each concept and the words
+between the 2 concepts. We used word-embedding features derived
+from the Word2Vec53 clusters that were computed for concept extraction. We used the cluster identifier of each word contained in 2
+concepts and the cluster identifier of each word between the 2
+concepts.
+The training set contains more than 2 million possible concept
+pairs, of which 36 348 are positive examples (participate in a relation) and the rest are negative examples (no relation). We tried to reduce the size of negative examples while maintaining good accuracy.
+To accomplish this, we calculated the distribution of relations in the
+training data with respect to the distance between the 2 concepts in
+a relation. After counting the number of characters, words, and sentences between the concept pairs, we set 3 thresholds where the
+number of relations drops sharply. For example, in the training
+data, we found that only 4 concept pairs are farther than 200 words
+apart. After experimenting with different values for these thresholds,
+to train the SVM relation classifier, we filtered out the negative example when 1 concept in the example was farther away from the
+other concept than 1000 characters, 200 words, or 10 sentences. In
+parallel with the instance reduction procedure, we tuned LIBLINEAR’s parameters to maximize the overall micro-averaged F1 score.
+After performing 10-fold cross-validation on the training set, we set
+the cost parameter c to 0.08 and the weights of negative examples
+to 0.8.
+Last, to classify the relations of drugs with other concepts as predicted by our system, we created an end-to-end system that included
+modules for concept extraction and relation classification. First, individual concept extraction models recognized the concepts in the
+text. Next, using the output of multiple models, the stacked ensemble identified concepts for the preparation of relation classification.
+The SVM model then determined the presence and type of relation
+between the concept pairs. The architecture of the end-to-end system
+is illustrated in Figure 3.
+
+RESULTS
+We present experimental results for concept extraction and relation
+classification. The 2018 n2c2 shared task corpus consisting of a test
+set of 202 annotated clinical notes was used for this evaluation. We
+used the official shared task evaluation scripts to report precision,
+recall, and the F1 score (harmonic mean of recall and precision with
+equal weight) with strict and lenient matching. For strict matching,
+the text span must exactly match the reference annotation. For
+
+lenient matching, which was the primary evaluation metric for the
+shared task, any overlap between the reference standard text span
+and the concept detected by the system is considered a match. For
+both matching criteria, a true positive is counted when the concept
+type matches.
+
+Concept extraction
+We conducted experiments to evaluate the performance of each individual classifier and the stacked generalization ensemble method.
+Table 1 shows the performance of each classifier and stacked generalization based on recall, precision, and the F1 score.
+The SEARN classifier performed better than CRF models. It produced higher precision than other individual models and achieved
+92.15% F1 score. The Bi-LSTM classifier produced the best recall
+with lenient matching. Although the Bi-LSTM model obtained a
+lower F1 score than the CRF models with strict matching, it had a
+higher F1 score with lenient matching.
+We evaluated the performance of the stacked ensemble method
+combining 4 individual classifiers. The stacked ensemble obtained
+better performance than any of the individual classifiers, reaching a
+recall of 96.30%, a precision of 89.29%, and an F1 score of
+92.66% with lenient matching. The stacked ensemble performed
+significantly better than other methods at the 95% significance level,
+but not better than the recall of Bi-LSTM with lenient matching.
+Table 2 shows the detailed results produced with the stacked ensemble for each category. The scores for each concept type were
+roughly proportional to the number of concept examples in the
+training data (displayed in the second column of Table 2).
+The ensemble reached over 95% F1 scores for concept categories
+with many labeled instances. For example, the drug (name) concept
+occurs most often and the Strength concept is the next most frequent
+in the training data. Our stacked ensemble yielded an F1 score of
+95.55% and 97.88% for the concept categories of drug and
+strength, respectively. However, performance on some categories including ADE and reason was weak, with especially low recall on
+those categories. Extracting the reason concepts proved to be very
+demanding, although there are a number of labeled examples in the
+training data. On the other hand, the duration concept is the rarest
+category but we obtained good performance with 81.78% F1 score.
+
+Relation classification
+Table 3 shows the results obtained by our SVM relation classifier
+with lenient matching. The left half of Table 3 displays the results
+using reference standard concepts as input. The system that aimed
+to classify relations using reference standard concepts achieved
+micro-averaged scores of 93.07% precision, 94.12% recall, and
+93.59% F1 score. The scores of relationship classification excluding
+the strength and frequency categories were higher than the scores of
+concept extraction. For example, for the duration category, 81.78%
+and 88.32% F1 scores were achieved for concept and relation, respectively.
+As observed with concept extraction, relation classification accuracy is proportional with the number of relations in the training
+data. The SVM relation model achieved high accuracy for the more
+common categories, but often did not perform well in rare categories. For Form-Drug relations, the classifier produced the highest F1
+score, 98.58%. For rare relation categories including reason and
+ADE, the classifier obtained over 75% precision with about 77%
+recall.
+
+Journal of the American Medical Informatics Association, 2020, Vol. 27, No. 1
+
+35
+
+Figure 3. System architecture of the end-to-end system. CRF: conditional random fields; EHR: electronic health record; RNN: recurrent neural network; SEARN:
+search-based structured prediction; SVM: support vector machine.
+
+Table 1. Results of each method on the test set
+Strict match (%)
+Methods
+CRF
+CRFext
+SEARN
+Bi-LSTM
+Stacked ensemble
+
+Lenient match (%)
+
+Precision Recall F1 score Precision Recall F1 score
+90.91
+91.13
+91.38
+89.33
+91.93a
+
+84.28
+84.49
+84.48
+85.14
+85.46a
+
+87.47
+87.69
+87.80
+87.19
+88.58a
+
+95.54
+95.71
+96.07
+94.65
+96.30a
+
+88.34
+88.52
+88.53
+89.78a
+89.29
+
+91.80
+91.97
+92.15
+92.15
+92.66a
+
+Bi-LSTM: bidirectional long short-term memory; CRF: conditional random
+fields; SEARN: search-based structured prediction.
+a
+Best result for metric.
+
+Table 2. Results produced with the stacked ensemble
+
+Category
+
+Count
+
+Strict match (%)
+
+Lenient match (%)
+
+Pre
+
+Pre
+
+Rec
+
+F1
+
+Rec
+
+F1
+
+Drug
+16 225 93.15 92.50 92.83 96.13 94.98 95.55
+Strength
+6691 95.64 95.41 95.53 98.08 97.68 97.88
+Duration
+592 80.81 63.49 71.11 92.93 73.02 81.78
+Route
+5476 95.01 92.71 93.85 96.64 94.19 95.40
+Form
+6651 94.68 90.71 92.65 97.60 93.42 95.46
+ADE
+959 61.15 15.36 24.55 67.52 16.96 27.11
+Dosage
+4221 91.31 90.94 91.12 94.12 93.73 93.93
+Reason
+3855 84.42 39.61 53.92 90.56 42.20 57.57
+Frequency
+6281 83.92 82.75 83.33 97.77 96.36 97.06
+Overall
+91.93 85.46 88.58 96.30a 89.29a 92.66a
+(micro average)
+Overall
+91.72 83.89 87.42 96.09 87.69 91.48
+(macro average)
+ADE: adverse drug event.
+a
+Lenient matching as primary metric.
+
+The right half of Table 3 displays the classification results when
+using concepts predicted by our system (ie, the end-to-end system).
+We identified concepts in the test set using the stacked ensemble system. For each concept pair found in a file, the SVM model classified
+the type of relation between the 2 concepts. Our end-to-end system
+yielded overall micro-averaged recall, precision, and F1 score of
+92.52%, 81.88%, and 86.88%, respectively. Compared with the relation classification using reference concepts, which yielded balanced precision and recall results, the end-to-end system produced
+much higher precision than recall. Because our stacked ensemble
+produced a more favorable result for precision, the recall decreased
+by 12.24% (from 94.12% to 81.88%) and the precision decreased
+by only 0.55% (from 93.07% to 92.52%). These results were more
+
+evident in the rare relation categories. The recall of reason-drug relations decreased from 77.57% to 34.87%. Worse, the recall of ADEdrug relations dropped much more (from 79.67% to 15.01%), indicating that further research would be needed on these less frequent
+concept categories.
+
+DISCUSSION
+This section includes our analyzes of errors, a presentation of the
+performance impact of external resources, and a discussion of limitations. Overall, our NLP system performed well in the 3 tasks. Our
+system ranked fifth, seventh, and fourth among 28 teams for concept identification, relationship classification, and the end-to-end
+task, respectively. The median micro-averaged F1 scores of the 3
+tasks were 90.3%, 89.2%, and 80.0%, respectively.
+
+Errors analysis
+We analyzed false negatives from the stacked ensemble method and
+discuss examples of concept categories in which our system showed
+relatively poor performance. In the training data, most duration
+concepts are in structured form with limited vocabulary. Therefore,
+some duration concepts that never appeared in the training data but
+with similar formats were correctly found. The first row in Table 4
+shows false negative examples for somewhat informal duration
+concepts.
+The second row shows examples of ADE false negatives. We witnessed some false negatives when an ADE and a drug did not coexist
+in the same sentence, but a pronoun referring to the drug existed in
+the sentence. Some false negatives were caused by incorrectly spelled
+words in the ADE clause. Our system also missed some ADEs when
+they appeared more commonly as medical symptoms that could be
+irrelevant to drugs. In the reason category (the last row), we found
+examples similar to those from the ADE category, including the coreference problem. Some abbreviated Reason concepts were missed
+when they never or rarely appeared in the training data. For example, “AF w/ RVR” (atrial fibrillation with rapid ventricular
+response) never appeared in the training data.
+
+Performance impact of external resources
+We observed that external resources did not contribute meaningfully
+to concept extraction. Presumably, sufficient amounts of labeled
+data were already available, and complementary information from
+these external resources appears to have been less helpful for performance. As we have seen in this study, it is still challenging for an IE
+system designed to extract only certain types of concepts to be extended for more general use, or to be specialized for specific purposes. For concept extraction, we employed 4 different external
+
+36
+
+Journal of the American Medical Informatics Association, 2020, Vol. 27, No. 1
+
+Table 3. Relation classification results
+Using reference concepts (%)
+Category
+
+Using predicted concepts (%)
+
+Precision
+
+Recall
+
+F1 score
+
+Precision
+
+Recall
+
+F1 score
+
+96.31
+95.89
+87.91
+96.75
+98.58
+96.29
+76.64
+75.75
+93.07a
+92.30
+
+97.90
+97.77
+88.73
+96.68
+98.58
+97.97
+77.57
+79.67
+94.12a
+93.55
+
+97.10
+96.82
+88.32
+96.71
+98.58
+97.12
+77.10
+77.66
+93.59a
+92.83
+
+94.55
+92.12
+83.14
+95.09
+96.96
+93.87
+74.97
+48.46
+92.52a
+91.04
+
+95.71
+91.58
+65.96
+93.58
+92.52
+92.44
+34.87
+15.01
+81.88a
+78.15
+
+95.13
+91.85
+73.56
+94.33
+94.69
+93.15
+47.60
+22.92
+86.88a
+83.35
+
+Strength
+Dosage
+Duration
+Frequency
+Form
+Route
+Reason
+ADE
+Overall (micro average)
+Overall (macro average)
+ADE: adverse drug event.
+a
+Primary metric.
+
+Table 4. False negative examples
+
+MedEx
+
+Category
+Duration
+ADE
+
+Reason
+
+2009 i2b2
+
+2010 i2b2
+
+CADEC
+
+Examples
+a
+
+consistent with chronic lasix use. 7.5 mg ongoinga as
+home dose. only take this as long as your rash is itching.a
+this did not improve your symptoms and you developed
+bruising.a she developed large volume, non-bloody diarrhea.a Pt became hypotensivea and needed to be admitted
+the ICU again.
+you had several episodes of acute dystonia.a We treated
+these with IV valium 10 mg metoprolol 5 mg q5 min
+given upon admission to the floor for AF w/ RVRa
+
+81.01
+84.92
+
+Drug
+
+75.56
+
+54.54
+
+87.88
+85.30
+
+Strength
+55.16
+
+Duration
+
+61.74
+82.40
+81.70
+
+Route
+57.14
+
+Form
+18.91
+
+ADE: adverse drug event; AF w/ RVR: atrial fibrillation with rapid ventricular response; ICU: intensive care unit; IV: intravenous
+a
+Reference annotation.
+
+Dosage
+42.89
+
+Reason
+
+84.21
+82.35
+
+Frequency
+
+resources and aligned their outputs with this task’s concept categories. Figure 4 shows the F1 score of each external resource with lenient matching.
+The concept types produced by MedEx (white bar in Figure 4)
+and the CRF classifier trained with the 2019 i2b2 corpus (black bar)
+were similar to those defined for this task. They performed relatively
+well on most concept types. MedEx reached F1 scores of 87.88%
+and 84.21% on strength and frequency, respectively. The 2019
+i2b2-trained CRF classifier outperformed MedEx for the drug concepts, yielding an F1 score of 84.92%. The 2010 i2b2-trained CRF
+classifier was trained to extract a more comprehensive set of treatment concepts. The light gray bar shows results for the 2010 i2b2based model, which produced an F1 score of 75.56%. Although its
+coverage is broader, we can see from this that the medication treatments accounted for a significant portion of the treatment concepts
+mentioned in clinical notes. The CRF classifier trained with CADEC
+(dark gray bar) performed relatively poorly and its outputs were not
+very consistent with drug concepts. It reached 54.54% F1 score,
+demonstrating the difficulty of adapting the model trained from outof-domain data to clinical NLP tasks.
+
+0
+
+25
+
+50
+
+75
+
+100
+
+Lenient F1 score (%)
+Figure 4. F1 score of each external resource (lenient matching). i2b2: Informatics for Integrating Biology and the Beside; CADEC: CSIRO Adverse Drug
+Events Corpus.
+
+concept categories to be assigned to the same phrase. Considering
+the order in which reference annotations were recorded, we assigned
+only 1 category to the phrase. For example, if a phrase was annotated as an ADE but later reannotated as reason in the same file, we
+treated it as reason. Consequently, we excluded the relations where
+the concept that we removed was one of the pair concepts.
+As explained previously, when generating negative examples, we
+filtered out relations where one concept was too far away from another concept. Because they were excluded from training the relation
+model, the relation classifier would not find pairs of concepts that
+were too far apart but related.
+
+CONCLUSION
+Study limitations
+One limitation related to concept extraction is that we removed an
+ADE concept whose text spans were shared with a Reason concept,
+and vice versa. Although a phrase can be an ADE for a particular
+drug or a reason for taking other drugs, we did not allow multiple
+
+Our clinical NLP system developed as part of the 2018 n2c2 shared
+task ranked within the top 5 of participating teams in the 2 subtasks.
+We presented a stacked generalization ensemble for medication and
+related information extraction. Our stacked ensemble achieved better performance than individual classifiers by effective integration of
+
+Journal of the American Medical Informatics Association, 2020, Vol. 27, No. 1
+
+their outputs. We believe that our ensemble using the SEARN
+algorithm can provide a valid solution to clinical concept extraction
+tasks. One direction for future work is adapting deep neural networks to ensemble learning by enhancing LSTMs with the outputs
+of individual classifiers. The experimental results showed that each
+sequence classifier achieved good performance without any manual
+medical expertise. Bi-LSTM extracted more concepts than other
+classifiers, while the SEARN classifier favored precision over recall.
+The results also revealed that there is ample room for improvement
+for less common concept extraction with good accuracy.
+
+FUNDING
+This work was supported by the SmartState Program (Translational Biomedical Informatics Chair Endowment), SC Research Centers for Economic
+Excellence. (SMM).
+
+AUTHOR CONTRIBUTIONS
+YK and SMM made substantial contributions to the design and implementation of the research and to the analysis of the experimental
+results. All authors drafted the work or revised it critically. YK
+drafted the initial manuscript. SMM provided critical revision of the
+manuscript. All authors gave final approval of the version to be published. All authors agree to be accountable for all aspects of the
+work in ensuring that questions related to the accuracy or integrity
+of any part of the work are appropriately investigated and resolved.
+
+SUPPLEMENTARY MATERIAL
+Supplementary material is available at Journal of the American
+Medical Informatics Association online.
+
+ACKNOWLEDGMENTS
+We thank the 2018 n2c2 shared task organizers for providing a valuable data
+set and an opportunity to participate in the shared task.
+
+CONFLICT OF INTEREST STATEMENT
+None declared.
+
+REFERENCES
+1. Meystre SM, Savova GK, Kipper-Schuler KC, et al. Extracting information from textual documents in the electronic health record: a review of recent research. Yearb Med Inform 2008; 17 (1): 128–44.
+€ Goldstein I, Luo Y, et al. Identifying patient smoking status from
+2. Uzuner O,
+medical discharge records. J Am Med Inform Assoc 2008; 15 (1): 14–24.
+€ Recognizing obesity and comorbidities in sparse data. J Am
+3. Uzuner O.
+Med Inform Assoc 2009; 16 (4): 561–70.
+€ Solti I, Cadag E. Extracting medication information from clini4. Uzuner O,
+cal text. J Am Med Inform Assoc 2010; 17 (5): 514–8.
+€ South BR, Shen S, et al. 2010 i2b2/VA challenge on concepts,
+5. Uzuner O,
+assertions, and relations in clinical text. J Am Med Inform Assoc 2011; 18
+(5): 552–6.
+6. Uzuner O, Bodnari A, Shen S, et al. Evaluating the state of the art in coreference resolution for electronic medical records. J Am Med Inform Assoc
+2012; 19 (5): 786–91.
+€ Evaluating temporal relations in clinical
+7. Sun W, Rumshisky A, Uzuner O.
+text: 2012 i2b2 challenge. J Am Med Inform Assoc 2013; 20 (5): 806–13.
+€ Annotating longitudinal clinical narratives for de8. Stubbs A, Uzuner O.
+identification: the 2014 i2b2/UTHealth corpus. J Biomed Inform 2015;
+58: S20–9.
+
+37
+
+€ De-identification of psychiatric intake
+9. Stubbs A, Filannino M, Uzuner O.
+records: overview of 2016 CEGS N-GRID shared tasks track 1. J Biomed
+Inform 2017; 75: S4–18.
+10. Edwards IR, Aronson JK. Adverse drug reactions: definitions, diagnosis,
+and management. Lancet 2000; 356 (9237): 1255–9.
+11. Hochreiter S, Schmidhuber J. Long short-term memory. Neural Comput
+1997; 9 (8): 1735–80.
+12. Cortes C, Vapnik V. Support-vector networks. Mach Learn 1995; 20 (3):
+273–97.
+13. Wolpert DH. Stacked generalization. Neural Netw 1992; 5 (2): 241–59.
+14. Friedman C, Alderson PO, Austin JH, et al. A general natural-language
+text processor for clinical radiology. J Am Med Inform Assoc 1994; 1 (2):
+161–74.
+15. Aronson AR, Lang F-M. An overview of MetaMap: historical perspective
+and recent advances. J Am Med Inform Assoc 2010; 17 (3): 229–36.
+16. Zeng QT, Goryachev S, Weiss S, et al. Extracting principal diagnosis, comorbidity and smoking status for asthma research: evaluation of a natural
+language processing system. BMC Med Inform Decis Mak 2006; 6 (1): 30.
+17. Savova GK, Masanz JJ, Ogren PV, et al. Mayo clinical Text Analysis and
+Knowledge Extraction System (cTAKES): architecture, component evaluation and applications. J Am Med Inform Assoc 2010; 17 (5): 507–13.
+18. Xu H, Stenner SP, Doan S, et al. MedEx: a medication information extraction system for clinical narratives. J Am Med Inform Assoc 2010; 17 (1):
+19–24.
+19. Jiang M, Wu Y, Shah A, et al. Extracting and standardizing medication information in clinical text–the MedEx-UIMA system. AMIA Jt Summits
+Transl Sci Proc 2014; 2014: 37–42.
+20. Patrick J, Li M. High accuracy information extraction of medication information from clinical notes: 2009 i2b2 medication extraction challenge.
+J Am Med Inform Assoc 2010; 17 (5): 524–7.
+21. de Bruijn B, Cherry C, Kiritchenko S, et al. Machine-learned solutions for
+three stages of clinical information extraction: the state of the art at i2b2
+2010. J Am Med Inform Assoc 2011; 18 (5): 557–62.
+22. Rink B, Harabagiu S, Roberts K. Automatic extraction of relations between medical concepts in clinical texts. J Am Med Inform Assoc 2011; 18
+(5): 594–600.
+23. Lafferty JD, McCallum A, Pereira FCN. Conditional random fields: probabilistic models for segmenting and labeling sequence data. In: ICML ‘01
+Proceedings of the Eighteenth International Conference on Machine
+Learning; Williamstown, MA, USA. 2001: 282–9.
+24. Doan S, Bastarache L, Klimkowski S, et al. Integrating existing natural
+language processing tools for medication extraction from discharge summaries. J Am Med Inform Assoc 2010; 17 (5): 528–31.
+25. Doan S, Collier N, Xu H, et al. Recognition of medication information
+from discharge summaries using ensembles of classifiers. BMC Med Inform Decis Mak 2012; 12 (1): 36.
+26. Leaman R, Wojtulewicz L, Sullivan R, et al. Towards internet-age pharmacovigilance: extracting adverse drug reactions from user posts to
+health-related social networks. In: Proceedings of the 2010 Workshop on
+Biomedical Natural Language Processing; Uppsala, Sweden. 2010:
+117–25.
+27. Chee BW, Berlin R, Schatz B. Predicting adverse drug events from personal health messages. In: AMIA Annu Symp Proc. Washington, DC,
+USA. 2011; 2011: 217–26.
+28. Benton A, Ungar L, Hill S, et al. Identifying potential adverse effects using
+the web: a new approach to medical hypothesis generation. J Biomed Inform 2011; 44 (6): 989–96.
+29. Liu X, Chen H. AZDrugMiner: an information extraction system for mining patient-reported adverse drug events in online patient forums. In:
+Zeng D, Yang CC, Tseng VS, Xing C, Chen H, Wang F-Y, Zheng X, eds.
+ICSH 2013: Smart Health. Berlin, Heidelberg: Springer; 2013: 134–50.
+30. Karimi S, Metke-Jimenez A, Kemp M, et al. Cadec: a corpus of adverse
+drug event annotations. J Biomed Inform 2015; 55: 73–81.
+31. Friedman C. Discovering novel adverse drug events using natural language
+processing and mining of the electronic health record. In: Combi C, Shahar Y, Abu-Hanna A, eds. AIME 2009: Artificial Intelligence in Medicine.
+Berlin, Heidelberg: Springer; 2009: 1–5.
+
+38
+
+Journal of the American Medical Informatics Association, 2020, Vol. 27, No. 1
+
+32. Aramaki E, Miura Y, Tonoike M, et al. Extraction of adverse drug effects
+from clinical records. MedInfo 2010; 160 : 739–43.
+33. Harpaz R, Vilar S, DuMouchel W, et al. Combing signals from spontaneous reports and electronic health records for detection of adverse drug
+reactions. J Am Med Inform Assoc 2013; 20 (3): 413–9.
+34. Karimi S, Wang C, Metke-Jimenez A, et al. Text and data mining techniques in adverse drug reaction detection. ACM Comput Surv 2015; 47 (4):
+1–39.
+35. Vilar S, Friedman C, Hripcsak G. Detection of drug-drug interactions
+through data mining studies using clinical sources, scientific literature and
+social media. Brief Bioinform 2018; 19 (5): 863–77.
+36. Johnson AE, Pollard TJ, Shen L, et al. MIMIC-III, a freely accessible critical care database. Sci Data 2016; 3: 160035.
+37. Manning C, Surdeanu M, Bauer J, et al. The Stanford CoreNLP Natural
+Language Processing Toolkit. In: Proceedings of 52nd ACL: System Demonstrations;Baltimore, MD, USA. 2014: 55–60.
+38. Daume H, Langford J, Marcu D. Search-based structured prediction.
+Mach Learn 2009; 75 (3): 297–325.
+39. Schuster M, Paliwal KK. Bidirectional recurrent neural networks. IEEE
+Trans Signal Process 1997; 45 (11): 2673–81.
+40. McDonald R, Pereira F. Identifying gene and protein mentions in text using conditional random fields. BMC Bioinformatics 2005; 6 (Suppl 1): S6.
+41. Tang B, Cao H, Wu Y, et al. Recognizing clinical entities in hospital discharge summaries using Structural Support Vector Machines with word representation features. BMC Med Inform Decis Mak 2013; 13 (Suppl 1): S1.
+42. Lavergne T, Cappe O, Yvon F. Practical very large scale CRFs. In: Proceedings of the 48th ACL;Uppsala, Sweden. 2010: 504–13.
+43. Kim Y, Riloff E. Stacked generalization for medical concept extraction
+from clinical notes. In: Proceedings of the 2015 Workshop on Biomedical
+
+44.
+45.
+
+46.
+47.
+
+48.
+49.
+
+50.
+
+51.
+52.
+
+53.
+
+Natural Language Processing (BioNLP 2015); Beijing, China. 2015:
+61–70.
+Kim Y, Riloff E, Hurdle JF. A study of concept extraction across different
+types of clinical notes. AMIA Annu Symp Proc 2015; 2015: 737–46.
+Kim Y, Riloff E, Meystre SM. Exploiting unlabeled texts with clusteringbased instance selection for medical relation classification. AMIA Annu
+Symp Proc 2017; 2017: 1060–9.
+Langford J, Li L, Strehl A. Vowpal wabbit online learning project: technical report. 2007. http://hunch.net/?p¼859. Accessed January 18, 2018.
+Lample G, Ballesteros M, Subramanian S, et al. Neural architectures for
+named entity recognition. In: Proceedings of NAACL-HLT 2016; San Diego, CA. 2016: 260–70.
+Bottou L. Online learning and stochastic approximations. Online Learn
+Neural Netw 1998; 17 (9): 142.
+Pennington J, Socher R, Manning CD. GloVe: global vectors for word representation. In: Empirical Methods in Natural Language Processing
+(EMNLP);Doha, Qatar. 2014: 1532–43.
+Yeh A. More accurate tests for the statistical significance of result differences. In: COLING ’00: Proceedings of the 18th Conference on Computational Linguistics – Volume 2; Saarbrücken, Germany. 2000: 947–53.
+Fan R-E, Chang K-W, Hsieh C-J, et al. LIBLINEAR: a library for large linear classification. J Mach Learn Res 2008; 9: 1871–4.
+Joachims T. Making large scale SVM learning practical. In: Burges CJC,
+Schölkopf B, Smola AJ, eds. Advances in Kernel Methods: Support Vector
+Learning. Cambridge, MA: MIT Press; 1999: 169–184.
+Mikolov T, Chen K, Corrado G, et al. Efficient estimation of word representations in vector space. arXiv 2013 Sep 7 [E-pub ahead of print].
+
+

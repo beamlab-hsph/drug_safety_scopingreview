@@ -1,0 +1,3350 @@
+Hindawi
+Journal of Healthcare Engineering
+Volume 2017, Article ID 7575280, 21 pages
+https://doi.org/10.1155/2017/7575280
+
+Research Article
+Distant Supervision with Transductive Learning for Adverse
+Drug Reaction Identification from Electronic Medical Records
+Siriwon Taewijit,1,2 Thanaruk Theeramunkong,1 and Mitsuru Ikeda2
+1
+
+The School of Information, Communication and Computer Technologies, Sirindhorn International Institute of Technology,
+Thammasat University, Pathum Thani 12120, Thailand
+2
+The School of Knowledge Science, Japan Advanced Institute of Science and Technology, Nomi 923-1292, Japan
+Correspondence should be addressed to Siriwon Taewijit; siriwont@gmail.com
+and Thanaruk Theeramunkong; thanaruk@siit.tu.ac.th
+Received 5 May 2017; Accepted 19 July 2017; Published 26 September 2017
+Academic Editor: Peggy Peissig
+Copyright © 2017 Siriwon Taewijit et al. This is an open access article distributed under the Creative Commons Attribution License,
+which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited.
+Information extraction and knowledge discovery regarding adverse drug reaction (ADR) from large-scale clinical texts are very
+useful and needy processes. Two major diﬃculties of this task are the lack of domain experts for labeling examples and
+intractable processing of unstructured clinical texts. Even though most previous works have been conducted on these issues by
+applying semisupervised learning for the former and a word-based approach for the latter, they face with complexity in an
+acquisition of initial labeled data and ignorance of structured sequence of natural language. In this study, we propose automatic
+data labeling by distant supervision where knowledge bases are exploited to assign an entity-level relation label for each drugevent pair in texts, and then, we use patterns for characterizing ADR relation. The multiple-instance learning with expectationmaximization method is employed to estimate model parameters. The method applies transductive learning to iteratively
+reassign a probability of unknown drug-event pair at the training time. By investigating experiments with 50,998 discharge
+summaries, we evaluate our method by varying large number of parameters, that is, pattern types, pattern-weighting models,
+and initial and iterative weightings of relations for unlabeled data. Based on evaluations, our proposed method outperforms the
+word-based feature for NB-EM (iEM), MILR, and TSVM with F1 score of 11.3%, 9.3%, and 6.5% improvement, respectively.
+
+1. Introduction
+Data-driven approach for knowledge extraction from electronic medical records (EMRs) has gained much attention in
+recent years. An EMR repository contains a collection of tacit
+knowledge [1] (e.g., professionals’ experiences, know-how)
+and explicit knowledge (e.g., diagnosis procedure, patient information) in a digital form of structured and unstructured data.
+This EMR repository oﬀers insight into signiﬁcant healthcare
+problems: patient mortality prediction [2], patient risk identiﬁcation [3, 4], drug-disease relation extraction [5], and drugdrug interaction prediction [6, 7]. One of the potential applications is automatic adverse drug reaction (ADR) identiﬁcation
+from EMRs. The ADR terminology is an unpleasant event
+(e.g., symptom, disease, and ﬁnding) associated with a medication given at recommended dosages [8]. Even though ADRs
+can be identiﬁed by premarketing clinical trials, only partial
+
+ADRs are reported. Postmarketing surveillance with a large
+amount of population is necessary for remaining ADR monitoring. To this end, there are two multidisciplinary tasks of
+ADR surveillance: ADR identiﬁcation and ADR prediction.
+The former task targets on retrieval of unrecognized ADR that
+may exist in data but not explicitly described as knowledge,
+while the latter one aims to construct a model for predicting
+unknown ADR that have not been reported in anywhere.
+In earlier research, the statistical co-occurrence method is
+broadly employed to quantify the relationship strength
+between a drug-event pair. While the method is simple, its
+result might present no explicit clinical relevance of a derived
+drug-event pair [9] due to disregard relational context that
+might express an exact impression in a clinical event such
+as a drug treats a symptom or a drug causes a symptom. To
+ﬁll in this research gap, many researchers consider surrounding contexts around drug and event entities within clinical
+
+2
+texts and represent such data by either using pattern-based
+method [10–15] or feature-based method [16–18]. Consequently, a potential ADR is identiﬁed by either training
+supervised learning or semisupervised learning [19] model.
+However, there are two main diﬃculties when dealing with
+unstructured texts using such learning models. A rare availability of labeled instances derived by human annotation to
+form a gold-standard example is the former problem, and
+intractable processing of unstructured clinical texts is the latter one. Toward the insuﬃciency of labeled instances, several
+studies alleviate this problem by using a sort of heuristics or
+rules (distant supervision [20, 21]), that is, mapping a sentence that contains entity pair e1 , e2 from knowledge base
+and tagging relation label y to such mentioned sentence
+to form a training set. For the second problem, a wordbased approach [22–24], the most commonly used method
+for text representation, is introduced; however, the method
+ignores either grammatical or semantic dependency among
+words. Therefore, pattern-based methods [10, 11, 14] are
+promoted to either extensive or substitute for word-based
+text representation. Recently, distant supervision paradigm
+is introduced to overcome hand-labeled data process to
+obtain a label of an instance from knowledge base [20, 21].
+For example, knowledge bases consist of the following
+drug-event relations (“ramipril-allergy,” “ADR”) and (“aspirin-fever,” “IND”), so-called entity-level relation. By distant
+supervision, we can derive automatic labeled data of an associated sentence with such drug event, for example, “His ramipril were discontinued due to allergy and added to list in our
+medical records,” “ADR,” and known as instance-level relation. Therefore, multiple-instant learning (MIL) paradigm
+[25] is introduced into the classiﬁer builder process to handle
+such two-level relations.
+This paper introduces ADR identiﬁcation framework by
+aiming to classify an entity-level relation of a drug-event pair.
+Our work diﬀers from prior related works in the following
+aspects: (i) we propose key phrasal pattern-based bootstrapping method for characterizing ADR and IND, (ii) we introduce alternative parameter learning of a generative model,
+and (iii) we perform enhancement of the proposed method
+by incorporating transductive learning method.
+The rest of this paper is organized as follows. A brief literature review and fundamental knowledge are given in Section 2. Then, Section 3 introduces problem formulation and
+our proposed framework. Section 4 presents the experimental results. Finally, the conclusion is discussed in Section 5.
+
+2. Background
+2.1. Adverse Drug Reaction Identiﬁcation from Unstructured
+Texts. Recently, narrative notes in EMRs have been demonstrated as a promising data source and widely utilized for
+improving detection of patients experiencing adverse reactions, across drugs and indication areas [10–13, 26]. There
+are at least three common subprocesses for dealing with
+unstructured texts in EMRs: (i) named entity recognition
+(NER) (particularly, named entities of drug and event) and
+normalization, (ii) relation generation (drug-event candidates), and (iii) relation classiﬁcation (ADR identiﬁcation).
+
+Journal of Healthcare Engineering
+As the ﬁrst subprocess, the medical NER aims to recognize a clinical term mentioned in EMRs. Another extended
+task, the normalization intends to unify a discovered clinical
+term into a conventional lexicon based on an identical
+semantic meaning or a concept, which can be referred
+through UMLS concept unique identiﬁer (CUI) (https://
+www.nlm.nih.gov). Many researchers endeavor to deal with
+medical NER and normalization by developing computational tools such as cTAKES (http://ctakes.apache.org),
+FreeLing-Med, MetaMap (https://metamap.nlm.nih.gov),
+MedLEE (http://www.medlingmap.org/taxonomy/term/80),
+tmChem
+(https://www.ncbi.nlm.nih.gov/CBBresearch/Lu/
+Demo/tmTools/tmChem.html), DNorm (https://www.ncbi.
+nlm.nih.gov/CBBresearch/Lu/Demo/tmTools/DNorm.html),
+GATE (https://gate.ac.uk), or Stanford CoreNLP tool (http://
+stanfordnlp.github.io/CoreNLP). From Figure 1, by employing medical NER and normalization, we can identify two
+drugs (i.e., ramipril and bacterium) and ﬁve events (i.e.,
+allergy, facial swelling, HTN (hypertension), respiratory infection, and viral infection) from the given clinical texts. Then,
+the normalization task replaces a drug term or an event term
+with CUI. For example, a drug term ramipril is replaced with
+C0072973, or an event term HTN is replaced with C0020538,
+which refers to a concept of hypertension disease
+(NCI—https://nciterms.nci.nih.gov).
+As the next subprocess, the generating of drug-event candidates is performed using the windowing technique [27–29].
+A drug-event pair tends to form a relation if they are located
+in the same sentence, the same section, or more practically in
+the same window size n. In general, this boundary detection
+(BD) task aims to detect the beginning and the ending points
+within given texts that a drug and an event tend to be semantically related. The challenges of BD task [30–32] have arisen
+based on a boundary of interest and a domain of given texts.
+Many previous works deﬁne a potential boundary of a drugevent candidate within the same sentence, and the sentence
+boundary detection (SBD) in clinical texts is recognized as
+challenge with noise prone. One of the major issues is usage
+ambiguity of a period or a full stop (“.”). Typically, the period
+has several possible functions, such as a sentence boundary
+marker, a ﬂoating–point marker (e.g., “0.08,” “40.5 mg”), a
+marker for a numeric bullet of an enumerated list, or a separator within an abbreviation (e.g., “y.o.,” “h.s.”). Other punctuation marks such as a colon (“:”) increase the complexity of
+SBD as well. Additionally, the grammatical dependency is a
+potential method for improving a window-based relation
+generation because it considers more speciﬁc semantic
+dependency of the surrounding contexts.
+Lastly, the generated lists of drug-event candidates are
+identiﬁed as ADR or IND using supervised, semisupervised,
+or unsupervised learning methods. The potential works on
+ADR identiﬁcation from unstructured texts are summarized
+in Table 1. A statistical association is one of the pioneer
+works to identify ADR by considering the co-occurrence of
+a drug and an event in a speciﬁed window size n to form association hypotheses, and then, the 2 × 2 contingency table is
+computed for hypothesis testing. Despite the method is simple, it disregards semantic dependency among surrounding
+contexts that might express real clinical evident. On the other
+
+Journal of Healthcare Engineering
+
+⁎⁎
+
+3
+
+⁎⁎
+
+Mr.[ Known_patient_lastname_6543 ] is a pleasant 89 yo
+M with history HTNe on ramiprild and recent bactrimd
+use for respiratory infectione who presented to the
+⁎⁎
+⁎⁎
+[ Hospital1_4 ] emergency department.
+...
+Although exceedingly rare, some viral infectionse may
+cause facial swellinge; although this patient has had
+signs of a respiratory illness the clinical scenario is more
+consistent with angioedema secondary to medication use.
+His ramiprild and bactrimd were discontinued and added
+to his allergye list in our medical records.
+...
+
+Results from NERs, Normalization and Relation Generation
+[Drugs] (d)
+[Relation Candidates]
+(1) Bactrim (C0591139)
+Bactrim-Allergy
+(2) Ramipril (C0072973)
+Bactrim-Respiratory infections
+Ramipril-Allergy
+[Events] (e)
+Ramipril-HTN
+(1) Allergy (C3539909)
+[Actual Relations]
+(2) Facial swelling (C0151602)
+Ramipril-Allergy ADR
+(3) HTN (C0020538)
+Ramipril-HTN IND
+(4) Respiratory infections (C0035243)
+(5) Viral infection (C0042769)
+
+(a)
+
+(b)
+
+Figure 1: An example of narrative notes from a discharge summary in an EMR system is shown in (a). The possible outcomes derived by
+NERs, normalization, and relation generation of drugs and events from the given texts are displayed in (b). Both drugs and events are
+uniﬁed by UMLS CUI. For privacy concerns, conﬁdential information is concealed using deidentiﬁcation as [∗∗ …∗∗ ].
+
+Table 1: A list of previous studies on ADR identiﬁcation from unstructured text.
+Year
+
+Size
+
+Label
+number
+
+Labeling
+method
+
+Supervised learning
+Aramaki et al. [10]
+Sohn et al. [11]
+EMR
+Henriksson et al. [26]
+Casillas et al. [12]
+
+2010
+2011
+2015
+2016
+
+3012 notes
+237 notes
+400 notes
+n/a
+
+A, O (2)
+A, O (2)
+A, I, O (3)
+A, O (2)
+
+H
+H
+H
+H
+
+Literature
+
+2016
+
+18,410
+abstracts
+
+A, O (2)
+
+H, DS
+
+A, I (2)
+
+DS
+
+GATE
+
+Shallow linguistic kernel,
+distant supervision
+
+A, I, O (3)
+
+H
+
+CRF
+
+Word embedding, CRF
+
+Data source
+
+Literature
+
+Peng et al. [16]
+
+Segura-Bedmar et al. [33] 2015
+
+84,000
+messages
+8800 blog
+sentences,
+3200 tweets
+
+CRF
+cTAKES
+CRF
+FreeLing-Med
+Dictionary,
+tmChem,
+DNorm
+
+Pattern-based
+Pattern-based, DT C4.5
+Word embedding, RF
+Pattern-based, SVM, RF
+Feature-based, SVM
+
+2015
+
+Jenhani et al. [18]
+
+2016
+
+80,000 tweets
+
+A, O (2)
+
+R, ODIN
+
+Dictionary,
+Stanford
+CoreNLP
+
+Rule-base, feature-based,
+DT, SVM, LR, NB
+
+Liu et al. [34]
+
+2016
+
+1800 blog
+sentences,
+500 tweets
+
+A, O (2)
+
+H
+
+MetaMap
+
+Feature-based, tree kernelbased, ensemble method
+
+A, I (2)
+
+DS
+
+MetaMap
+
+Semisupervised learning
+Taewijit and
+EMR
+Theeramunkong [13]
+Kang et al. [36]
+
+2014
+
+Liu and Chen [37]
+
+2015
+
+1.5 M
+sentences
+1644
+abstracts
+400 sentences
+
+Unsupervised learning
+EMR
+Wang et al. [39]
+Literature
+Xu and Wang [14]
+
+2009
+2014
+
+25,074 notes
+119 M sentences
+
+Social media
+
+2015 0.1~1 M messages
+
+Social media
+
+Method
+
+Nikfarjam et al. [17]
+Social media
+
+Literature
+
+NER
+
+Feldman et al. [15]
+
+2016
+
+A, O (2)
+
+H
+
+Peregrine
+
+A, I, O (3)
+
+H
+
+MetaMap
+
+None
+None
+
+None
+None
+
+MedLEE
+Parse tree
+
+None
+
+None
+
+Dictionary,
+pattern
+
+Distant supervision,
+OpenIE [35], pattern-based
+Hierarchical graph-based,
+shortest path
+Dependency tree, TSVM [38]
+Co-occurrence
+Pattern-based, ranking
+HPSG-based parser,
+postprocessing of
+relation merging
+
+Labels: A = ADR; I = IND; O = other (ADR cause, ADR outcome, non-ADR, negated ADR, others); labeling method: DS = distant supervision, H = human;
+R = rule-based.
+
+4
+hand, a pattern-based method [14, 15] is manifested that
+achieves more accurate clinical relation extraction because
+it relies on cues or trigger words that usually implies a semantic relation. Although, a pattern-based method is more eﬃcient than the window-based method, a set of predeﬁned
+patterns or redundant pattern ﬁltering by a human is
+required. In our previous work [13], a pattern-based method
+has been proposed to utilize labels weakly suggested by a set
+of simple rules, (distant supervision) and pattern distribution
+has been investigated for characterizing ADR relations. Different from [10–12, 18, 37], a pattern-based method is
+acquired as feature representation and machine learning
+methods such as support vector machine (SVM), decision
+tree C4.5 (DT), random forest (RF), or naïve Bayes (NB)
+are well-established as a classiﬁer. Kang et al. [36] deploy a
+graph base and applies the shortest-path preference to ADR
+identiﬁcation. With regard to the eﬃcacy of word embedding
+[40] in NLP, Henriksson et al. [26] examine the distributional
+semantic model derived by word-embedding method for
+NER, concept attribute labeling, and relation classiﬁcation.
+In their work, a high dimension on semantic space of each
+word is used as a feature for model learning. The distributional semantic model is shown to improve the classiﬁer performance for all tasks. In another work, Nikfarjam et al. [17]
+apply the word embedding in a similar manner. However, to
+generalize semantic space, the authors employ a clustering
+method on such semantic vectors.
+2.2. Distant Supervision and Multiple Instance Learning. The
+main objective of distant supervision is to alleviate the problem of hand-labeled training which is time-consuming, rare,
+and expensive/costly by relying on knowledge base. Such
+knowledge base is reliable, cheap, and ubiquitously available.
+Distant supervision is ﬁrst introduced by Craven and
+Kumlien [20]. In their work, the term weakly labeled data is
+presented for biomedical relation extraction from MEDLINE.
+Lately, Mintz et al. [21] propose an interchangeable paradigm, distant supervision, to extract relation from Freebase.
+Their assumption relies on “if the two entities participate in
+a relation, any sentence that contains those two entities might
+express that relation.” The distant supervision has been
+applied recently for relation extraction problem [41–45] by
+mapping relations of any couple entities from knowledge
+bases (e.g., Freebase, YAGO) to a sentence in a large-scale text
+corpus (e.g., New York Times). Similarly, in previous works
+on application for emotion classiﬁcation from social media
+(i.e., tweets, microblog text) [46–48], the authors make use
+of distant supervision to map lexicon emoticons or smilies
+from knowledge bases (i.e., Wikipedia, Weibo) to large-scale
+noisy texts. In medical domain, distant supervision for ADR
+identiﬁcation [33, 49] is leveraged to automatically assign
+adverse reaction relation by mapping drug-event pair from
+knowledge bases to each health-related texts. The work of
+Yates et al. [49] utilizes SIDER as knowledge based on English
+tweets and posted messages from breast cancer forum, and
+Segura-Bedmar et al. [33] deploy SpanishDrugEﬀectDB database on Spanish health-related texts.
+As mentioned in the previous section, applying distant
+supervision on text corpus mostly encounters the two-level
+
+Journal of Healthcare Engineering
+relation concept and the entity-level and the instance-level
+relations. This mapping procedure may trigger noisy labeled
+data [50, 51], and MIL paradigm [25] is widely used as a solution [41, 42, 52, 53] for such wrongly labeled data problem.
+Fundamentally, MIL is aimed at handling the situation that
+training labels are associated with sets of instance examples
+rather than individual examples [54]. The concept of MIL
+considers two levels of data, namely bag- and instance-level
+relations. Let X be an instance space, Y be a set of labels,
+where Y = −1, +1 , and x1 , y1 , x2 , y2 , … , xn , yn be
+a training set, where xi ∈ X is an instance and yi ∈ Y is a
+known label of xi ; usually, the supervised learning is to train
+a classiﬁer function f X → Y. On the one hand, a given
+training set in MIL consists of bags and bag labels as
+B1 , y1 , B2 , y2 , … , Bn , yn , where Bi = xi1 , xi2 , … , xim
+is a set of multiple instances, xij ∈ X, and yi ∈ Y is a label
+of bag Bi and m can be diﬀerent across a particular bag,
+the goal of MIL is to learn f 2X → Y. For ADR identiﬁcation problem, bag- and instance-level relations in MIL
+are equivalent to the entity- and the instance-level relations of drug-event relation by distant supervision,
+respectively.
+2.3. Transductive Learning. In semisupervised learning, as
+varieties of the prediction method, the three parameters are
+(i) predictive model, (ii) single model or collaborative model,
+and (iii) test instances handling model. As the ﬁrst parameter, recent works [55–57] have proposed various predictive
+models, such as generative models [22, 58], low-density separation models [59], and graph-based models [60]. For the
+second parameter, at least two alternatives, namely selftraining [61, 62] or cotraining [63], can be applied to assign
+a label to an unlabeled instance by either one single predictive
+model or multiple ensemble predictive models. The last
+parameter concerns with how to handle test instances, where
+two choices are (i) to manipulate the test instances separately
+from the unlabeled instances (inductive learning) or (ii) to
+treat them as unlabeled instances in the training step (transductive learning). Regardless of any choice for the above
+three parameters, semisupervised learning requires a few
+labeled instances for constructing an initial model, triggering
+complexity in the acquisition of such initial labeled data. The
+main idea of transductive learning is to take advantage of the
+information from unlabeled data during training time, while
+inductive learning ignores such information even though
+they are available [19].
+
+3. Methods
+This section presents the proposed ADR identiﬁcation
+framework to overcome the shortcomings of the existing
+research: (i) the lack of domain experts for instances labeling
+and (ii) intractable processing of large-scale unstructured
+clinical texts. Our proposed framework contains the three
+main tasks (Figure 2). First, a set of drug-event candidates
+is generated from EMR texts. A silver-standard data and
+unseen data preparation are the next process. Finally, we
+explore alternative parameter learning schemes of generative
+models to identify potential drug-event relations.
+
+Journal of Healthcare Engineering
+
+5
+(1) Relation generation
+(drug-event candidates)
+
+(2) Automatic data labeling
+(silver-standard data and unseen data labeling)
+Medical ontology
+
+Knowledge bases
+
+Seed preparation
+
+Drug-event pairs (d, e)
+with their relation (y)
+
+NEs
+
+Drug-event candidates
+(d, p) with their pattern (p)
+
+Distant
+supervision
+
+(d, e, y)
+
+EMRs (texts)
+
+Pattern-based
+feature extraction
+
+(d, p, e)
+Unseen data
+(unknown drug-event
+pairs)
+
+Silver-standard data
+(known drug-event pairs)
+Labeled data (DL)
+(d, p, e, y)
+
+Unlabeled data (DU)
+(d, p, e)
+
+NER
+
+NEs
+
+SBD
+
+SBs
+
+Parsing
+
+Parse trees
+
+(3) Relation classification
+(ADR identification)
+MIL
+
+MIL
+
+MIL
+
+dEM
+
+dEM
+
+iEM
+Transductive learning
+Baseline
+
+Supervised learning
+
+Transductive learning
+
+Proposed method I
+
+Proposed method II
+
+Output: the unseen data are labeled.
+(d, p, e)
+
+(d, p, e, y);
+
+y
+
+{ADR, IND}
+
+Figure 2: Our ADR identiﬁcation framework consists of the three main tasks. (1) In the relation generation, drug-event pairs (d, e) are
+extracted from a corpus together with their patterns (p) using named entity recognition (NER), sentence boundary detection (SBD), and
+parsing. (2) In the automatic data labeling, distant supervision assigns a relation label (y) to each drug-event pair (d, e) obtained from the
+relation generation with its pattern p if such relation exists in knowledge base. The silver-standard data set is labeled data in the
+experiment. Here, two types of output data sets are a set of labeled data (DL ), composed of (d, p, e, y) extracted from a corpus (EMR
+texts), where the labels (y) are deﬁned for the drug-event pairs (d, e) in the knowledge base, and a set of unlabeled data (DU ), composed
+of (d, p, e) extracted from a corpus, where the labels do not exist for the drug-event pairs (d, e) in the knowledge base. (3) In this relation
+classiﬁcation, this work proposes three types of generative models with independent/dependent expectation-maximization (EM) model
+(iEM/dEM): (i) transductive learning with iEM (baseline), (ii) supervised learning with dEM, and (iii) transductive learning with dEM.
+
+To solve the ﬁrst issue, we assign a label to an unlabeled
+instance by exploiting facts in knowledge bases (i.e., SIDER
+and DrugBank) and consider two labels, ADR and IND, as
+classiﬁcation outputs. While distant supervision can supply
+a label to an unlabeled instance by simply looking up from
+knowledge bases, the labeled data set by this method is
+formed as MIL problem which training labels are associated
+with sets of instance examples rather than individual examples. As for the latter issue, applying phrase-based method
+and dependency representation may improve the model performance. In our work, the main idea is that a sentence
+regarding harmful (ADR) or beneﬁcial (IND) clinical events
+can be simpliﬁed into the three key elements, a drug, a key
+phrasal pattern, and an event, and dependency among such
+three elements has signiﬁcance. Such key phrasal pattern
+implies a semantic relation between any pair of drug and
+event entities. We have employed key phrasal pattern-based
+method for ADR identiﬁcation in our previous work [13].
+
+The method exhibits the high precision; notwithstanding its
+drawback is low recall rate due to a limit to the number of
+key phrasal patterns and the utilization of simple models.
+In this work, we extend such key phrasal pattern-based
+method with more sophisticated models, which is expected
+to be able to retain the high precision and improve retrieval
+performance. The EM, an iterative method, is incorporated
+with Markov property assumption to draw conditional probability distribution of pattern-based feature (dEM). Finally,
+we leverage unlabeled data through the transductive learning
+as semisupervised learning to enhance the performance of
+the proposed framework. For performance evaluation, we
+construct EM with independent assumption through NB
+(iEM) as the baseline and also compare our proposed
+methods to multiple advanced methods; multiple-instance
+support vector machine (MISVM), multiple-instance naïve
+Bayes (MINB), multiple-instance logistic regression (MILR),
+and transductive support vector machine (TSVM). The
+
+6
+multiple numbers of parameters such as pattern types,
+pattern-weighting models, and initial and iterative weighting
+relation labels for unlabeled data are investigated throughout
+three alternative MIL models: iEM with transductive learning
+setting (baseline), dEM-supervised learning, and dEM with
+transductive learning.
+3.1. Problem Formulation. We ﬁrstly present the formal
+deﬁnition of distant supervision and then formulate the
+problem using MIL concept. Let K denote knowledge bases
+regarding ADR and IND that are obtained from SIDER
+(http://sideeﬀects.embl.de) and DrugBank (https://www.
+drugbank.ca), T be a set of seeds, where T ⊆ K, and Y is
+a set of labels, where Y = ADR, IND ; the data set of seeds
+T in knowledge bases K or an entity-level set can be deﬁned
+as T = t1 , y1 , t2 , y2 , … , tN , yN , where ti = d i , ei is
+a seed, ti ∈ G is 2-dimensional entities space which consists
+of a drug entity di and an event entity ei that are deﬁned
+in K, yi ∈ Y is a label corresponding ti , and N is a total
+number of seeds. Therefore, the data set of seeds can be
+derived as T = d 1 , e1 , y1 , d 2 , e2 , y2 , … , d n , en , yn . For
+instance, the drug ramipril associates with the adverse
+event allergy and the drug ibuprofen is used to treat the
+event arthritis as a symptom which is supposed to exist
+in K. We can derive a data set of seeds to be a source
+of distant supervision as T = ramiprild , allergye , ADR ,
+ibuprof end , arthritise , IND . These seeds are entity-level
+data that are used as knowledge for later processes.
+Let C be a clinical-record corpus from MIMIC (https://
+mimic.physionet.org), which contains a set of discharge summary sentences S. We transform each sentence into the three
+key elements, that is, a drug entity d , a key phrasal pattern
+entity p , and an event entity e , while semantic of such
+simpliﬁed texts is retrained. Given x j = d j , p j , e j is a tuple
+obtained from an input sentence and x j ∈ ℋ is 3dimensional entity space, in order to automatically generate
+labeled examples using distant supervision, the goal is to
+obtain a mapping function f ℋ → Y that relates a drugevent pair of d j , e j to a relation label yi , where d i , ei , yi
+exists in T , d j = d i , and e j = ei . Finally, we can derive a set
+of labeled data DL = d1 , p1 , e1 , y1 , d 2 , p2 , e2 , y2 , … ,
+d n , pn , en , yn , namely, an instance-level data set, whereas
+n is a total number of mapped sentences.
+For example, the sentence “His ramipril were discontinued due to allergy and added to list in our medical records.”
+is supposed to exist in the corpus C. Then, the transformed
+sentence x1 using a dependency tree can be simpliﬁed into
+the three key elements of a drug d 1 = ramiprild , a key
+phrasal pattern p1 = be‐discontinue‐due‐top , and an event
+e1 = allergye , where a key phrasal pattern is applied in
+either the syntactically lemmatized lexicon or surface lexicon
+(e.g., was-discontinued-due-to), and can be employed as
+either word or phrase form (discuss later in Section 3.3.1).
+From the mapping function f ℋ → Y, we can project such
+sentence x1 to a seed ramiprild , allergye , ADR in T and
+transfer corresponding labels ADR to the sentence x1 . Therefore, we can derive a labeled data by distant supervision as
+ramiprild , be‐discontinue‐due‐top , allergye , ADR ∈ DL .
+
+Journal of Healthcare Engineering
+As another example, a sentence “The allergy improved
+despite ongoing treatment with ramipril.” is also supposed
+to exist in the corpus C. The transformed sentence x2 is
+ramiprild , improved‐despitep , allergye . In the similar
+manner, we can use the mapping function f ℋ → Y to
+assign the corresponding label of the entity pair ramiprild
+and allergye . Therefore, the derived labeled data is
+ramiprild , improved‐despitep , allergye , ADR ∈ Dℒ . However, the sentence x2 might not express the correctly
+clinical event of adverse reaction. This is known as the
+noisy label and need to to be handled by a particular technique such as MIL.
+In MIL concept, bag- and instance-level relations are
+equivalent to the entity- and the instance-level relations of
+drug-event relation derived by distant supervision, respectively. Regarding the deﬁnition in Section 2.2, X is an
+instance space, Y is a set of labels, where
+Y = ADR, IND , the labeled data set DL can be rewritten
+in the form of MIL as DL = B1 , y1 , B2 , y2 , … , Bn , yn ,
+where Bi = xi1 , xi2 , … , xim is a set of multiple sentences
+which all sentences in a bag Bi correspond to the same drug
+d and event e , n is the number of bags, and m is the number of sentences in a bag and can be varied across a diﬀerent
+bag. On the one hand, unlabeled instances (DU ) are formed
+as a group of bags in the similar way but without a label as
+DU = B1 , B2 , … , Bn . Our goal is both to train an
+instance classiﬁer function f X → Y in the instance–space
+paradigm from DL only (supervised learning) and attempt to
+infer the accurate label for each instance in the DU set during
+the training process (transductive learning). The bag label,
+eventually, can be derived from an aggregation function of
+the instance level, and the model assessment is investigated
+through the model performance of the entity level. Regarding
+noisy data labeling from distant supervision, the collective
+assumption and standard assumption with logical-OR aggregation for the bag label judgment are rather improper. The
+relaxed version of the MIL standard assumption is used in
+our proposed framework by assuming that the positive and
+negative bags are able to contain a mixture of either positive
+or negative instances, but the probability of at least one positive instance should be the maximum for the positive bag
+and vice versa. Consequently, to learn bag classiﬁer
+f 2X → Y, the estimated bag label from an instance classiﬁer can be computed using (1), where yi is a label of a bag i
+(the entity-level label), yij is a label of the instance-level and
+possibly diﬀerent for each sentence instance j within the
+same bag i, and n is the total number of sentences in the bag.
+p yi ∣Bi = max p yij ∣xij
+j∈ 1, … ,n
+
+1
+
+Generally, the training data are not suﬃcient for parameter training. In order to learn such classiﬁer function
+f X → Y, we make use of the iterative EM technique with
+transductive learning setting to estimate the posterior probability p y∣x through the two parameters, that is, prior probability p y and class-conditional density p x∣y , of the
+generative model.
+
+Journal of Healthcare Engineering
+
+7
+
+Information extraction syntax tree-based (to extract patterns)
+S1 (input): His outpatient [ramipril]_d was held in the setting of [acute renal insufficiency]_e.
+nmod:in
+nmod:poss
+nsubjpass
+case
+compound
+auxpass
+det
+Dependency
+PRP$
+VBD
+VBD IN DT
+NN
+NN
+NN
+Parsing:
+His outpatient
+ramipril was
+held in the
+setting
+OpenIE–A1:
+A2:
+A3:
+A4:
+
+he outpatient [ramipril]_d
+he [ramipril]_d
+he outpatient [ramipril]_d
+he outpatient [ramipril]_d
+
+be held in
+be held in
+be
+be_hold_in
+
+IN
+of
+
+nmod:of
+case
+amod
+amod
+JJ
+JJ
+acute
+
+renal
+
+NN
+
+insufficiency
+
+setting
+setting of [acute renal insufficiency]_e
+hold
+setting of [acute renal insufficiency]_e
+
+Phrasal patterns
+S2 (input):
+
+Dependency
+Parsing:
+
+OpenIE–B1:
+B2:
+
+Patient’s home [warfarin]_d was initiated for his [atrial fibrillation]_e.
+nmod:poss
+nsubjpass
+auxpass
+case
+compound
+NN
+
+POS
+
+NN
+
+NN
+
+VBD
+
+VBN
+
+Patient
+
+‘s
+
+home
+
+Warfarin
+
+was
+
+initiated
+
+Patient’s home [Warfarin]_d
+Patient’s home [Warfarin]_d
+
+be initiate
+be initiate for
+
+nmod:of
+case nmod:poss
+amod
+IN PRP$
+JJ
+NN
+for
+
+his
+
+atrial
+
+fibrillation
+
+his [atrial fibrillation]_e
+
+Phrasal patterns
+
+Example outputs of feature extraction by NERs, normalization, and information extraction.
+(Medical terms are normalized to CUI)
+
+Sentence no.
+
+Pattern
+no.
+
+S1
+
+A2, A4
+
+S2
+
+B2
+
+…
+
+Drug (d)
+
+C0072973 (ramipril)
+C0043031
+(warfarin)
+…
+
+Key phrasal pattern
+
+Event (e)
+
+(p)
+be-hold-in
+
+C0022660 (acute-renal-insufficiency)
+
+be-initiate-for
+
+C0004238 (atrial-fibrillation)
+
+…
+
+…
+
+Figure 3: The upper block depicts the dependency parsing of two sentences (S1 and S2) and their outputs from OpenIE. The lower table
+exhibits their ﬁnal representations in the form of a relational table. Generally speaking, this syntactic-based analyzer extracts a list of drugkey phrasal pattern-event tuples from the sentences, where drugs and events are matched with their corresponding CUIs.
+
+3.2. Medical Named Entity Recognition and Relation
+Candidate Generation. Figure 3 displays information extraction from sentences in the MIMIC corpus, with the output of
+drug-key phrasal pattern-event tuples as candidates of ADR
+or IND relation. This process involves NER, SBD, and
+parsing. Here, the MetaMap [64] is used for NER, our inhouse program for SBD (https://github.com/makoto404/
+MIMIC_SBD), and Stanford CoreNLP’s OpenIE for parsing.
+After extracting relation candidate tuples (entity1, predicate,
+entity2), we select only the tuples that include drug name and
+event name as entity1 and entity2 or vice versa. The output is
+in the form of (a drug, a key phrasal pattern, and an event).
+The automatic labeling process using distant supervision is illustrated in Figure 4. Firstly, each pair of drug
+and event d, e from the set of seeds in knowledge bases
+is used to extract drug-event pairs from the set of sentences; then, we assign the label corresponding to the seed
+label to all sentences that mention such d, e pair. However, to reduce the ambiguity of the ground truth from
+knowledge base supervision, a pair of d, e that is found
+to exhibit both of ADR and IND semantic relations is
+excluded. Given a set of sentences X, the training set DL
+is in the form
+B1 , y1 , B2 , y2 , … , Bn , yn , where
+Bi = xi1 , xi2 , … , xim . In the Block 1 of Figure 4, the ﬁrst
+
+bag (Bag1) consists of two sentences that correspond to
+the same entity-level of drug d 1 and event e1 . The second
+bag (Bag2) contains only one sentence relevant to drug d 2
+and event e4 .
+Finally, all sentences that are able to be assigned a label by
+distant supervision are referred as the set of labeled data DL
+and the remaining data that are not matched by distant
+supervision is used as unlabeled data DU .
+3.3. Document Representation
+3.3.1. Feature Extraction for Clinical Textual Data. To recognize a relation between a drug and an event, our approach
+generates a set of relation candidates (drug-event pairs) from
+medical records in the form of (drug, pattern, event). Table 2
+depicts examples of multiple types of feature extraction and
+drug-event candidates. Our work considers two parameters
+related to representing such relation candidates. The ﬁrst
+parameter, called relation boundary constraint, deﬁnes
+potential of using surrounding context for determining
+drug-event relations while the second and third parameters,
+called syntactic lemmatization and pattern granularity constraints, are related to patterns used to detect drug-event relations, as follows.
+
+8
+
+Journal of Healthcare Engineering
+Block 2
+Pattern-based
+feature
+(d, p, e)
+
+Iterate until convergence
+
+L
+d4
+d2
+d4
+d1
+d2
+d2
+
+(d, p, e)
+Unlabeled
+data
+D
+
+p1
+p8
+p3
+p2
+p5
+p7
+…
+
+e6
+e2
+e6
+e2
+e2
+e2
+
+d2 p3 e4 0.19 0.81
+
+Bag1
+Bag2
+
+d3 p2 e4 0.87 0.13
+d3 p4 e4 0.79 0.21
+Bag3
+
+MIL-dEM
+learner
+(initial step)
+
+D
+
+Block 1:
+
+Train DL
+(d, p, e, y)
+
+d3 p2 e4 1.00 0.00
+ADR
+P (1.00)
+d3 p4 e4 1.00 0.00 B
+agM
+
+Labeled
+data
+
+d p e PADR PIND
+d1 p1 e1 0.74 0.26
+d1 p2 e1 0.85 0.15
+
+d4 p1 e6 0.75 0.25
+d4 p3 e6 0.63 0.37 B
+ag4
+d1 p2 e2 0.84 0.16
+
+Augmented
+data
+
+…
+
+(d, p, e, y)
+
+IND
+Bag2 P (0.00)
+
+Predict DU
+(d, p, e)
+
+Distant supervision
+(silver-standard data and unseen data labeling)
+
+d p e PADR PIND
+ADR
+d1 p1 e1 1.00 0.00
+P (1.00)
+d1 p2 e1 1.00 0.00 B
+ag1
+d2 p3 e4 0.00 1.00
+
+ADR
+or IND
+
+MIL-dEM
+learner
+
+Distant
+supervision
+
+KB seeds
+(d, e, y)
+
+dEM-based transductive learning
+(multiple-instance learning)
+
+Bag5
+
+d2 p8 e2 0.13 0.87
+d2 p5 e2 0.26 0.74
+d2 p7 e2 0.16 0.84 Bag
+6
+…
+DL+U
+(d, p, e, y)
+
+U
+
+Figure 4: Block 1 expresses the data labeling using the fact from external sources (KB seeds). The DL is a data set that a pair of drug and event
+entities can be mapped to a set of KB seeds through the distant supervision. Hence, all sentences that correspond to the same drug-event pair
+are assigned to the same bag and same label (labeled data DL ) regarding a label of such drug-event pair in a set of seeds from knowledge base.
+Finally, such DL set is used as a training data. Block 2 depicts our proposed MIL-dEM method. The label assignment for unlabeled DU data set
+(test set) can be obtained from a classiﬁer in the previous process. Lastly, such unlabeled data is incorporated and contributed to estimating
+the parameters of a generative model.
+Table 2: Types of feature extraction for a given sentence. Here, the ﬁrst character is either L (syntactically lemmatized lexicon) or S (surface
+lexicon), and the second character is either P (phrase) or W (word). BOW stands for bag-of-words. CUI C0033487 is a UMLS concept of
+propofol. C0031469 is a UMLS concept of phenylephrine. CUI C0020649 is a UMLS concept of hypotension.
+Sentences
+
+On arrival here, propofol
+was held due to
+hypotension.
+
+Types
+
+Example of feature representation
+
+Example of drug-event candidates (d, p, e, y)
+
+L–P
+L–W
+
+C0033487 be-hold-due-to C0020649
+C0033487 be hold due to C0020649
+
+S–P
+
+C0033487 was-held-due-to C0020649
+
+S–W
+
+C0033487 was held due to C0020649
+On arrival here, propofol was held due to
+hypotension.
+
+(C0033487, be-hold-due-to, C0020649, ADR)
+NA
+(C0033487, was-held-due-to,
+C0020649, ADR)
+NA
+
+BOW
+
+Phenylephrine drip
+was started for
+hypotension.
+
+L–P
+L–W
+S–P
+S–W
+BOW
+
+C0031469 be-start-for C0020649
+C0031469 be start for C0020649
+C0031469 was-started-for C0020649
+C0031469 was started for C0020649
+Phenylephrine drip was started for hypotension.
+
+(i) Syntactic lemmatization: for syntactic word forms,
+two possibilities are syntactically lemmatized lexicons (L) and surface lexicons (S).
+(ii) Pattern granularity: in terms of pattern units, two
+options are in word form (W) and phrase form (P).
+
+NA
+(C0031469, be-start-for, C0020649, IND)
+NA
+(C0031469, was-started-for, C0020649, IND)
+NA
+NA
+
+3.3.2. Pattern-Weighting Models
+(i) Bernoulli (binary) document model B : a document
+(hereinafter referred to as a sentence denoted by x)
+can be represented in the form of a vector each
+
+Journal of Healthcare Engineering
+
+9
+
+element of which corresponds to a term (i.e., word,
+phrase) denoted by w with a value of either 0 or 1
+for presence or absence of such term, respectively.
+xB = B x, w1 , B x, w2 , … , B x, w W
+
+,
+
+2
+
+where xB presents a sentence x in the form of a
+binary vector, B x, wi = 1 when wi is the ith term
+in the sentence x (otherwise 0), and wi is a term in
+the universe W.
+
+While in most situations, it is possible to obtain the
+class p ck simply from the training set, and the generative
+probability of xi given a class ck usually suﬀers with insufﬁcient training data. As done by several works, the
+assumption of independence, usually called naïve Bayes
+(NB), can be applied to alleviate this sparseness problem
+as expressed in
+p xi ∣ck = p wi1 , wi2 , … , wi xi ∣ck = p wi1 ∣ck ⋅ p wi2 ∣wi1 , ck
+⋅ … ⋅ p wi∣xi ∣ ∣wi1 , wi2 , … , wi
+
+(ii) Multinomial (frequency) document model: a sentence is expressed by a vector of term frequency
+TF as
+
+xi −1
+
+, ck ≈ p wi1 ∣ck
+
+xi
+
+⋅ p wi2 ∣ck ⋅ … ⋅ p wi xi ∣ck = ∏ p wij ∣ck
+j=1
+
+6
+
+xTF = TF x, w1 , TF x, w2 , … , TF x, w W
+TF x, wi =
+
+Therefore,the NB text classiﬁer can berewritten in the form
+
+f x wi
+,
+x
+
+x
+
+3
+where xTF is a sentence x in the form of a TF vector,
+TF x, wi expresses the normalized frequency of the
+ith term wi by the sentence size x , and f x wi is the
+frequency that the term wi occurs in the sentence x.
+As another option, a document can also be expressed
+by a vector of term frequency-inverse document
+frequency TFIDF as
+xTFIDF = TF x, w1 ⋅ IDF w1 , TF x, w2
+⋅ IDF w2 , … , TF x, w W
+TF x, wi =
+
+f x wi
+∣x∣
+
+IDF wi = log
+
+p yi = ck ∣xi =
+
+7
+
+x
+
+C
+
+〠k=1 p ck ∏ j=1i p wij ∣ck
+
+Here, it is necessary to estimate two sets of parameters,
+denoted by θ, of expectation-maximization (EM) algorithm. The ﬁrst parameter set is the class-conditional
+probability of any term wq ∈ W given the class ck while
+the other one is the probability of the class ck . The parameter set is deﬁned by
+θ = p t+1 wq ∣ck , p t+1 ck
+
+⋅ IDF w W
+
+X
+,
+x∣x ∈ X, B x, wi = 1
+
+4
+where xTFIDF is a sentence x ∈ X (the document
+universe), in the form of a TFIDF vector, and
+IDF wi
+expresses the inverse document
+frequency, corresponding to the logarithm of the
+ratio of the total number of sentences in the universe X to the number of sentences that contain
+the ith term wi .
+3.4. Probabilistic Classiﬁcation Modeling. This section
+describes two EM-based probabilistic classiﬁcation models,
+one with independent assumption (iEM) and the other with
+dependent representation assumption (dEM).
+3.4.1. EM Model with Naïve Bayes Independent Assumption
+(iEM). Let X = x1 , x2 , … , x X be a set of sentences,
+xi = wi1 , wi2 , … , wi X i be a sentence that includes xi
+terms, and C = c1 , c2 , … , c C be the set of possible classes.
+The probability that the sentence xi has ck as its class
+yi = ck can be formulated as
+p ck p xi ∣ck
+p ck p xi ∣ck
+=
+p yi = ck ∣xi =
+C
+p xi
+〠k=1 p ck p xi ∣ck
+
+p ck ∏ j=1i p wij ∣ck
+
+5
+
+8
+
+In the expectation step (E-step), for each iteration, the θ
+parameter of the previous step is applied to re-estimate the
+model probability. In our experiment, the convergence
+threshold is 10−7 and the maximum number of iterations is
+set to 50.
+x
+
+p
+
+t
+
+yi = ck ∣xi =
+
+p t−1 ck ∏ j=1i p t−1 wij ∣ck
+
+9
+
+x
+
+C
+
+〠k=1 p t−1 ck ∏ j=1i p t−1 wij ∣ck
+
+For the maximization step (M-step), with a Laplace
+smoothing factor λ > 0, the t + 1 th-iteration probability
+of p t+1 wq ∣ck and p t+1 ck can be estimated from the
+tth-iteration probability. The maximum likelihood estimation for NB is simply computed from an empirical corpus
+using
+X
+
+p t+1 wq ∣ck =
+
+λ + 〠i=1 N wq , xi p t yi = ck ∣xi
+X
+
+W
+
+λ W + 〠r=1 〠i=1 N wz , xi p t yi = ck ∣xi
+
+,
+
+10
+where W is a total number of terms and any term wz ∈ W.
+X
+
+p
+
+t+1
+
+λ + 〠i=1 p t yi = ck ∣xi
+ck =
+λC + X
+
+11
+
+The following demonstrates an example of applying the
+above formulations with the key phrasal pattern-based
+
+10
+
+Journal of Healthcare Engineering
+
+feature. Given the L–P feature representation of xi =
+(C0033487, be-hold-due-to, C0020649) corresponds to relation tuple d i , pi , ei obtained from an input sentence where
+
+p t yi = ck ∣xi =
+
+p t−1 ck ⋅ p t−1 C0033487∣ck ⋅ p t−1 be‐hold‐due‐to∣ck ⋅ p t−1 C0020649∣ck
+C
+
+〠k=1 p t−1 ck ⋅ p t−1 C0033487∣ck ⋅ p t−1 be‐hold‐due‐to∣ck ⋅ p t−1 C0020649∣ck
+
+Another example, given the L–W feature representation
+of the same sentence xi = {C0033487, be, hold, due, to,
+C0020649}, corresponds to relation tuple di , pi , ei where
+
+p t yi = ck ∣xi =
+
+the pattern pi be the phrase form, we can estimate
+p yi = ck ∣xi as expressed in
+
+12
+
+the pattern pi is in the word form. We can compute the class
+probability of the given texts p yi = ck ∣xi as
+
+p t−1 ck ⋅ p t−1 C0033487∣ck ⋅ p t−1 be∣ck ⋅ p t−1 hold∣ck ⋅ p t−1 due∣ck ⋅ p t−1 to∣ck ⋅ p t−1 C0020649∣ck
+C
+
+〠k=1 p t−1 ck ⋅ p t−1 C0033487∣ck ⋅ p t−1 be∣ck ⋅ p t−1 hold∣ck ⋅ p t−1 due∣ck ⋅ p t−1 to∣ck ⋅ p t−1 C0020649∣ck
+
+13
+
+3.4.2. EM Model with Dependency Representation (dEM). We
+introduce a dependency representation as an alternative
+model representation that is based on the same intuitions
+as the NB model but less restriction regarding the implicitly
+strong independence assumptions. This dependency representation is an eﬃcient factorization of the join probability
+distributions over a set of three random variables wq , wr ,
+and ws , where each variable is a domain of possible values,
+that is, drug, key phrasal pattern, and event. We extend the
+dependency representation with iterative learning by EM
+approach in order to align the model assumption to the
+natural language and also ﬁgure out an unseen random variable using probability estimation based on an existing
+prior knowledge. This dependency representation is also
+known as Bayesian networks (BN) and the conditional
+probability of independent variable given a class probability can be derived by the chain rule
+
+p xi ∣ck = p wiq , wir , wis ∣ck
+≈ γ1 p wiq ∣ck ⋅ p wir ∣wiq , ck ⋅ p wis ∣wiq , wir , ck
++ γ2 p wiq ∣ck ⋅ p wis ∣wiq , ck ⋅ p wir ∣wiq , wis , ck
++ γ3 p wir ∣ck ⋅ p wiq ∣wir , ck ⋅ p wis ∣wiq , wir , ck
++ γ4 p wir ∣ck ⋅ p wis ∣wir , ck ⋅ p wiq ∣wir , wis , ck
+
+p xi ∣ck = p wiq , wir , wis ∣ck
+
++ γ5 p wis ∣ck ⋅ p wiq ∣wis , ck ⋅ p wir ∣wiq , wis , ck
+
+= p wiq ∣ck ⋅ p wir ∣wiq , ck ⋅ p wis ∣wiq , wir , ck
+14
+Therefore, the BN text classiﬁer can be rewritten in the
+form
+p yi = ck ∣xi
+=
+
+According to the core of BN representation, a random
+variable is represented by a node in a directed acyclic graph
+(DAG), and an edge between any two nodes is presented by
+an arrow line which implies a direct inﬂuence of one node
+on another node. Given a sentence xi with three elements
+(wiq , wir , and wis ) in the form of a relation tuple (d i , pi , ei ),
+there are three factorized ways (3!) as alternative model skeletons of the dependency representation through the chain
+rule. We, hence, propose the linear interpolation in order to
+weigh and combine the probability estimation from all of
+possible dependency representations as deﬁned by
+
+p ck ⋅ p wiq ∣ck ⋅ p wir ∣wiq , ck ⋅ p wis ∣wiq , wir , ck
+C
+
+〠k=1 p ck ⋅ p wiq ∣ck ⋅ p wir ∣wiq , ck ⋅ p wis ∣wiq , wir , ck
+15
+
++ γ6 p wis ∣ck ⋅ p wir ∣wis , ck ⋅ p wiq ∣wir , wis , ck ,
+16
+such that the total γ is ∑6i=1 γi = 1
+Generally, the linear interpolation method of three random variables can be estimated from the combination of
+two random variables and individual random variable. Similarly, two random variables are able to approximate from
+individual random variable as well. For instance, given two
+history terms wiq and wir in a sentence xi , the interpolation
+
+Journal of Healthcare Engineering
+
+11
+
+is comparatively estimated from individual random variable
+and two random variables as shown in
+p wir ∣wiq , ck = β1 p wir ∣ck + β2 p wir ∣wiq , ck ,
+
+17
+
+such that the total β is ∑2i=1 βi = 1
+Another instance, three history terms (wiq , wir , wis ) in a
+sentence xi are given; the likelihood estimation as shown in
+(18) can be derived similarly as the previous estimator by
+interpolation of individual random variable, two random
+variables, and three random variable estimators.
+
++ α3 p wis ∣wir , ck + α4 p wis ∣wiq , wir , ck ,
+18
+such that the total α is ∑4i=1 αi = 1
+Finally, we compute p wiq ∣wir , ck , p wiq ∣wis , ck ,
+p wir ∣wis , ck , p wis ∣wiq , ck , and p wis ∣wir , ck with the similar
+manner as (17) and calculate p wiq ∣wir , wis , ck and
+p wir ∣wiq , wis , ck using the same way as shown in (18).
+In the same manner as the NB model, it is necessary to
+estimate the four sets of parameters θ whereas any terms
+wq , wr , ws ∈ W.
+θ= p
+
+wq ∣ck , p
+
+t+1
+
+wq ∣wr , ck , p
+
+t+1
+
+wq ∣wr ws , ck ,
+
+p t+1 ck
+19
+The iterative learning using EM approach is applied to
+estimate the parameter θ. For the E-step, for each iteration,
+the θ parameter is applied to re-estimate the model probability as shown in (20) and (21). This process will repeat until
+convergence. The same setting as the iEM model, the value
+of 10−7 for the convergence threshold and the value of 50
+for the maximum number of iterations, is applied for dEM
+model as well.
+p t−1 xi ∣ck
+≈ γ1 p t−1 wiq ∣ck ⋅ p t−1 wir ∣wiq , ck ⋅ p t−1 wis ∣wiq , wir , ck
++ γ2 p t−1 wiq ∣ck ⋅ p t−1 wis ∣wiq , ck ⋅ p t−1 wir ∣wiq , wis , ck
++ γ3 p t−1 wir ∣ck ⋅ p t−1 wiq ∣wir , ck ⋅ p t−1 wis ∣wiq , wir , ck
++ γ4 p t−1 wir ∣ck ⋅ p t−1 wis ∣wir , ck ⋅ p t−1 wiq ∣wir , wis , ck
++ γ5 p t−1 wis ∣ck ⋅ p t−1 wiq ∣wis , ck ⋅ p t−1 wir ∣wiq , wis , ck
++ γ6 p t−1 wis ∣ck ⋅ p t−1 wir ∣wis , ck ⋅ p t−1 wiq ∣wir , wis , ck ,
+
+20
+p t yi = ck ∣xi =
+
+p t−1 ck ⋅ p t−1 xi ∣ck
+C
+
+〠k=1 p
+
+t−1
+
+ck ⋅ p
+
+t−1
+
+xi ∣ck
+
+p t+1 wq ∣ck
+X
+
+=
+
+λ + 〠i=1 N wq , xi p t yi = ck ∣xi
+W
+
+X
+
+λ W + 〠z=1 〠i=1 N wz , xi p t yi = ck ∣xi
+
+22
+
+,
+
+p t+1 wq ∣wr , ck
+
+p wis ∣wiq , wir , ck = α1 p wis ∣ck + α2 p wis ∣wiq , ck
+
+t+1
+
+However, with the BN dependency representation, there are
+four parameter estimation of the t + 1 th iteration probability of p t+1 wq ∣wr , ws , ck , p t+1 wq ∣wr , ck , p t+1 wq ∣ck , and
+p t+1 ck , which can be estimated from tth-iteration probability as expressed in
+
+21
+
+For the M-step, the Laplace smoothing factor λ > 0 is
+implemented as well as in NB model to avoid zero count issue.
+
+X
+
+=
+
+λ + 〠i=1 N wq , xi p t yi = ck ∣wr , xi
+W
+
+X
+
+λ W + 〠z=1 〠i=1 N wz , xi p t yi = ck ∣wr , xi
+
+,
+
+23
+
+p t+1 wq ∣wr , ws , ck
+X
+
+=
+
+λ + 〠i=1 N wq , xi p t yi = ck ∣wr , ws , xi
+W
+
+X
+
+λ W + 〠z=1 〠i=1 N wz , xi p t yi = ck ∣wr , ws , xi
+
+,
+24
+
+whereas W is a total number of terms and any term wz ∈ W.
+X
+
+p t+1 ck =
+
+λ + 〠i=1 p t yi = ck ∣xi
+λC + X
+
+25
+
+Then, we can derive p t+1 wr ∣ck and p t+1 ws ∣ck using
+the similar calculation as (22). For the dependency representations of two random variables w, that is, p t+1 wq ∣ws , ck ,
+p t+1 wr ∣wq , ck , p t+1 wr ∣ws , ck , p t+1 ws ∣wq , ck , and
+p t+1 ws ∣wr , ck can be computed by following the similar
+approach as (23). Similarly, the estimation of
+p t+1 wr ∣wq , ws , ck and p t+1 ws ∣wq , wr , ck can be obtained
+by the same way as shown in (24). Finally, the coeﬃcients γ,
+β, and α of interpolation approach are employed in order to
+weigh the knowledge from multiple dependency representations. Algorithm 1 explains pseudocode for iEM model, and
+Algorithm 2 expresses our proposed dEM method.
+3.5. The Incorporation of Unlabeled Data. In the environment
+of insuﬃcient labeled data, SSL is one solution that utilizes an
+inexpensive and ubiquitous source of data. The transductive
+learning [65], one type of SSL, begins its process with making
+use of a limited number of labeled data (DL ) to build a rough
+model and then aggregated a large number of unlabeled data
+(DU ) (test set) to revise and improve the model iteratively. In
+the experiment, we investigated the three alternative
+approaches of initialization and iterative weighting of relation labels for unlabeled data incorporation.
+(i) T pM : This method is equivalent to the general transL
+ductive learning, in which the label of the test set DU
+can be derived by a classiﬁer that is trained on the
+DL . Then, the augmented DL with the labeled DU ,
+so called DL+U , is used for the further iteration.
+
+12
+
+Journal of Healthcare Engineering
+
+Input:
+C = the number of labels
+T = the maximum number of iteration
+Output: θ parameter
+1 t←0
+C
+2 θ = p t+1 wq , ck , p t+1 ck ; ∑k=1 p t+1 ck = 1
+3 repeat
+4 for i = 1 to n do
+5
+E–step:
+Estimate model probability: p t yi = ck ∣xi
+(9)
+M–step:
+Update class-conditional probability: p t+1 wq ∣ck
+Update class probability: p t+1 ck
+(11)
+6 t←t+1
+7 until convergence or t = T
+
+(10)
+
+Algorithm 1: Pseudocode for EM with NB-independent assumption (iEM).
+
+Input:
+C = the number of labels
+T = the maximum number of iteration
+x
+γ1 , γ2 , …, γ xi ∑ j=1i γ j = 1
+β1 , β2 ∑2j=1 β j = 1
+
+α1 , α2 , …, α4 ∑4j=1 α j = 1
+Output: θ parameter
+1 t←0
+C
+2 θ = p t+1 wq , ck , p t+1 wq , wr , ck , p t+1 wq , wr , ws , ck , p t ck ; ∑k=1 p t ck = 1
+3 repeat
+4 for i = 1 to n do
+5
+E–Step:
+(21)
+Estimate model probability: p t yi = ck ∣xi
+M–Step:
+Update class-conditional probability: p t+1 wq ∣ck
+(22)
+p t+1 wq ∣wr , ck
+(23)
+t+1
+p
+wq ∣wr , ws , ck
+(24)
+Update class probability: p t+1 ck
+(25)
+6 t←t+1
+7 until convergence or t = T
+Algorithm 2: Pseudocode for our proposed EM with BN-dependent representation (dEM).
+
+(ii) T p0 5 : The class probability of the DU is equally
+assigned to DL and used as an initial probability. In
+this approach, the DL+U can be derived earlier and
+integrated in training process for the ﬁrst iteration.
+Therefore, in the next iteration, the DU is not strictly
+guided by the labeled data. The revision process is
+probably the same manner to the previous method
+by combining both data set DL+U for the further
+iteration.
+(iii) T prandom : Similarly, the initial probability of DU is
+assigned randomly rather than the ﬁxed value of
+
+0.5. The degree of likelihood for each label can be
+varied from 0 to 1 whereas the total probability of
+ADR and IND labels equals 1.
+In order to evaluate our proposed method, three types
+of text representation across three parameters of unlabeled
+data incorporation are investigated. Finally, our proposed
+methods and its enhancement, MIL-dEM-S-S (supervised
+learning) and MIL-dEM-T-S methods (transductive learning), are compared to TSVM and three MIL models,
+MISVM, MINB, and MILR, which are implemented in
+WEKA [66].
+
+Journal of Healthcare Engineering
+
+13
+Table 3: The list of parameters for assessment.
+
+Parameter group
+
+Parameter type
+
+Parameter subtype
+Syntactic lemmatization
+Pattern granularity
+
+Document representation
+
+Bernoulli
+Pattern-weighting models
+
+Model assumption
+
+Model decision method
+
+Learning method
+
+Independent assumption
+Dependency representation
+assumption
+
+Multinomial
+
+L
+S
+P
+W
+B
+TF
+TFIDF
+
+EM with naïve Bayes
+
+iEM
+
+EM with Bayesian network
+
+dEM
+S
+H
+
+Supervised learning
+Supervised model
+
+SL
+T pM
+
+Equal probability
+
+T p0 5
+
+Random probability
+
+T prandom
+
+Initial weight method
+for unlabeled data
+
+4. Evaluation
+We assess our proposed method using various parameter settings as shown in Table 3 and evaluate by the hold-out evaluation through the k-fold cross validation whereas k = 5. The
+three main measures as deﬁned by (26), (27), and (28), that
+is, precision, recall, and F1, are used for model evaluation,
+while the positive class in our experiments is ADR label. In
+our experiment, we use MetaMap Java API for NER and
+Stanford CoreNLP Java API for OpenIE and implement
+Python program for EM-based methods. For model comparison, we execute WEKA Java-based software and SVMlight
+(http://svmlight.joachims.org), which is implemented in C
+programming language, on Mac OS with Intel Core i5 processor running at 2.5 GHz and 8 GB of physical memory.
+tp
+precision =
+,
+tp + f p
+
+26
+
+tp
+,
+tp + f n
+
+27
+
+2 × precision × recall
+precision + recall
+
+28
+
+F1 =
+
+Variable name
+
+Soft decision making
+Hard decision making
+
+Transductive learning
+
+recall =
+
+Parameter name
+Syntactically lemmatized lexicon
+Surface lexicon
+Phrase form
+Word form
+Binary
+TF (term frequency)
+TFIDF (TF-inverse
+document frequency)
+
+4.1. Data. Our proposed framework is examined on the
+unstructured texts from EMRs of intensive care unit which
+is derived from MIMIC-III [67]. The data is freely available
+at PhysioNet (https://mimic.physionet.org) and is accessed
+on Apr 25, 2016 with the version 1.3. The over 58,000 hospital admissions for 38,645 adults and 7875 neonates are presented in the data source spanning up to 12 years from
+June 2001. In our work, the discharge summary from two
+main hospital sections, that is, brief hospital course (BHC)
+and the history of present illness (HPI) are preliminary
+
+L
+
+explored. For data preparation, we employ SBD, stop word
+removal, tokenization, NER, and normalization. We consider two semantic types of UMLS CUI regarding CHEM
+and DISO for drug and event entities, respectively. As
+the results, nearly 1.6 million sentences are extracted and
+used as our corpus.
+4.2. Results and Discussion. We conduct four main experiments in order to evaluate the eﬀectiveness of our proposed
+method: (i) the key phrasal pattern analysis, (ii) the evaluation on the eﬀectiveness of the key phrasal patterns, (iii) the
+eﬀectiveness of the pattern-based feature with MIL-iEM
+and MIL-dEM, and (iv) the evaluation on overall performance with advanced machine learning methods.
+4.2.1. Key Phrasal Pattern Analysis. We initially analyze the
+discovered key phrasal patterns to investigate the degree of
+characterization of relation labels. Given a key phrasal pattern pattern, we compute the pattern score (S) by performing
+the conditional entropy (H) inversion and polarity adjustment to visualize the performance of the extracted key
+phrasal patterns.
+H = −p ADR∣ pattern log2 p ADR∣ pattern
+− p IND∣ pattern log2 p IND∣ pattern
+
+29
+
+S = SIGN 0 5 − p IND∣ pattern × 1 − H
+From Figure 5, a pattern that is located far from the middle line (score 0) and closed to the top left or the top right
+corners expresses the high eﬀectiveness of semantic discrimination ability relevant relation labels. For example, the key
+phrasal patterns “be-hold-in,” “contribute-to,” “be-think,”
+and “improve-with” are strongly relevant to ADR label and
+“be-add-for,” “be-initial-for,” and “be-on” are rather
+
+14
+
+Journal of Healthcare Engineering
+140
+Be
+120
+
+Frequency
+
+100
+
+80
+
+Be with
+Continue
+
+60
+
+40
+
+Improve with
+
+Be control with
+
+Be add for,
+Be initiate for,
+20 Well control with
+
+Be hold in
+
+Be change to
+
+Contribute to
+
+Control, require, start
+
+Be think, improve with
+
+Be on
+0
+‒1.5
+
+‒1
+
+‒0.5
+
+0
+Sign score (S)
+
+0.5
+
+1
+
+1.5
+
+IND
+ADR
+
+Figure 5: The x-axis exhibits the pattern score with polarity whereas the score > 0 represents the distribution of pattern relevant to ADR (blue
+circle marker), the score < 0 represents the distribution of pattern relevant to IND (orange square marker), and score = 0 indicates no
+relevance between pattern and both labels. The y-axis is the frequency of patterns that appear in the clinical texts.
+Table 4: Example of relevant sentences of pairs of drug-event (d, p, e).
+Drugs (d)
+
+Key phrasal
+patterns (p)
+
+Events (e)
+
+Pattern direction
+
+be-hold-in
+
+C0020625
+(hyponatremia)
+
+d→e
+
+be-think
+
+C0002871
+(anemia)
+
+e→d
+
+C0020538
+(hypertension)
+C0004238
+(atrial ﬁbrillation)
+
+d→e
+
+Sentences
+
+ADR
+C0020261
+(hydrochlorothiazide)
+C0000970
+(acetaminophen)
+IND
+C0020223
+(hydrallazine)
+C0043031
+(warfarin)
+
+be-give-for
+be-initiate-for
+
+e→d
+
+However the patient’s sodium was 131 on
+discharge thus the patient’s HCTZ
+was-held-in the setting of hyponatremia.
+Her anemia is-thought to be due to direct eﬀects
+of acetaminophen on marrow or indirect via kidneys.
+Hydrallazine 20 mg IV was-given-for isolated
+episode of hypertension and emesis ensued.
+Warfarin was-initiated-for his atrial ﬁbrillation
+with an initial heparin bridge.
+
+Pattern direction: d → e is drug-event; e → d is event-drug.
+
+associated to IND. Opposite to the key phrasal patterns, “be”
+and “be-with” are presented near the middle line in the graph
+that indicates the fuzziest patterns.
+Additionally, the ﬁgure clearly illustrates that the patterns relevant to ADR are more eﬃcient than the pattern relevant to IND, the small number of ADR patterns are located
+nearby the original point, and most of the ADR patterns are
+placed with spread distance. On the one hand, patterns relevant to IND are presented to dense at the location which is
+nearly zero score and zero frequency. Table 4 presents the
+example of the sentences that are relevant to key phrasal patterns and pattern direction. Finally, the key phrasal patterns
+
+with a pattern score over than the threshold are selected for
+the further process.
+4.2.2. Evaluation on the Eﬀectiveness of the Pattern-Based
+Feature. The comparison of the multiple feature types across
+varying of initial weighting of relation labels for unlabeled
+data incorporation throughout the MIL-iEM are assessed in
+order to examine the eﬀectiveness of the pattern-based feature. We divide the experiments into two parts based on
+the decision methods in EM algorithm. The former refers
+to soft decision making (MIL-iEM-S) in which the predicted
+result is directly yielded by the estimated class probability.
+
+Journal of Healthcare Engineering
+The latter is so-called hard decision making (MIL-iEM-H)
+in which the predicted outcome is considered the cutoﬀ
+value of the probability and assigned class label instead
+of likelihood ratio. We initially perform the experimental
+setting on the traditional-independent assumption through
+MIL-iEM model.
+Table 5 expresses an assessment of ﬁve text transformation across three alternative document representations and
+three initial weighting of unlabeled data DU based on soft
+decision making and hard decision making. In the table, the
+pattern-based feature is expressed in the top 4 of each experimental setting, that is, S–P, S–W, L–P, and L–W. From the
+experimental results, we found that the pattern-based feature
+outperformed traditional bag-of-words (BOW). The highest
+F1 score value, 0.841, is resulted by MIL-iEM-SP-TF-S-Tp0 5
+model which outperformed the baseline MIL-iEM-BOWTF-S-Tp0 5 up to 4.4%. In addition, B and TF document representations have slightly better performance than TFIDF
+for all types of initial weighting method. The similar results
+are found on hard decision making approach as well. The
+pattern-based feature performed better performance than
+BOW feature. The MIL-iEM-LW-TFIDF-H-Tp0 5 model
+obtains the highest performance of F1 score 0.807 and 3.3%
+improvement from the MIL-iEM-BOW-TFIDF-H-Tp0 5
+baseline model. However, it is noticed that the hard decision
+making results in poor performance when compared to the
+soft version.
+The performance comparison across the number of features is exhibited in Figure 6. The number of features relevant
+to pattern-based features is ranged from 737 to 1322 dimensions, and the number of BOW feature is 1853 dimensions.
+From the graph, even though our proposed pattern-based
+features with MIL-iEM-Tp0 5 and MIL-iEM-Tprandom provide
+slightly diﬀerent F1 score from the BOW feature, their number of dimension are less than half of BOW, especially S–W
+and L–W features. Therefore, our proposed pattern-based
+feature is more eﬃcient than BOW feature due to the small
+number of features but yield similar model performance.
+Accordingly, the experimental results conﬁdently support that the simpliﬁed sentence using relation tuple of a
+drug, a key phrasal pattern, and an event is a potential feature
+transformation for relation classiﬁcation task. Moreover,
+ignoring the insigniﬁcant contexts can reduce redundancy
+of feature and avoid computational time issue that is frequently caused by the curse of dimensions.
+4.2.3. Evaluation on the Eﬀectiveness of MIL-dEM-SL and
+MIL-dEM-T. In this experiment, the comparison between
+our proposed method based on SL (MIL-dEM-SL) and transductive learning (MIL-dEM-T) across varying parameters
+such as feature types, pattern-weighting models, and the initial weight methods for unlabeled data incorporation are
+examined. Our proposed method is based on dependency
+representation of texts, and the posterior estimation is based
+on the interpolation of Markov property. The experiment is
+set up with supervised learning-based model and three transductive learning-based models with diﬀerent initial weight
+methods of DU incorporation. The two types of pattern-
+
+15
+based features such as surface lexicon-based (S–P) and
+syntactically lemmatized lexicon-based (L–P) are used for
+examination. The parameter tuning is also performed for
+all approaches.
+As the results in Table 6, among transductive learning
+models, the performance of S–P feature is slightly diﬀerent
+from L–P feature for all models. The simple binary (B) weighting model presents the higher F1 score over TF and TFIDF.
+Moreover, MIL-dEM-S-TpM model exhibits the higher perL
+formance than the fuzzy guideline by MIL-dEM-S-Tp0 5 and
+MIL-dEM-S-Tprandom models for all evaluation matrices.
+On the other hand, the F1 score of MIL-dEM-SP-S-SL
+surface lexicon-based feature is better than MIL-dEM-LP-SSL syntactically lemmatized lexicon-based feature with 1%
+and 0.8% for TF- and TFIDF-weighting model, respectively.
+Similarly, the F1 score of the pattern-based feature S–P
+across the three types of pattern-weighting model, that is,
+B, TF, and TFIDF models is also slightly diﬀerent; 0.928 for
+MIL-dEM-SP-B-S-SL, 0.946 for MIL-dEM-SP-TF-S-SL, and
+0.938 for MIL-dEM-SP-TFIDF-S-SL. Among models within
+MIL-dEM-S-SL setting, the highest F1 score is presented by
+TF-weighting model with 0.946.
+One of the interesting results shows that the unlabeled
+data incorporation is exhibited to increase the model performance. The highest eﬀectiveness, 0.954 of F1 score, is
+presented by MIL-dEM-SP-B-S-TpM model which is the
+L
+simple binary weighting model, and the model shows
+2.6%, 1.6%, and 0.8% improvement over MIL-dEM-SP-BS-SL, MIL-dEM-SP-TFIDF-S-SL, and MIL-dEM-SP-TF-SSL, the best performance of our proposed supervised
+learning, respectively.
+According to the result from the parameter optimization
+of our proposed method, the model performance is strongly
+relevant to the dependency representation of random variables as follows: (i) an event and the clinical outcome and
+(ii) a pattern, a drug, and the clinical outcome. In the contrast, the model is shown to have less relevance between a
+drug and an event or a pattern and an event.
+4.2.4. Evaluation on Overall Performance with Advanced
+Machine Learning Methods. The comparison of our proposed method and advanced machine learning methods is
+presented in Table 7. The best models of each set of models
+are used for assessment. The well-known MIL methods, that
+is, MISVM, MINB, MILR are executed using WEKA. On the
+one hand, we customize the original TSVM using the source
+code from the author and incorporate the MIL assumption as
+discussed in the previous section (see Section 2.2). We divide
+the discussion into three parts: the eﬀectiveness of supervised
+learning model, the eﬀectiveness of transductive learning
+model, and the overall performance.
+Firstly, the experimental results among baselinesupervised learning methods, that is, MISVM-TFIDF,
+MINB-B, and MILR-B, show that BOW feature works well
+for all MIL methods; conversely, the pattern-based feature S–
+P contributes a dramatic improvement when combined with
+our proposed method MIL-dEM-TF-S-SL. The TFIDFweighting model yields the high performance for MISVM with
+
+0.845
+0.783
+0.840
+0.785
+0.692
+
+0.840
+0.773
+0.833
+0.783
+0.691
+
+S–P
+S–W
+L–P
+L–W
+BOW
+
+S–P
+S–W
+L–P
+L–W
+BOW
+
+0.836
+0.790
+0.830
+0.796
+0.900
+
+0.836
+0.792
+0.816
+0.797
+0.927
+
+0.308
+0.599
+0.460
+0.609
+0.624
+
+B
+R
+
+0.838
+0.782
+0.832
+0.789
+0.782
+
+0.840
+0.788
+0.828
+0.791
+0.793
+
+0.454
+0.712
+0.606
+0.716
+0.683
+
+F1
+L
+
+0.842
+0.782
+0.833
+0.799
+0.748
+
+0.834
+0.792
+0.828
+0.805
+0.834
+
+0.838
+0.787
+0.831
+0.802
+0.789
+
+0.844
+0.838
+0.841
+0.784
+0.801
+0.792
+0.840
+0.816
+0.828
+0.796
+0.799
+0.798
+0.749
+0.850
+0.797
+MIL-iEM-S-Tprandom
+
+0.858
+0.308
+0.454
+0.873
+0.600
+0.711
+0.890
+0.460
+0.606
+0.863
+0.611
+0.716
+0.780
+0.628
+0.696
+MIL-iEM-S-Tp0 5
+
+MIL-iEM-S-TpM
+
+Soft decision making
+TF
+P
+R
+F1
+
+0.841
+0.782
+0.835
+0.778
+0.734
+
+0.846
+0.787
+0.836
+0.777
+0.735
+
+0.857
+0.871
+0.882
+0.873
+0.765
+
+P
+
+0.819
+0.732
+0.801
+0.710
+0.841
+
+0.830
+0.743
+0.799
+0.714
+0.861
+
+0.307
+0.589
+0.451
+0.604
+0.624
+
+TFIDF
+R
+
+B: binary frequency; TF: term frequency; TFIDF: term frequency-inverse document frequency.
+
+0.858
+0.879
+0.890
+0.868
+0.755
+
+P
+
+S–P
+S–W
+L–P
+L–W
+BOW
+
+Models
+
+0.830
+0.756
+0.818
+0.742
+0.784
+
+0.838
+0.764
+0.817
+0.744
+0.793
+
+0.452
+0.703
+0.597
+0.714
+0.687
+
+F1
+
+0.645
+0.666
+0.668
+0.657
+0.655
+
+0.620
+0.686
+0.651
+0.693
+0.632
+
+0.856
+0.871
+0.887
+0.866
+0.744
+
+P
+
+0.755
+0.825
+0.814
+0.827
+0.746
+
+0.985
+0.971
+0.974
+0.962
+0.973
+
+0.327
+0.651
+0.500
+0.659
+0.642
+
+B
+R
+
+0.696
+0.737
+0.734
+0.732
+0.698
+
+0.761
+0.804
+0.781
+0.805
+0.766
+
+0.473
+0.745
+0.639
+0.748
+0.690
+
+F1
+L
+
+0.644
+0.649
+0.668
+0.642
+0.666
+
+0.754
+0.834
+0.814
+0.823
+0.801
+
+0.695
+0.730
+0.734
+0.722
+0.727
+
+0.620
+0.985
+0.761
+0.683
+0.969
+0.802
+0.652
+0.974
+0.781
+0.689
+0.960
+0.802
+0.646
+0.962
+0.773
+MIL-iEM-H-Tprandom
+
+0.856
+0.327
+0.473
+0.863
+0.642
+0.736
+0.887
+0.500
+0.639
+0.863
+0.653
+0.744
+0.730
+0.646
+0.685
+MIL-iEM-H-Tp0 5
+
+MIL-iEM-H-TpM
+
+Hard decision making
+TF
+P
+R
+F1
+
+0.630
+0.640
+0.656
+0.641
+0.675
+
+0.621
+0.691
+0.651
+0.696
+0.649
+
+0.858
+0.873
+0.881
+0.868
+0.726
+
+P
+
+0.757
+0.856
+0.841
+0.863
+0.794
+
+0.985
+0.967
+0.973
+0.960
+0.960
+
+0.330
+0.650
+0.498
+0.662
+0.642
+
+TFIDF
+R
+
+Table 5: The eﬀectiveness comparison on ﬁvefold cross-validation of text transformation across three types of document representation using MIL-iEM with soft decision making
+(MIL-iEM-S) and hard decision making (MIL-iEM-H).
+
+0.688
+0.732
+0.737
+0.736
+0.730
+
+0.762
+0.806
+0.780
+0.807
+0.774
+
+0.477
+0.745
+0.636
+0.752
+0.682
+
+F1
+
+16
+Journal of Healthcare Engineering
+
+Journal of Healthcare Engineering
+
+T pM
+L
+T p0.5
+T prandom
+
+1853 BOW
+
+1322 L-P
+
+1007 S-P
+
+802 L-W
+
+1853 BOW
+
+1322 L-P
+
+1007 S-P
+
+HA R D-M DT F-I D F
+
+802 L-W
+
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+
+737 S-W
+
+1853 BOW
+
+1322 L-P
+
+1007 S-P
+
+802 L-W
+
+737 S-W
+
+1853 BOW
+
+1322 L-P
+
+1007 S-P
+
+737 S-W
+737 S-W
+
+T pM
+L
+T p0.5
+T prandom
+
+S O F T-M DT F-I D F
+
+T pM
+L
+T p0.5
+T prandom
+
+HA R D-M DT F
+
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+
+1853 BOW
+
+1322 L-P
+
+1007 S-P
+
+802 L-W
+
+HA R D-B D
+
+737 S-W
+
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+
+T pM
+L
+T p0.5
+T prandom
+
+T pM
+L
+T p0.5
+T prandom
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+
+802 L-W
+
+S O F T-M DT F
+
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+
+1853 BOW
+
+1322 L-P
+
+802 L-W
+
+1007 S-P
+
+S O F T-B D
+
+737 S-W
+
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.1
+0
+
+17
+
+T pM
+L
+T p0.5
+T prandom
+
+Figure 6: The number of features for each type of feature extraction and weighting method across F1 score. (a) represents the soft decision
+method and (b) represents the hard decision method of MIL-iEM.
+
+Table 6: The eﬀectiveness of MIL-dEM-S-SL and MIL-dEM-S-T comparison across three types of initial weight on ﬁvefold cross-validation
+with soft decision making.
+P
+
+B
+R
+
+F1
+
+P
+
+TF
+R
+
+F1
+
+P
+
+TFIDF
+R
+
+F1
+
+0.883
+0.896
+
+0.978
+0.962
+
+0.928
+0.928
+
+0.904
+0.898
+
+0.993
+0.978
+
+0.946
+0.936
+
+0.890
+0.889
+
+0.993
+0.976
+
+0.938
+0.930
+
+S–P
+L–P
+MIL-dEM-S-T3p0 5
+
+0.934
+0.926
+
+0.975
+0.962
+
+0.954
+0.944
+
+0.901
+0.919
+
+0.942
+0.916
+
+0.921
+0.918
+
+0.881
+0.875
+
+0.951
+0.945
+
+0.915
+0.909
+
+S–P
+L–P
+MIL-dEM-S-T4prandom
+
+0.839
+0.850
+
+0.907
+0.889
+
+0.872
+0.869
+
+0.635
+0.663
+
+0.925
+0.900
+
+0.754
+0.763
+
+0.686
+0.714
+
+0.916
+0.887
+
+0.784
+0.791
+
+S–P
+L–P
+
+0.830
+0.843
+
+0.889
+0.865
+
+0.859
+0.854
+
+0.581
+0.597
+
+0.607
+0.619
+
+0.594
+0.608
+
+0.647
+0.657
+
+0.682
+0.679
+
+0.664
+0.668
+
+Models
+
+Supervised learning
+
+MIL-dEM-S-SL
+S–P
+L–P
+
+1
+
+MIL-dEM-S-T2pM
+
+Transductive learning
+
+L
+
+γ = 0 45 0 02 0 45 0 02 0 04 0 02 , β = 0 97 0 02 0 01 0 00 , α = 0 10 0 90 ; 3,4γ = 0 45 0 02 0 45 0 02 0 04 0 02 , β = 1 00 0 00 0 00 0 00 , α = 0 50 0 50 .
+B: binary frequency; TF: term frequency; TFIDF: term frequency-inverse document frequency.
+
+1,2
+
+18
+
+Journal of Healthcare Engineering
+
+Table 7: The comparison of overall performance among MIL-dEM-SL, MIL-dEM-T, advanced machine learning methods, and MIL-iEM-T
+using ﬁvefold cross-validation.
+BOW
+
+Models
+
+S–P
+
+P
+
+R
+
+F1
+
+Acc.
+
+P
+
+R
+
+F1
+
+Acc.
+
+Supervised learning
+MIL-dEM-TF-S-SL1
+MISVM-TFIDF2
+MINB-B
+MILR-B3
+
+—
+0.918
+0.864
+0.869
+
+—
+0.885
+0.896
+0.852
+
+—
+0.901
+0.880
+0.861
+
+—
+0.895
+0.867
+0.850
+
+0.904
+0.799
+0.619
+0.718
+
+0.993
+0.733
+0.701
+0.783
+
+0.946
+0.765
+0.744
+0.749
+
+0.939
+0.735
+0.691
+0.692
+
+Transductive learning
+MIL-dEM-B-S-T4pM
+
+—
+
+—
+
+—
+
+—
+
+0.934
+
+0.975
+
+0.954
+
+0.949
+
+0.898
+
+0.881
+
+0.889
+
+0.881
+
+0.873
+
+0.865
+
+0.869
+
+0.859
+
+0.749
+
+0.850
+
+0.797
+
+0.764
+
+0.844
+
+0.838
+
+0.841
+
+0.827
+
+L
+
+TSVM-B
+MIL-iEM-TF-S-Tp0 5
+
+γ = 0 45 0 02 0 45 0 02 0 04 0 02 , β = 0 97 0 02 0 01 0 00 , α = 0 10 0 90 . Polynomial kernel, C = 10. Collective MI assumption, geometric mean for
+posteriors.
+1,4
+
+F1 score 0.901, while binary weighting model (B) is exhibited
+to improve the performance for MINB and MILR with F1
+scores 0.880 and 0.861, respectively. However, our proposed
+MIL-dEM-TF-S-SL with S–P feature outperforms all MIL
+methods, and 4.5% F1 score is better than the highest performance of advanced machine learning method which is
+resulted by MISVM-TFIDF with BOW feature. The precision
+of MIL-dEM-TF-S-SL with S–P feature is slightly lower than
+MISVM-TFIDF with BOW but the recall is signiﬁcantly
+improved. Accordingly, our proposed method contributes to
+reducing the type II error which is always considered in the
+medical domain.
+Secondly, the comparison among transductive learning
+methods, the BOW feature with TSVM-B is shown to achieve
+an F1 score of 0.889, while applying the pattern-based feature
+S–P, its performance is presented to degrade around 2%.
+Conversely, the pattern-based feature S–P with MIL generative
+method exhibits to enhance the eﬀectiveness of the models.
+The accuracy of MIL-iEM-TF-S-Tp0 5 model increases up to
+6.3% when the pattern-based feature is deployed instead of
+the BOW feature.
+Lastly, in the overall evaluation, the generative models
+with dependency representation, that is, MIL-dEM-TF-S-SL
+and MIL-dEM-B-S-TpM , outperform for all models. The
+L
+highest performance is exhibited by our transductive learning MIL-dEM-B-S-TpM method with 0.934 precision, 0.975
+L
+recall, 0.954 F1 score, and 0.949 accuracy, respectively. Moreover, improving the generative model by substitute assumption of word-dependency MIL-dEM-B-S-TpM model to
+L
+word-independency MIL-iEM-TF-S-Tp0 5 model is shown to
+dramatically improve 11.3% F1 score and 12.2% accuracy.
+From multiple aspect assessments, the experimental
+results conﬁdently support that our proposed method,
+MIL with the two generative models, has the comparative
+advantage in performance for relation classiﬁcation task.
+The proposed pattern-based feature contributes to reduce
+the curse of dimension issue and preserve text dependency
+structure. The incorporation of a generative model with
+proper model assumption and transductive learning can
+
+2
+
+3
+
+potentially estimate the distribution of patterns relevant
+to harmful or beneﬁcial event of drug usage with high precision and recall. Our proposed method can provide the
+supporting evidence based on the relevant clinical sentence
+rather than only prediction of result which is expected to further assist a professional medical for decision making on
+treatment or diagnosis process.
+
+5. Conclusion
+This paper presents a framework of distant supervision
+with MIL and transductive learning for detecting adverse
+reaction hidden in clinical texts. Our work aims to deal
+with two main diﬃculties: (i) the limitation of handlabeled data and (ii) intractable processing of large-scale
+unstructured clinical texts.
+The ﬁrst issue is coped with distant supervision paradigm
+by knowledge base incorporation. Therefore, we can automatically assign either ADR or IND label to each drugevent pair and use as labeled examples. For the second issue,
+we propose the pattern-based feature to present semantic
+comprehension of a sentence and proposed alternative
+parameters learning of a generative model using dependency
+representation model assumption. However, such training
+data set derived by distant supervision is formed as the
+instance-level, while the predictive goal is focused on the
+entity-level. Therefore, MIL paradigm is involved into the
+framework. The collected statistics from the tagged drugevent pairs are used to examine the semantic distribution relevant to ADR and IND. Exploiting EM algorithm as the base
+model for our supervised learning and transductive learning,
+it is helpful to estimate the probability of an unknown relation of given drug-event pair and then classify this relation
+to either ADR or IND. From the experimental results on
+multiple assessments, we found three signiﬁcant ﬁndings.
+Firstly, the pattern-based feature contributes to improve
+model performance of generative models. The MIL-iEMSP-TF-S-Tp0 5 model is shown to achieve the highest performance among all MIL-iEM-based methods with 0.844
+precision, 0.838 recall, and 0.841 F1 score, and the model
+
+Journal of Healthcare Engineering
+provides the outstanding improvement over the traditional
+BOW method, MIL-iEM-BOW-TF-S-Tp0 5 model, up to
+4.4% F1 score.
+The second potential result, the traditional assumption of
+word independency is rather improper for natural clinical
+texts. Therefore, we tackle such fundamental problem by
+integrating Markov assumption on dependency representation of texts in order to estimate the prior probability and
+likelihood probability in a generative model. Given the same
+set of the pattern-based input features, the performance of
+MIL-dEM model is dramatically improved from MIL-iEM
+model. The MIL-dEM-SP-B-S-TpM model exhibits the
+L
+improvement over MIL-iEM-SP-B-S-Tp0 5 up to 8.9% precision, 13.9% recall, and 11.4% F1 score.
+Lastly, the incorporation of unlabeled data DU and
+labeled one DL using MIL-dEM-SP-B-S-TpM model achieves
+L
+the highest eﬀectiveness with 0.954 F1 score. In addition, our
+proposed MIL-dEM-SP-B-S-TpM model also outperforms
+L
+the advanced machine learning methods by F1 score
+improvement up to 5.3% of MISVM-BOW-TFIDF, 7.4% of
+MINB-BOW-B, 9.3% of MILR-BOW-B, 6.5% of TSVMBOW-B, and 11.3% of MIL-iEM-SP-TF-S-Tp0 5 .
+However, our work presents some limitations that can
+contribute to support further improvement of the framework.
+The projection from distant supervision to corpus currently is
+employed by MetaMap tools and can be improved by advance
+method such as word embedding to increase high potential
+entity-level relation for instance examples. The key phrasal
+pattern extraction in the current work is scoped by the sentence boundary, but a drug and an event possibly associate
+throughout across diﬀerent sentences. This issue would be
+challenged by coreference problem. Even though the discovered key phrasal patterns provides the signiﬁcant role for relation classiﬁcation, the number of patterns is rather limited
+and probably encounters the problem of out of vocabulary
+(OOV) when applied to the framework with a huge unseen
+data. Therefore, the semantic representation is the promising
+method to increase the number of key phrasal patterns.
+
+Conflicts of Interest
+The authors declare that they have no competing interests.
+
+Acknowledgments
+The authors would like to express their gratitude to Dr.
+Sewan Theeramunkong (Pharmacy), Thammasat University;
+Dr. Ithipan Methasate, NECTEC; and Professor Dr. Kenji
+Araki (MD), University of Miyazaki Hospital for relation validation and very helpful suggestions. The authors would like
+to thank a workshop on Big Data Analytics-as-a-Service:
+Architecture, Algorithms, and Application in Health Informatics, 23rd ACM SIGKDD Conference on Knowledge
+Discovery and Data Mining (KDD2017), 2017 that provided
+a great opportunity for oral presentation and the anonymous
+reviewers for their valuable comments and suggestions. The
+work was supported by the SIIT-JAIST-NECTEC Doctoral
+
+19
+Dual Degree Program and National Research University
+project (NRU) and Intelligent Informatics and Service Innovation (IISI, SIIT), Center of Excellence in Intelligent Informatics, Speech and Language Technology and Service
+Innovation (CILS), Thammasat University, Thailand.
+
+References
+[1] A. Kothari, D. Rudman, M. Dobbins, M. Rouse, S. Sibbald, and
+N. Edwards, “The use of tacit and explicit knowledge in public
+health: a qualitative study,” Implementation Science, vol. 7,
+no. 1, p. 1, 2012.
+[2] J. Lee, D. M. Maslove, and J. A. Dubin, “Personalized mortality
+prediction driven by electronic medical data and a patient similarity metric,” PLoS One, vol. 10, no. 5, article e0127428, 2015.
+[3] T. Tran, W. Luo, D. Phung et al., “Risk stratiﬁcation using data
+from electronic medical records better predicts suicide risks
+than clinician assessments,” BMC Psychiatry, vol. 14, no. 1,
+p. 1, 2014.
+[4] E. H. Kennedy, W. L. Wiitala, R. A. Hayward, and J. B.
+Sussman, “Improved cardiovascular risk prediction using
+nonparametric regression and electronic health record data,”
+Medical Care, vol. 51, no. 3, p. 251, 2013.
+[5] O. Frunza, D. Inkpen, and T. Tran, “A machine learning
+approach for identifying disease-treatment relations in short
+texts,” IEEE Transactions on Knowledge and Data Engineering,
+vol. 23, no. 6, pp. 801–814, 2011.
+[6] L. Tari, S. Anwar, S. Liang, J. Cai, and C. Baral, “Discovering
+drug–drug interactions: a text-mining and reasoning approach
+based on properties of drug metabolism,” Bioinformatics,
+vol. 26, no. 18, pp. i547–i553, 2010.
+[7] I. Segura-Bedmar, P. Martinez, and C. de Pablo-Sánchez,
+“Using a shallow linguistic kernel for drug–drug interaction
+extraction,” Journal of Biomedical Informatics, vol. 44, no. 5,
+pp. 789–804, 2011.
+[8] F. Lortie, “Postmarketing surveillance of adverse drug reactions: problems and solutions,” CMAJ: Canadian Medical
+Association Journal, vol. 135, no. 1, p. 27, 1986.
+[9] C. Friedman, “Discovering novel adverse drug events using
+natural language processing and mining of the electronic
+health record,” in Conference on Artiﬁcial Intelligence in Medicine in Europe, pp. 1–5, Verona, Italy, 2009, Springer.
+[10] E. Aramaki, Y. Miura, M. Tonoike et al., “Extraction of adverse
+drug eﬀects from clinical records,” Studies in Health Technology and Informatics, vol. 160, Part 1, pp. 739–743, 2010.
+[11] S. Sohn, J.-P. A. Kocher, C. G. Chute, and G. K. Savova, “Drug
+side eﬀect extraction from clinical narratives of psychiatry and
+psychology patients,” Journal of the American Medical Informatics Association, vol. 18, Supplement 1, pp. i144–i149, 2011.
+[12] A. Casillas, A. Pérez, M. Oronoz, K. Gojenola, and S. Santiso,
+“Learning to extract adverse drug reaction events from electronic health records in Spanish,” Expert Systems with Applications, vol. 61, pp. 235–245, 2016.
+[13] S. Taewijit and T. Theeramunkong, “Exploring the distributional semantic relation for adr and therapeutic indication
+identiﬁcation in EMR,” in Paciﬁc Rim International Conference on Artiﬁcial Intelligence, pp. 3–15, Springer, Cham, 2016.
+[14] R. Xu and Q. Wang, “Automatic construction of a large-scale
+and accurate drug-side-eﬀect association knowledge base from
+biomedical literature,” Journal of Biomedical Informatics,
+vol. 51, pp. 191–199, 2014.
+
+20
+[15] R. Feldman, O. Netzer, A. Peretz, and B. Rosenfeld, “Utilizing
+text mining on online medical forums to predict label change
+due to adverse drug reactions,” in Proceedings of the 21th
+ACM SIGKDD International Conference on Knowledge Discovery and Data Mining, pp. 1779–1788, Sydney, NSW, Australia,
+2015, ACM.
+[16] Y. Peng, C.-H. Wei, and Z. Lu, “Improving chemical disease
+relation extraction with rich features and weakly labeled data,”
+Journal of Cheminformatics, vol. 8, no. 1, p. 53, 2016.
+[17] A. Nikfarjam, A. Sarker, K. O’Connor, R. Ginn, and G.
+Gonzalez, “Pharmacovigilance from social media: mining
+adverse drug reaction mentions using sequence labeling
+with word embedding cluster features,” Journal of the American Medical Informatics Association, vol. 22, no. 3,
+pp. 671–681, 2015.
+[18] F. Jenhani, M. S. Gouider, and L. B. Said, “A hybrid
+approach for drug abuse events extraction from Twitter,”
+Procedia Computer Science, vol. 96, pp. 1032–1040, 2016.
+[19] O. Chapelle, B. Schlkopf, and A. Zien, Semi-Supervised Learning, The MIT Press, 1st edition, 2010.
+[20] M. Craven and J. Kumlien, “Constructing biological knowledge bases by extracting information from text sources,” Proceedings of the 2nd International Conference on Intelligent
+Systems for Molecular Biology, vol. 1999, pp. 77–86, 1999.
+[21] M. Mintz, S. Bills, R. Snow, and D. Jurafsky, “Distant supervision for relation extraction without labeled data,” in ACL ‘09
+Proceedings of the Joint Conference of the 47th Annual Meeting
+of the ACL and the 4th International Joint Conference on Natural Language Processing of the AFNLP: Volume 2 – vol. 2,
+pp. 1003–1011, Suntec, Singapore, 2009, Association for Computational Linguistics, Stroudsburg, PA, USA.
+[22] K. Nigam, A. K. McCallum, S. Thrun, and T. Mitchell, “Text
+classiﬁcation from labeled and unlabeled documents using
+EM,” Machine Learning, vol. 39, no. 2-3, pp. 103–134, 2000.
+[23] S. Eyheramendy, D. D. Lewis, and D. Madigan, “On the naïve
+Bayes model for text categorization,” in Proceedings of the
+Ninth International Workshop on Artiﬁcial Intelligence and
+Statistics, 2003.
+[24] E. Frank and R. R. Bouckaert, “Naïve Bayes for text classiﬁcation with unbalanced classes,” in European Conference on
+Principles of Data Mining and Knowledge Discovery, pp. 503–
+510, Berlin, Germany, 2006, Springer.
+[25] O. Maron and T. Lozano-Pérez, “A framework for multipleinstance learning,” in Advances in Neural Information Processing Systems, pp. 570–576, Denver, CO, USA, 1998.
+[26] A. Henriksson, M. Kvist, H. Dalianis, and M. Duneld, “Identifying adverse drug event information in clinical notes with
+distributional semantic representations of context,” Journal
+of Biomedical Informatics, vol. 57, pp. 333–349, 2015.
+[27] H. Cao, M. Markatou, G. B. Melton, M. F. Chiang, and G.
+Hripcsak, “Mining a clinical data warehouse to discover
+disease-ﬁnding associations using co-occurrence statistics,”
+AMIA Annual Symposium Proceedings, vol. 2005, p. 106, 2005.
+[28] X. Wang, A. Chused, N. Elhadad, C. Friedman, and M.
+Markatou, “Automated knowledge acquisition from clinical
+narrative reports,” AMIA Annual Symposium Proceedings,
+vol. 2008, p. 783, 2008.
+[29] X. Wang, G. Hripcsak, and C. Friedman, “Characterizing
+environmental and phenotypic associations using information
+theory and electronic health records,” BMC Bioinformatics,
+vol. 10, Supplement 9, p. S13, 2009.
+
+Journal of Healthcare Engineering
+[30] E. Stamatatos, N. Fakotakis, and G. Kokkinakis, “Automatic
+extraction of rules for sentence boundary disambiguation,” in
+Proceedings of the Workshop on Machine Learning in Human
+Language Technology, pp. 88–92, 1999.
+[31] G. K. Savova, J. J. Masanz, P. V. Ogren et al., “Mayo clinical
+text analysis and knowledge extraction system (cTAKES):
+architecture, component evaluation and applications,” Journal
+of the American Medical Informatics Association, vol. 17, no. 5,
+pp. 507–513, 2010.
+[32] M. Kreuzthaler and S. Schulz, “Detection of sentence boundaries and abbreviations in clinical narratives,” BMC Medical
+Informatics and Decision Making, vol. 15, no. 2, p. S4, 2015.
+[33] I. Segura-Bedmar, P. Martínez, R. Revert, and J. MorenoSchneider, “Exploring Spanish health social media for
+detecting drug eﬀects,” BMC Medical Informatics and Decision Making, vol. 15, no. 2, p. S6, 2015.
+[34] J. Liu, S. Zhao, and X. Zhang, “An ensemble method for
+extracting adverse drug events from social media,” Artiﬁcial
+Intelligence in Medicine, vol. 70, pp. 62–76, 2016.
+[35] O. Etzioni, M. Banko, S. Soderland, and D. S. Weld, “Open
+information extraction from the web,” Communications of
+the ACM, vol. 51, no. 12, pp. 68–74, 2008.
+[36] N. Kang, B. Singh, C. Bui, Z. Afzal, E. M. van Mulligen, and
+J. A. Kors, “Knowledge-based extraction of adverse drug
+events from biomedical text,” BMC Bioinformatics, vol. 15,
+no. 1, p. 64, 2014.
+[37] X. Liu and H. Chen, “A research framework for pharmacovigilance in health social media: identiﬁcation and evaluation of
+patient adverse drug event reports,” Journal of Biomedical
+Informatics, vol. 58, pp. 268–279, 2015.
+[38] N. Kasabov and S. Pang, “Transductive support vector
+machines and applications in bioinformatics for promoter recognition,” in Proceedings of the 2003 International Conference
+on Neural Networks and Signal Processing, 2003, vol. 1, pp. 1–6,
+Nanjing, China, 2003, IEEE.
+[39] X. Wang, G. Hripcsak, M. Markatou, and C. Friedman, “Active
+computerized pharmacovigilance using natural language processing, statistics, and electronic health records: a feasibility
+study,” Journal of the American Medical Informatics Association, vol. 16, no. 3, pp. 328–337, 2009.
+[40] T. Mikolov, I. Sutskever, K. Chen, G. S. Corrado, and J. Dean,
+“Distributed representations of words and phrases and their
+compositionality,” in Advances in Neural Information Processing Systems, pp. 3111–3119, Lake Tahoe, NV, USA, 2013.
+[41] S. Riedel, L. Yao, and A. McCallum, “Modeling relations and
+their mentions without labeled text,” in Joint European Conference on Machine Learning and Knowledge Discovery in Databases, pp. 148–163, Barcelona, Spain, 2010, Springer.
+[42] R. Hoﬀmann, C. Zhang, X. Ling, L. Zettlemoyer, and D. S.
+Weld, “Knowledge-based weak supervision for information
+extraction of overlapping relations,” in Proceedings of the
+49th Annual Meeting of the Association for Computational Linguistics: Human Language Technologies, vol. 1, pp. 541–550,
+Portland, OR, USA, 2011, Association for Computational
+Linguistics.
+[43] T.-V. T. Nguyen and A. Moschitti, “End-to-end relation
+extraction using distant supervision from external semantic
+repositories,” in Proceedings of the 49th Annual Meeting of
+the Association for Computational Linguistics: Human Language Technologies: short papers-vol. 2, pp. 277–282, Portland,
+OR, USA, 2011, Association for Computational Linguistics.
+
+Journal of Healthcare Engineering
+[44] D. Zeng, K. Liu, Y. Chen, and J. Zhao, “Distant supervision for
+relation extraction via piecewise convolutional neural networks,” in Proceedings of the 2015 Conference on Empirical
+Methods in Natural Language Processing, pp. 1753–1762,
+Lisbon, Portugal, 2015.
+[45] Y. Xiang, Q. Chen, X. Wang, and Y. Qin, “Distant supervision
+for relation extraction with ranking-based methods,” Entropy,
+vol. 18, no. 6, p. 204, 2016.
+[46] M. Purver and S. Battersby, “Experimenting with distant
+supervision for emotion classiﬁcation,” in Proceedings of the
+13th Conference of the European Chapter of the Association
+for Computational Linguistics, pp. 482–491, Avignon, France,
+2012, Association for Computational Linguistics.
+[47] J. Suttles and N. Ide, “Distant supervision for emotion classiﬁcation with discrete binary values,” in International Conference
+on Intelligent Text Processing and Computational Linguistics,
+pp. 121–136, Samos, Greece, 2013, Springer.
+[48] Z. Yuan and M. Purver, “Predicting emotion labels for Chinese
+microblog texts,” in Advances in Social Media Analysis,
+pp. 129–149, Springer, Cham, 2015.
+[49] A. Yates, N. Goharian, and O. Frieder, “Extracting adverse
+drug reactions from social media,” in AAAI'15 Proceedings of
+the Twenty-Ninth AAAI Conference on Artiﬁcial Intelligence,
+pp. 2460–2467, Austin, TX, USA, 2015.
+[50] S. Takamatsu, I. Sato, and H. Nakagawa, “Reducing wrong
+labels in distant supervision for relation extraction,” in Proceedings of the 50th Annual Meeting of the Association for
+Computational Linguistics: Long Papers-vol. 1, pp. 721–729,
+Jeju Island, Republic of Korea, 2012, Association for Computational Linguistics.
+[51] B. Roth, T. Barth, M. Wiegand, and D. Klakow, “A survey of
+noise reduction methods for distant supervision,” in Proceedings of the 2013 workshop on Automated knowledge base
+construction, pp. 73–78, San Francisco, CA, USA, 2013, ACM.
+[52] W. Xu, R. Hoﬀmann, L. Zhao, and R. Grishman, “Filling
+knowledge base gaps for distant supervision of relation extraction,” in Annual Meeting of the Association of Computational
+Linguistics, pp. 665–670, ACL, 2013.
+[53] Z. Zhao, G. Fu, S. Liu et al., “Drug activity prediction using
+multiple-instance learning via joint instance and feature selection,” BMC Bioinformatics, vol. 14, no. 14, S16 pages, 2013.
+[54] Y. Chen, J. Bi, and J. Z. Wang, “Miles: multiple-instance learning via embedded instance selection,” IEEE Transactions on
+Pattern Analysis and Machine Intelligence, vol. 28, no. 12,
+pp. 1931–1947, 2006.
+[55] D. Yarowsky, “Unsupervised word sense disambiguation rivaling supervised methods,” in ACL ‘95 Proceedings of the 33rd
+Annual Meeting on Association for Computational Linguistics,
+pp. 189–196, Cambridge, MA, USA, 1995, Association for
+Computational Linguistics, Stroudsburg, PA, USA.
+[56] X. Zhu, Z. Ghahramani, and J. Laﬀerty, “Semi-supervised
+learning using Gaussian ﬁelds and harmonic functions,” in
+ICML'03 Proceedings of the Twentieth International Conference on International Conference on Machine Learning,
+pp. 912–919, Washington, DC, USA, 2003.
+[57] G. Erkan, A. Özgür, and D. R. Radev, “Semi-supervised classiﬁcation for extracting protein interaction sentences using
+dependency parsing,” EMNLP-CoNLL, vol. 7, pp. 228–237,
+2007.
+[58] A. P. Dempster, N. M. Laird, and D. B. Rubin, “Maximum likelihood from incomplete data via the EM algorithm,” Journal of
+
+21
+
+[59]
+
+[60]
+
+[61]
+
+[62]
+
+[63]
+
+[64]
+
+[65]
+
+[66]
+
+[67]
+
+the Royal Statistical Society Series B (Methodological), vol. 39,
+pp. 1–38, 1977.
+T. Joachims, “Transductive inference for text classiﬁcation
+using support vector machines,” in ICML '99 Proceedings of
+the Sixteenth International Conference on Machine Learning,
+pp. 200–209, 1999.
+M. Belkin and P. Niyogi, “Semi-supervised learning on Riemannian manifolds,” Machine Learning, vol. 56, no. 1-3,
+pp. 209–239, 2004.
+I. Triguero, S. García, and F. Herrera, “Self-labeled techniques
+for semi-supervised learning: taxonomy, software and empirical study,” Knowledge and Information Systems, vol. 42, no. 2,
+pp. 245–284, 2015.
+N. Fazakis, S. Karlos, S. Kotsiantis, and K. Sgarbas, “Selftrained LMT for semisupervised learning,” Computational
+Intelligence and Neuroscience, vol. 2016, Article ID 3057481,
+10 pages, 2016.
+L. Didaci, G. Fumera, and F. Roli, “Analysis of co-training
+algorithm with very small training sets,” in Joint IAPR International Workshops on Statistical Techniques in Pattern Recognition (SPR) and Structural and Syntactic Pattern Recognition
+(SSPR), pp. 719–726, Hiroshima, Japan, 2012, Springer.
+A. R. Aronson, “Eﬀective mapping of biomedical text to the
+UMLS Metathesaurus: the MetaMap program,” in Proceedings
+of the AMIA Symposium, pp. 17–21, 2001, American Medical
+Informatics Association.
+V. N. Vapnik, “An overview of statistical learning theory,”
+IEEE Transactions on Neural Networks, vol. 10, no. 5,
+pp. 988–999, 1999.
+M. Hall, E. Frank, G. Holmes, B. Pfahringer, P. Reutemann,
+and I. H. Witten, “The WEKA data mining software: an
+update,” ACM SIGKDD Explorations Newsletter, vol. 11,
+no. 1, pp. 10–18, 2009.
+A. E. Johnson, T. J. Pollard, L. Shen et al., “Mimic-III, a freely
+accessible critical care database,” Scientiﬁc Data, vol. 3, article
+160035, 2016.
+
+

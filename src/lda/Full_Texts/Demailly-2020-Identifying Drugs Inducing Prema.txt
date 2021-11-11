@@ -1,0 +1,781 @@
+Drug Safety (2020) 43:549–559
+https://doi.org/10.1007/s40264-020-00916-5
+
+ORIGINAL RESEARCH ARTICLE
+
+Identifying Drugs Inducing Prematurity by Mining Claims Data
+with High‑Dimensional Confounder Score Strategies
+Romain Demailly1,2
+
+· Sylvie Escolano1
+
+· Françoise Haramburu3 · Pascale Tubert‑Bitter1 · Ismaïl Ahmed1
+
+Published online: 2 March 2020
+© Springer Nature Switzerland AG 2020
+
+Abstract
+Background Pregnant women are largely exposed to medications. However, knowledge is lacking about their effects on
+pregnancy and the fetus.
+Objective This study sought to evaluate the potential of high-dimensional propensity scores and high-dimensional disease
+risk scores for automated signal detection in pregnant women from medico-administrative databases in the context of druginduced prematurity.
+Methods We used healthcare claims and hospitalization discharges of a 1/97th representative sample of the French population. We tested the association between prematurity and drug exposure during the trimester before delivery, for all drugs
+prescribed to at least five pregnancies. We compared different strategies (1) for building the two scores, including two
+machine-learning methods and (2) to account for these scores in the final logistic regression models: adjustment, weighting,
+and matching. We also proposed a new signal detection criterion derived from these scores: the p value relative decrease.
+Evaluation was performed by assessing the relevance of the signals using a literature review and clinical expertise.
+Results Screening 400 drugs from a cohort of 57,407 pregnancies, we observed that choosing between the two machinelearning methods had little impact on the generated signals. Score adjustment performed better than weighting and matching.
+Using the p value relative decrease efficiently filtered out spurious signals while maintaining a number of relevant signals
+similar to score adjustment. Most of the relevant signals belonged to the psychotropic class with benzodiazepines, antidepressants, and antipsychotics.
+Conclusions Mining complex healthcare databases with statistical methods from the high-dimensional inference field may
+improve signal detection in pregnant women.
+
+1 Introduction
+Drug exposure during pregnancy is high in developed countries, with about 82.5–95% of pregnant women exposed [1]
+Pascale Tubert-Bitter and Ismaïl Ahmed are co-last authors.
+Electronic supplementary material The online version of this
+article (https​://doi.org/10.1007/s4026​4-020-00916​-5) contains
+supplementary material, which is available to authorized users.
+* Romain Demailly
+romain.demailly@inserm.fr
+1
+
+Université Paris-Saclay, UVSQ, Université Paris-Sud,
+Inserm, High-Dimensional Biostatistics for Drug Safety
+and Genomics, CESP, Villejuif, France
+
+2
+
+Obstetric Department, Lille Catholic Hospitals, Lille
+Catholic University, Lille, France
+
+3
+
+Centre de Pharmacovigilance, CHU de Bordeaux, Université
+de Bordeaux, UMR 1219, Bordeaux, France
+
+and a median number of prescribed drugs that may be as
+high as nine prescribed drugs [2]. Apart from the recommended medications such as supplementations, pregnant
+women may have pre-existing medical conditions, acute
+diseases, or gestational disorders that require treatment [3].
+Medication use among pregnant women raises concerns
+for them and the fetus. Adverse reactions that may impact
+the health of the unborn child may occur not only early in
+pregnancy but also in the much longer term [4], or even in
+subsequent generations [5].
+While it is important to know precisely the effects of
+drugs on pregnancy, pregnant women are almost always
+excluded from clinical trials unless the drug is intended for
+pregnancy. Animal studies on reproductive toxicity are not
+always predictive of the results in humans and most medications are available without a directly established safety
+profile in human pregnancy [6]. Pregnancy is a complex
+condition where physiological changes may alter the pharmacokinetics or pharmacodynamics and thus the dosing and
+Vol.:(0123456789)
+
+550
+
+Key Points
+As pregnant women are usually excluded from clinical
+trials, there is a lack of knowledge about the effects of
+drugs during pregnancy, yet their use is widespread.
+Medico-administrative data represent a promising
+resource for pharmacovigilance signal detection but call
+for new methods addressing specific biases.
+Refined criteria based on high-dimensional summary
+scores minimized indication bias in signal detection for
+prematurity by filtering out spurious associations.
+effect of drugs [7]. Pharmacologic information is required
+to obtain effective treatment and limit maternal and fetal
+risks, whereas treatment and dosing strategies are generally
+based on standard adult doses and the information available to prescribers is insufficient [8]. Overall, there is a lack
+of knowledge about the effect of drugs during pregnancy.
+In this context, population studies have become a crucial
+resource [9] to improve knowledge, optimize treatment strategies in terms of therapeutic options, dosing, and timing,
+and minimize exposure to harmful drugs during pregnancy.
+Most adverse drug effects are identified after the drugs
+are marketed. The main surveillance systems rely on large
+national or international spontaneous reporting databases that
+are mined with statistical tools on a regular basis. The goal is
+to highlight suspicious adverse drug reactions by screening
+all drug-adverse event pairs, the so-called signal detection.
+In the last decade, significant computational and statistical
+advances have opened new perspectives in this high-dimensional setting, accounting for the binary and sparse nature of
+data and co-prescription mechanisms [10, 11].
+Interest has grown recently in the use of other data
+sources for signal detection, such as electronic health records
+and medico-administrative databases, which are expected
+to play an increasing role in monitoring the occurrence of
+adverse drug reactions [12, 13]. As few spontaneous reporting systems include pregnancy-specific information [14],
+we hypothesized that medico-administrative databases for
+pregnancy pharmacovigilance would be very valuable.
+Healthcare databases often contain a wealth of information on hospitalization data and/or health consumption on
+part or all of the population of a region or a country. They
+may also contain limited sociodemographic information
+such as age, sex, and residence but lack relevant variables
+such as biological data and medical history, which can constitute potential sources of unmeasured confusion resulting in biased analyses. In pharmacoepidemiology, measured confusion is classically addressed by using summary
+scores. The most common method, the propensity score
+(PS), aims at predicting the risk of drug exposure for each
+
+R. Demailly et al.
+
+individual according to baseline relevant characteristics. It
+makes it possible to reduce the effect of an indication bias
+of treatments, mimicking the random allocation of treatment in clinical trials [15]. In the context of rare exposures,
+another score is the disease risk score (DRS), which consists of building a model predicting the baseline risk level
+of the event of interest [16]. The comparative performances
+of both scores depend highly on (1) the information available in the database, (2) the prevalence of exposure, and (3)
+how the score is accounted for in the regression modeling
+strategy [17]. To partly address unmeasured confusion, it
+was recently hypothesized that, by automatically mining the
+large number of variables recorded in healthcare databases,
+it is possible to select a set of proxies that can correlate
+with unmeasured factors. This is the rationale underpinning
+high-dimensional propensity and DRSs [18]. These scores
+are increasingly used for targeted pharmacoepidemiology
+studies. The PS [19] and its high-dimensional extension [20]
+have been used for signal detection from spontaneous reporting data [19, 20] but neither the DRS nor the PS has been
+used to mine healthcare databases.
+Our aim was to develop a methodology relying on highdimensional PS and high-dimensional DRS to perform signal
+detection from healthcare databases to detect adverse drug
+reactions occurring during pregnancy. The methodology was
+built using a cohort of a representative sample of all pregnancies occurring in France during 8 consecutive years with
+prematurity as the adverse event of interest and targeting all
+drugs prescribed at least five times. Prematurity, defined as
+a delivery before 37 weeks of amenorrhea, is one of the most
+frequent complications of pregnancy and can jeopardize the
+survival of the fetus. The role of maternal drug consumption
+on its occurrence risk remains unknown, even for many molecules prescribed regularly. First, we assessed several strategies for building and accounting for both high-dimensional
+scores (PS and DRS) in the final regression models. Next,
+we derived and evaluated a new statistical criterion for signal
+detection incorporating score-based model p values. Assessment was based on clinical expertise and scientific literature.
+A comprehensive resource summarizing results of signal
+detection and signal assessment is available in Table S1 of
+the Electronic Supplementary Material (ESM).
+
+2 Methods
+2.1 Data
+Data used in this study were extracted from the Permanent
+Beneficiaries Sample (Echantillon Généraliste des Bénéficiaires), a 1/97th representative sample of the national health
+data system (Système National des Données de Santé) covering almost the entire French population [21]. The inclusion
+
+551
+
+Identifying Drugs Inducing Prematurity by Mining Claims Data
+
+period was from 01/01/2009 to 31/12/2016. It included all
+pregnancies, identified by a published list of International
+Statistical Classification of Diseases and Related Health
+Problems, 10th Revision and Common Classification of
+Medical Acts codes [2, 22], whose duration was longer than
+24 weeks of amenorrhea (French viability threshold). When
+missing, gestational age was estimated according to a previously published model [2]. The Echantillon Généraliste des
+Bénéficiaires contains both hospitalization discharge data,
+coded according to the International Statistical Classification
+of Diseases and Related Health Problems, 10th Revision,
+and outpatient healthcare consumption (drugs, consultations,
+transport). Socioeconomic variables available were the status of the Complementary Universal Health Care Coverage
+restricted to people with low income and the social deprivation index FDep [23] used to measure the socioeconomic
+environment according to the area of residence indicated in
+the database. Drug use was considered over three distinct
+time periods: a first period (T0) of one trimester before the
+start of pregnancy to assess prenatal exposure, a period (T1)
+covering the first trimester of pregnancy to assess exposure
+during the embryonic period, and finally, the trimester preceding the date of delivery (TBD for trimester before delivery) to assess recent exposure. For each drug investigated
+in the study, exposure was therefore coded into three binary
+variables. A woman was considered exposed to a drug during a given period if at least one delivery of that drug was
+recorded during that period.
+Overall, our initial set of covariates contained several
+types of data. First, it contained deliveries of the 400 drugs
+recoded in three binary variables of exposure corresponding to each period of three trimesters, i.e., 1200 variables.
+Second, it contained 16 binary condition covariates corresponding to common complications occurring during
+pregnancy or serious pathologies usually considered in
+pharmacoepidemiology, all of them assessed at the end of
+pregnancy: conditions were coded according to the International Statistical Classification of Diseases and Related
+Health Problems, 10th Revision and belonged to the following list: gestational diabetes, oligohydramnios, polyhydramnios, fetal growth restriction, macrosomia, premature
+rupture of membranes, pre-eclampsia, intrahepatic cholestasis, hyperemesis gravidarum, thromboembolic diseases,
+hemorrhagic diseases, pancreatitis, infections, renal colic,
+kidney failure, and liver failure. Finally, we have included
+three quantitative sociodemographic variables assessed at
+the end of pregnancy: age, Complementary Universal Health
+Care Coverage status, and FDep.
+
+2.2 Statistical Methods
+For each of the 400 candidate drugs, our general signal
+detection methodology consists of: (1) estimation of the
+
+crude model linking drug exposure to prematurity and calculation of the corresponding drug exposure p value; (2) computation of a summary score (PS and DRS); (3) estimation
+of the model integrating the summary score computed in (2)
+to link drug exposure to the outcome and calculation of the
+corresponding drug exposure p value; and (4) computation
+of the new criterion, which combines both p values derived
+in (1) and (2). Steps (2) and (3) involve multiple choices that
+were investigated and are detailed in Sects. 2.2.1 and 2.2.2,
+respectively.
+2.2.1 Propensity Score and Disease Risk Score
+Development
+For a given drug, PS is defined as the probability of being
+exposed and DRS is the probability of premature delivery
+among unexposed pregnant women. Propensity score and
+DRS were built either using lasso logistic regressions [24] or
+extreme gradient boosting [25]. The penalty parameter for the
+lasso and the number of trees for the gradient boosting were
+chosen with cross-validation by maximizing the areas under
+the curve (AUCs). The extreme gradient-boosting algorithm
+was initially set up with a learning rate of 0.1, and a maximum depth of 4, according to the recommendations of Chen
+and Guestrin [26] and Zhang [27]. The optimal number of
+trees was chosen by cross-validation in the interval of 1–200.
+Disease risk score and PS were built either from the
+whole set of available covariates, i.e., 1199 binary trimester
+drug exposure variables, 19 binary-associated diseases, and
+demographic data. We used the variable pre-selection steps
+of the high-dimensional propensity score (HDPS) algorithm
+[18] to select a subset of variables to which we then applied
+the machine-learning method. This pre-selection step begins
+with a first selection of the 500 most frequent disease codes
+and drug exposures. The next step prioritizes 200 covariates with the greatest confounding potential using the Bross
+formula [28], which relies on the observed associations
+between covariate and outcome and covariate and exposure. Sociodemographic variables are then added to these
+200 variables to form our set of preselected covariates on
+which we could then estimate our scores.
+2.2.2 Modeling Strategy
+The crude model was written as:
+( (
+))
+Logit Pr Y = 1|XT0 , XT1 , XTBD = 𝛽0 + 𝛽T0 XT0 + 𝛽T1 XT1 + 𝛽TBD XTBD ,
+
+where XT0 , XT1, and XTBD denote the binary exposures in the
+considered periods and Y is the prematurity indicator. Highdimensional PS were accounted for using three methods:
+adjustment, 1:1 matching, or weighting using matching
+weights [29]. High-dimensional DRSs were accounted for
+
+552
+
+R. Demailly et al.
+
+using two methods: adjustment and 1:1 matching. Overall,
+the combination of choice of score, preselection, machinelearning method, and methods of accounting resulted in 12
+(2 × 2 × 3) modalities for PS and 8 (2 × 2 × 2) for DRS for
+a total of 20 modalities. Figure 3 of the ESM presents an
+overview of all modalities investigated.
+2.2.3 Signal Detection
+In addition to the crude model, we applied each of the 20
+modalities to drugs prescribed in at least five pregnancies
+and for which we tested the association between prematurity
+and the trimester before pregnancy exposure. One-sided tests
+were considered and the Benjamini–Hochberg correction for
+multiple testing was applied with a threshold of 0.20.
+2.2.4 The p Value Relative Decrease Criterion
+We also investigated a new criterion based on the variation
+of p values between score-based models and the crude
+method. The rationale was that if the association strength is
+enforced after accounting for potential confusion factors, then
+the signal is more likely to be true. We called it the p value
+p
+−pm
+,
+relative decrease (p-RD) and defined it as: p-RD = crude
+p
+crude
+
+where pcrude is the p value of the exposure during the predelivery period (TBD) in the crude model and pm is the corresponding p value for modality m ( m: 1–20). We explored
+different thresholds for this new criterion in the 0–0.5 range.
+
+2.3 Signal Assessment
+The relevance of signals obtained with crude or score-based
+models was assessed by a literature review via MEDLINE
+and the clinical expertise of a pharmacologist. Three categories were used to classify the signals: (1) “Spurious”
+for drugs with all studies showing no increase in the risk of
+prematurity, or even a decrease; (2) “Suspicious” for drugs
+with studies showing an increase in the risk of prematurity
+in exposures, and (3) “Inconclusive” for drugs whose relationship with prematurity was not studied enough to make a
+decision. All calculations were performed with the R statistical software (version 3.4.4) using the glmnet package (version 2.0-16) for lasso regression, the xgboost package (version 0.71-2) for extreme gradient boosting, and the HDPS
+package (version 0.1.6) for high-dimension preselection.
+
+3 Results
+Prematurity was observed in 3980 (6.9%) of the 57,407
+pregnancies. Four hundred drugs, belonging to 221 different Anatomical Therapeutic Chemical classes (fourth level),
+
+were prescribed in at least five pregnancies and their association with prematurity was investigated. The most delivered
+drugs in the trimester before delivery were ferrous sulfate
+(51.2%), cholecalciferol (30.6%), and paracetamol/acetaminophen (30.4%).
+
+3.1 Score Comparison
+High-dimensional PS and DRS were estimated for each of
+the 400 drugs using two machine-learning algorithms (lasso
+or extreme gradient boosting) and either from all available
+variables or on a preselected set of 200 variables according
+to the HDPS algorithm. Distributions of AUCs were very
+different between DRSs and PSs (Fig. 1). We observed a narrow range of values for DRSs (0.75–0.79) whereas the AUCs
+for PSs ranged between 0.50 and 1. With regard to DRS,
+extreme gradient boosting without variable pre-selection
+provided the best AUCs. The results for the PS were less
+clear but seemed to favor the lasso for optimizing the AUC.
+The one-sided p values (corrected for multiple testing)
+corresponding to the association between each drug exposure in the last trimester before delivery (TBD) and prematurity are shown in Fig. 2 for the crude model and for the 20
+score-based modalities. First, Fig. 2 shows that three blocks
+of modalities corresponded to the method of accounting
+for the score in the regression models, except for the PS/
+Boosting/Adjusting combination, which formed a separate block. The adjustment provided the closest results to
+the crude model, whereas the weighting and the matching
+constituted two other distinct blocks. Second, the type of
+machine-learning method affected the results of adjustment
+less with DRS than with PS. It had little impact on matching
+and weighting results. Finally, the preselection was found to
+have a very low impact as almost all pairs were in the same
+terminal nodes of the dendrogram.
+
+3.2 Signal Detection
+For the sake of clarity, results for only five modalities,
+representative of the 20 that we explored, are discussed in
+the following, namely: DRS/Boost/Adjusting, DRS/Boost/
+Matching, PS/Lasso/Adjusting, PS/Lasso/Matching, and PS/
+Lasso/Weighting.
+Eighty-one signals (multiple testing corrected p
+value < 0.20) were generated with at least one model (either
+the crude model or one of the five score-based models).
+After a literature review in combination with clinical expertise, 43 (53.0%) were classified as “Spurious”, 24 (29.7%) as
+“Inconclusive”, and 14 (17.3%) as “Suspicious”.
+The crude analysis detected the largest number of signals (76) with most signals classified as “Spurious” (56.6%),
+31.6% as “Inconclusive”, and 11.8% as “Suspicious”
+
+553
+
+Identifying Drugs Inducing Prematurity by Mining Claims Data
+Fig. 1  Area under curve (AUC)
+distributions obtained for all
+400 drugs according to type of
+score, disease risk score (DRS)
+(a) or propensity score (PS)
+(b), type of machine-learning
+method, lasso regression
+(Lasso) or gradient-boosted
+trees (Boost), and use of highdimensional PS algorithm for
+preselection (HD)
+
+(Fig. 3). Using weighting with PS led to poor performances
+with five “Spurious” signals and one “Inconclusive” signal.
+Matching also led to relatively poor performances: combined
+with DRS it detected two signals, one “Spurious” and one
+“Inconclusive”. With PS, it detected five “Spurious” signals.
+Finally, concerning the adjusted analyses, the DRS provided
+more signals than the PS: 45 vs 28. Out of the 45 signals
+detected with the DRS, 12 (26.7%) were “Suspicious”, 23
+(51.1%) “Spurious”, and 10 (22.2%) “Inconclusive”. With
+the PS, 5 (17.9%) were “Suspicious”, 19 (67.9%) “Spurious”, and 4 (14.3%) “Inconclusive”. Results of the 21 methods are shown in Fig. 1 of the ESM.
+Figure 3 also shows the performances of our p-RD criterion. When derived from the DRS-adjusted models and with
+a relative decrease greater than 0.20, the p-RD provided 13
+signals: ten (77%) “Suspicious”, three (23%) “Inconclusive”,
+and none “Spurious”. A further comparison between DRS/
+PS score-based methods and our p-RD criterion according
+to several detection thresholds confirmed that p-RD was significantly better in prioritizing “Suspicious” signals as well
+as filtering out “Spurious” signals (Fig. 4).
+Signals highlighted by the p-RD criterion based on the
+DRS-adjusted model belonged to several large therapeutic
+families. Psychiatric medications were highly represented,
+such as benzodiazepines (bromazepam, alprazolam, and
+prazepam) and Z-hypnotics (zopiclone and zolpidem).
+One antipsychotic (chlorpromazine) and one antidepressant (mianserin) were also detected. Of note, the signal
+highlighted by PS-adjusted, i.e., escitalopram, a selective
+serotonin reuptake inhibitor, is also used as an antidepressant drug. The other signals included one contraceptive, a
+levonorgestrel/ethinyl estradiol association, an anti-malarial
+used in rheumatologic diseases, hydroxychloroquine, an
+
+anti-epileptic drug, lamotrigine, and mesalazine, an antiinflammatory drug.
+
+4 Discussion
+The methods developed in this study focus on reducing
+confusion by indication bias that hampers the exploitation
+of medico-administrative databases [30]. For this purpose,
+we leveraged the wealth of data available in the Echantillon Généraliste des Bénéficiaires. The scores accounted for
+many conditions that can induce preterm birth such as preeclampsia and intrahepatic cholestasis. This made it possible
+to rule out treatments used in these conditions. For example,
+antibiotics such as amoxicillin, cefixime, and metronidazole
+were ruled out after adjustment on scores because the latter included information pertaining to infectious diseases.
+In some instances, indication biases were too strong with
+score-adjusted model p values remaining under the signal
+detection threshold. Our p-RD was developed to address this
+limitation based on the rationale that p value modification
+between crude and score-adjusted models reflects the level
+of confusion bias and that a decrease provides a criterion
+to further screen false signals. In our study, using DRS and
+a p-RD threshold of 0.20 made it possible to eliminate all
+spurious signals (Fig. 4), which would be far from possible
+if only a DRS-adjusted model p value were to be used, no
+matter how stringent the threshold. Overall, the p-RD made
+it possible to reduce the false-positive rate while preserving
+signal generation capabilities.
+The preselection step with the HDPS algorithm was
+mainly designed to build scores from variables both marginally associated with preterm birth and the drug exposure
+
+554
+
+R. Demailly et al.
+
+Fig. 2  Heatmap of one-sided
+p values corrected for multiple
+testing calculated for all 400
+drugs and for 21 modalities.
+Boost gradient-boosted trees,
+DRS disease risk score, HD
+variable subset preselection,
+Lasso Lasso regression, PS
+propensity score
+
+under scrutiny. As expected, it had a negative impact on the
+predictive performances of PS and DRS, which was more
+pronounced for PS (Fig. 1). In terms of signal detection performances, preselection had a negative impact on PS and no
+real impact on DRS. Nevertheless, recent work combining
+HDPS and Super Learner may provide some avenues for
+improvement [31, 32]. Of note, when using extreme gradient
+boosting, we observed that preselection drastically reduced
+the computation time five-fold, which otherwise could
+be prohibitive without considerable computing resources
+(Fig. 2 of the ESM).
+The choice of the machine-learning method had little
+influence on the DRS both in terms of score prediction
+
+(Fig. 1) and signal detection (Fig. 2). For PS, the predictive
+performances were also very similar (Fig. 1) but the impact
+on signal detection was pronounced (Fig. 2). In particular,
+PS built from extreme gradient boosting led to a significant
+decrease in the number of detected signals. Extreme gradient boosting is a powerful predictive method but is perhaps
+more prone than lasso to overfitting, especially in the case
+of rare drug exposure. We used the AUC as an optimization criterion as it is often advocated to better handle imbalance in the outcome for classification tasks. Nevertheless,
+as rightly underlined by one of the reviewers, one drawback
+of the AUC is that it is essentially a non-parametric measure
+of ranking and thus, using this optimization criterion may
+
+Identifying Drugs Inducing Prematurity by Mining Claims Data
+
+fail to provide correct estimates of our scores. We conducted
+additional analyses to assess the sensitivity of our results to
+the optimization criterion choice using cross-entropy instead
+of AUC (data not shown). Our results were not sensitive to
+the optimization criterion when using adjustment to account
+for the DRS and PS. However, the optimization criterion had
+an impact on matching and especially on weighting. For the
+latter, it resulted in 171 signals, i.e., twice the number of signals highlighted with the crude model and almost half that of
+the drug investigated in this study. Overall, we consider that
+this high sensitivity to the optimization criterion when using
+matching and weighting is an additional argument in favor of
+using adjustment in our signal detection strategy. Finally, our
+results confirm that PS is less efficient than DRS, especially
+in the case of rare exposures, and support the use of DRS
+adjustment in practice.
+The suspicious signals highlighted by p-RD belonged to
+four therapeutic families: psychotropic, contraceptive, antimalarial, and anti-epileptic treatments. The relationship
+between psychotropic drugs and the risk of prematurity has
+already been widely discussed in the literature. Several benzodiazepines were associated with an increased risk of prematurity in our study and a lack of power can be suspected
+for the others. Recently, Ogawa et al. using claim databases
+found an association between the use of benzodiazepines
+and preterm birth [33] that had already been observed by
+Hironaka et al. using hospitalization data in 2011 [34]. Escitalopram, a selective serotonin reuptake inhibitor used to
+treat depression, was found at risk in our analysis and is a
+well-documented inducer of prematurity [35–37]. We generated a signal for chlorpromazine whose therapeutic class is
+known as prematurity inducer [38–40]. We also generated a
+signal for mianserin, a tetracyclic antidepressant that acts as
+a serotonin-noradrenaline reuptake inhibitor. It has already
+been found to be associated with prematurity [41], as has
+mirtazapine, a chemically similar tetracyclic antidepressant
+[42]. Zolpidem and zopiclone are hypnotics with an agonist action on benzodiazepine receptors. They were studied
+by Juric et al. [43] who found a non-significant increase
+in preterm birth in a small zolpidem user cohort matched
+with unexposed subjects. This increase was confirmed by
+Wang et al. in 2010 [44] using a health insurance claim database. The p-RD also detected an association between the
+risk of prematurity and the combination of levonorgestrel
+and ethinyl estradiol, which is one of the most prescribed
+oral contraceptives. The use of a contraceptive drug in the
+3 months preceding delivery suggests the late discovery of
+pregnancy, or even denial. The relationship between oral
+combination contraceptives and preterm birth was recently
+demonstrated by Jensen et al. [45] and the risk was even
+greater when the contraceptive was taken close to delivery.
+Hydroxychloroquine is an antimalarial drug mainly used to
+reduce inflammation in the treatment of rheumatoid arthritis
+
+555
+
+and lupus. Balevic et al. [46] studied hydroxychloroquine
+use by pregnant women with lupus and found an increase
+in prematurity. Mesalamine is a first-line drug in the treatment of inflammatory bowel disease increasing the preterm
+birth risk for Diav-Citrin et al. [47]. Finally, lamotrigine, the
+first-line antiepileptic medication during pregnancy owing
+to its lower teratogenicity than other drugs such as valproate
+sodium, was associated in our study with an increased risk of
+preterm birth. The relationship between antiepileptic drugs
+and prematurity has been widely discussed in the literature
+[48–51], lamotrigine remaining the least associated with prematurity risk compared to others. Other antiepileptic drugs
+such as valproate and levetiracetam showed higher preterm
+birth rates than lamotrigine and positive p-RD values but
+without reaching the score-based 0.20 p value model threshold (Table S1 of the ESM).
+The p-RD also highlighted three signals with no reference in the literature regarding preterm birth risk. Two were
+eye drops including spaglumic acid for allergic rhinitis and
+the association of hydroxycortisone and anti-infectives for
+conjunctivitis. The systemic absorption of eye drops is by
+far lower than with oral administration but could still occur.
+These two molecules have in common that they act on the
+immune system by reducing its response in an infectious
+or allergic inflammatory setting. The presence of these two
+drugs in the signals and the absence of reassuring data in the
+literature may call for caution in their use during pregnancy,
+thus further research is necessary. The last drug flagged up
+by p-RD in our data was lactulose in combination with liquid
+paraffin, which is used for constipation, and has received little attention in the setting of pregnancy. Gharehbaghi et al.
+[52] highlighted this lack of data.
+There are several limitations in our work. First, this study
+is limited to drugs reimbursed outside hospitals because it
+is based on medico-administrative data. Nevertheless, the
+consumption of over-the-counter drugs in pregnant women
+is low (7.5%) in France and remains limited to well-known
+molecules [53]. Second, we assumed that the drug delivery
+date corresponded to the consumption date and that compliance was perfect. However, this assumption is acceptable
+because compliance among French pregnant women is estimated at more than 90% [54]. Third, although our database
+included more than 50,000 pregnancies, rarely prescribed
+drugs could not be investigated. Fourth, there was no a priori
+reference set for testing the methods, thus we built one here
+that could be used in the future for the purpose of comparison. However, the study could not evaluate the sensitivity
+of p-RD as we assessed only signals detected by one of the
+methods.
+Finally, we have proposed a signal detection framework
+for pregnancy. The p-RD criterion was empirically developed and assessed in this study. The p-RD criterion demonstrated its good performance in prematurity. It now should
+
+556
+
+Fig. 3  Signal detection results for crude model and six selected scorebased models. p value of association fills the box and p value relative
+decrease (p-RD) is represented on borders. Drug annotation according to the scientific literature and clinical expertise is represented
+
+R. Demailly et al.
+
+by the color of drug names: blue = “Spurious”, red = “Suspicious”,
+orange = “Inconclusive”. Drugs are ranked according to their prevalence during the last trimester. Boost gradient-boosted trees, DRS disease risk score, Lasso Lasso regression, PS propensity score
+
+Identifying Drugs Inducing Prematurity by Mining Claims Data
+
+557
+
+Fig. 4  Number of “Suspicious”, “Inconclusive”, and “Spurious”
+signals according to score-adjusted models (a) and p value relative
+decrease (p-RD) (b). Results are shown for propensity score (PS) and
+
+disease risk score (DRS)-based analyses and several detection thresholds for p values (a) and p-RDs (b)
+
+be tested on other adverse events and on other medicoadministrative databases. Furthermore, extensions taking
+into account other exposure measures such as duration of
+exposure could be investigated. Simulation studies could
+also be used to optimize the detection threshold.
+
+pregnancy from which we (2) derived a new efficient signal
+detection criterion, which significantly reduced the amount
+of false-positive signals. We also produced a resource set
+available for further research on prematurity.
+After a first wave of enthusiasm fueling expectations
+that medico-administrative databases and electronic health
+records could be used to perform signal detection, it now
+appears that their real value lies in the surveillance of wellcharacterized and targeted adverse effects or as a complement to spontaneous reporting systems [55, 56]. In this
+respect, our study demonstrates that the surveillance of serious adverse events occurring during pregnancy is a very
+good example of where they can be used to good effect. It
+also illustrates how innovative tools such as the p-RD, which
+builds on state-of-the-art statistical methods for causal inference in high dimension, may significantly improve signal
+
+5 Conclusions
+Knowledge is sparse about the short- and long-term consequences of drugs on pregnancy and the fetus. However, signal detection has not been considered in pregnant women per
+se and tools adapted to this detection are lacking. Our study
+demonstrates the feasibility and relevance of large-scale signal detection in pregnant women by using medico-administrative databases. To this end, we (1) adapted state-of-the-art
+tools in pharmacoepidemiology to signal detection during
+
+558
+
+detection from large and complex medico-administrative
+databases.
+Acknowledgements We thank three anonymous reviewers for their
+helpful comments on earlier drafts of the manuscript.
+Author Contributions RD, SE, FH, PTB, and IA planned and designed
+the study. RD drafted the manuscript, performed the research, and analyzed the data. All authors reviewed the manuscript and approved the
+final version.
+Data Availability The data underlying the findings cannot be made
+freely available because of legal restrictions. Data used for the present
+study come from the French National Health Insurance databases and
+include a large number of variables, that, when combined, can lead to
+reidentifying subjects and then collecting health information on these
+persons. Therefore, the French Data Protection Authority (CNIL) forbids making such data freely available. Access to the raw data of the
+French National Health Insurance must be requested from the National
+System of Health Data (https​://www.snds.gouv.fr/).
+
+Compliance with Ethical Standards
+Funding This research was partially supported by the IReSP funding
+partners as part of the 2017 General Call for Projects-Prevention (17PREV-49) and partially supported by the ANSM (Agence nationale de
+sécurité du médicament et des produits de santé) as part of the 2014
+‘young researchers’ Call for Projects (AAP-2014-033).
+Conflict of interest Romain Demailly, Sylvie Escolano, Françoise Haramburu, Pascale Tubert-Bitter, and Ismaïl Ahmed have no conflicts of
+interest that are directly relevant to the content of this article.
+
+References
+1. Daw JR, Hanley GE, Greyson DL, Morgan SG. Prescription drug
+use during pregnancy in developed countries: a systematic review.
+Pharmacoepidemiol Drug Saf. 2011;20:895–902.
+2. Demailly R, Escolano S, Quantin C, Tubert-Bitter P, Ahmed I.
+Prescription drug use during pregnancy in France: a study from
+the national health insurance permanent sample. Pharmacoepidemiol Drug Saf. 2017;26:1126–34.
+3. Ayad M, Costantine MM. Epidemiology of medications use in
+pregnancy. Semin Perinatol. 2015;39:508–11.
+4. Veroniki AA, Rios P, Cogo E, Straus SE, Finkelstein Y, Kealey R,
+et al. Comparative safety of antiepileptic drugs for neurological
+development in children exposed during pregnancy and breast
+feeding: a systematic review and network meta-analysis. BMJ
+Open. 2017;7:e017248.
+5. Fénichel P, Brucker-Davis F, Chevalier N. The history of Distilbène® (diethylstilbestrol) told to grandchildren: the transgenerational effect. Ann Endocrinol (Paris). 2015;76:253–9.
+6. Lupattelli A, Spigset O, Twigg MJ, Zagorodnikova K, Mårdby AC,
+Moretti ME, et al. Medication use in pregnancy: a cross-sectional,
+multinational web-based study. BMJ Open. 2014;4:e004365.
+7. Pariente G, Leibson T, Carls A, Adams-Webber T, Ito S, Koren G.
+Pregnancy-associated changes in pharmacokinetics: a systematic
+review. PLoS Med. 2016;13:e1002160.
+8. Feghali M, Venkataramanan R, Caritis S. Pharmacokinetics of
+drugs in pregnancy. Semin Perinatol. 2015;39:512–9.
+
+R. Demailly et al.
+9. Huybrechts KF, Bateman BT, Hernández-Díaz S. Use of realworld evidence from healthcare utilization data to evaluate
+drug safety during pregnancy. Pharmacoepidemiol Drug Saf.
+2019;28:906–22.
+10. Ahmed I, Pariente A, Tubert-Bitter P. Class-imbalanced subsampling lasso algorithm for discovering adverse drug reactions. Stat
+Methods Med Res. 2018;27:785–97.
+11. Caster O, Norén GN, Madigan D, Bate A. Large-scale regression-based pattern discovery: the example of screening the WHO
+global drug safety database. Stat Anal Data Min ASA Data Sci J.
+2010;3:197–208.
+12. Liu F, Jagannatha A, Yu H. Towards drug safety surveillance and
+pharmacovigilance: current progress in detecting medication and
+adverse drug events from electronic health records. Drug Saf.
+2019;42:95–7.
+13. Harpaz R, DuMouchel W, Shah NH, Madigan D, Ryan P, Friedman C. Novel data-mining methodologies for adverse drug event
+discovery and analysis. Clin Pharmacol Ther. 2012;91:1010–21.
+14. Kant A, de Vries L, Rolfes L. Surveillance of drug safety during
+pregnancy: insight in current international activities, future intentions and need for support of national pharmacovigilance centres.
+Drug Saf. 2019;42:35–43.
+15. Jackson JW, Schmid I, Stuart EA. Propensity scores in pharmacoepidemiology: beyond the horizon. Curr Epidemiol Rep.
+2017;4:271–80.
+16. Arbogast PG, Ray WA. Use of disease risk scores in pharmacoepidemiologic studies. Stat Methods Med Res. 2009;18:67–80.
+17. Arbogast PG, Ray WA. Performance of disease risk scores, propensity scores, and traditional multivariable outcome regression in the presence of multiple confounders. Am J Epidemiol.
+2011;174:613–20.
+18. Schneeweiss S, Rassen JA, Glynn RJ, Avorn J, Mogun H,
+Brookhart MA. High-dimensional propensity score adjustment
+in studies of treatment effects using health care claims data. Epidemiology. 2009;20:512–22.
+19. Tatonetti NP, Ye PP, Daneshjou R, Altman RB. Data-driven
+prediction of drug effects and interactions. Sci Transl Med.
+2012;4:125ra31.
+20. Courtois É, Pariente A, Salvo F, Volatier É, Tubert-Bitter P,
+Ahmed I. Propensity score-based approaches in high dimension
+for pharmacovigilance signal detection: an empirical comparison
+on the French Spontaneous Reporting Database. Front Pharmacol.
+2018;9:1010.
+21. Tuppin P, de Roquefeuil L, Weill A, Ricordeau P, Merlière Y.
+French national health insurance information system and the
+permanent beneficiaries sample. Rev Epidemiol Sante Publ.
+2010;58:286–90.
+22. Piffaretti C, Looten V, Rey S, Fresson J, Fagot-Campagna A, Tuppin P. Management of pregnancy based on healthcare consumption of women who delivered in France in 2015: contribution of
+the national health data system (SNDS). J Gynecol Obstet Hum
+Reprod. 2018;47:299–307.
+23. Rey G, Jougla E, Fouillet A, Hémon D. Ecological association between a deprivation index and mortality in France over
+the period 1997–2001: variations with spatial scale, degree of
+urbanicity, age, gender and cause of death. BMC Public Health.
+2009;9:33.
+24. Tibshirani R. Regression shrinkage and selection via the Lasso. J
+R Stat Soc Ser B (Methodol). 1996;58:267–88.
+25. Friedman J. Greedy boosting approximation: a gradient boosting
+machine. Ann Stat. 2001;29:1189–232.
+26. Chen T, Guestrin C. XGBoost: a scalable tree boosting system. In:
+Proceedings of the 22nd ACM SIGKDD international conference
+on knowledge discovery and data mining-KDD ’16; San Francisco
+(CA); 2016. pp 785–94.
+
+Identifying Drugs Inducing Prematurity by Mining Claims Data
+27. Zhang O. Winning data science competitions. NYC Data Science
+Academy. 2015. https​://nycda​tasci​ence.com/blog/meetu​p/featu​
+red-talk-1-kaggl​e-data-scien​tist-owen-zhang​/. Accessed 1 Feb
+2020.
+28. Bross ID. Spurious effects from an extraneous variable. J Chronic
+Dis. 1966;19:637–47.
+29. Li L, Greene T. A weighting analogue to pair matching in propensity score analysis. Int J Biostat. 2013;9:215–34.
+30. Wood ME, Lapane KL, van Gelder MMHJ, Rai D, Nordeng HME.
+Making fair comparisons in pregnancy medication safety studies:
+an overview of advanced methods for confounding control. Pharmacoepidemiol Drug Saf. 2018;27:140–7.
+31. Ju C, Combs M, Lendle SD, Franklin JM, Wyss R, Schneeweiss
+S, et al. Propensity score prediction for electronic healthcare databases using super learner and high-dimensional propensity score
+methods. J Appl Stat. 2019;46:2216–36.
+32. Wyss R, Schneeweiss S, van der Laan M, Lendle SD, Ju C,
+Franklin JM. Using super learner prediction modeling to improve
+high-dimensional propensity score estimation. Epidemiology.
+2018;29:96–106.
+33. Ogawa Y, Takeshima N, Furukawa TA. Maternal exposure to
+benzodiazepine and risk of preterm birth and low birth weight:
+a case–control study using a claims database in Japan. Asia Pac
+Psychiatry. 2018;10:e12309.
+34. Hironaka M, Kotani T, Sumigama S, Tsuda H, Mano Y, Hayakawa
+H, et al. Maternal mental disorders and pregnancy outcomes: a
+clinical study in a Japanese population. J Obstet Gynaecol Res.
+2011;37:1283–9.
+35. Eke AC, Saccone G, Berghella V. Selective serotonin reuptake
+inhibitor (SSRI) use during pregnancy and risk of preterm birth:
+a systematic review and meta-analysis. BJOG. 2016;123:1900–7.
+36. Lattimore KA, Donn SM, Kaciroti N, Kemper AR, Neal CR,
+Vazquez DM. Selective serotonin reuptake inhibitor (SSRI) use
+during pregnancy and effects on the fetus and newborn: a metaanalysis. J Perinatol. 2005;25:595–604.
+37. Sujan AC, Rickert ME, Öberg AS, Quinn PD, Hernández-Díaz
+S, Almqvist C, et al. Associations of maternal antidepressant use
+during the first trimester of pregnancy with preterm birth, small
+for gestational age, autism spectrum disorder, and attention-deficit/hyperactivity disorder in offspring. JAMA. 2017;317:1553–62.
+38. Petersen I, Sammon CJ, McCrea RL, Osborn DPJ, Evans SJ,
+Cowen PJ, et al. Risks associated with antipsychotic treatment in
+pregnancy: comparative cohort studies based on electronic health
+records. Schizophr Res. 2016;176:349–56.
+39. Lin H-C, Chen I-J, Chen Y-H, Lee H-C, Wu F-J. Maternal schizophrenia and pregnancy outcome: does the use of antipsychotics
+make a difference? Schizophr Res. 2010;116:55–60.
+40. Habermann F, Fritzsche J, Fuhlbrück F, Wacker E, Allignol A,
+Weber-Schoendorfer C, et al. Atypical antipsychotic drugs and
+pregnancy outcome: a prospective, cohort study. J Clin Psychopharmacol. 2013;33:453–62.
+41. Lennestål R, Källén B. Delivery outcome in relation to maternal
+use of some recently introduced antidepressants. J Clin Psychopharmacol. 2007;27:607–13.
+
+559
+42. Djulus J, Koren G, Einarson TR, Wilton L, Shakir S, Diav-Citrin
+O, et al. Exposure to mirtazapine during pregnancy: a prospective, comparative study of birth outcomes. J Clin Psychiatry.
+2006;67:1280–4.
+43. Juric S, Newport DJ, Ritchie JC, Galanti M, Stowe ZN. Zolpidem (Ambien) in pregnancy: placental passage and outcome. Arch
+Womens Ment Health. 2009;12:441–6.
+44. Wang L-H, Lin H-C, Lin C-C, Chen Y-H, Lin H-C. Increased
+risk of adverse pregnancy outcomes in women receiving zolpidem
+during pregnancy. Clin Pharmacol Ther. 2010;88:369–74.
+45. Jensen ET, Daniels JL, Stürmer T, Robinson WR, Williams CJ,
+Vejrup K, et al. Hormonal contraceptive use before and after conception in relation to preterm birth and small for gestational age:
+an observational cohort study. BJOG. 2015;122:1349–61.
+46. Balevic SJ, Cohen-Wolkowiez M, Eudy AM, Green TP, Schanberg LE, Clowse MEB. Hydroxychloroquine levels throughout
+pregnancies complicated by rheumatic disease: implications for
+maternal and neonatal outcomes. J Rheumatol. 2019;46(1):57–63.
+47. Diav-Citrin O, Park YH, Veerasuntharam G, Polachek H, Bologa
+M, Pastuszak A, et al. The safety of mesalamine in human pregnancy: a prospective controlled cohort study. Gastroenterology.
+1998;114:23–8.
+48. Pariente G, Leibson T, Shulman T, Adams-Webber T, Barzilay
+E, Nulman I. Pregnancy outcomes following in utero exposure to
+lamotrigine: a systematic review and meta-analysis. CNS Drugs.
+2017;31:439–50.
+49. Borthen I. Obstetrical complications in women with epilepsy.
+Seizure. 2015;28:32–4.
+50. Kilic D, Pedersen H, Kjaersgaard MIS, Parner ET, Vestergaard
+M, Sørensen MJ, et al. Birth outcomes after prenatal exposure
+to antiepileptic drugs: a population-based study. Epilepsia.
+2014;55:1714–21.
+51. Hernández-Díaz S, McElrath TF, Pennell PB, Hauser WA, Yerby
+M, Holmes LB, et al. Fetal growth and premature delivery in pregnant women on antiepileptic drugs. Ann Neurol. 2017;82:457–65.
+52. Gharehbaghi K, Gharehbaghi DR, Wierrani F. Sliutz G [Treatment of chronic functional constipation during pregnancy and
+lactation]. Z Geburtshilfe Neonatol. 2016;220:9–15.
+53. Hurault-Delarue C, Lacroix I, Vidal S, Montastruc J-L, DamaseMichel C. Drugs in pregnancy: study in the EFEMERIS database
+(2004 to 2008). Gynecol Obstet Fertil. 2011;39:554–8.
+54. de Jonge L, de Walle HEK, de Jong-van den Berg LTW, van Langen IM, Bakker MK. Actual use of medications prescribed during
+pregnancy: a cross-sectional study using data from a populationbased congenital anomaly registry. Drug Saf. 2015;3:737–47.
+55. Patadia VK, Schuemie MJ, Coloma P, Herings R, van der Lei
+J, Straus S, et al. Evaluating performance of electronic healthcare records and spontaneous reporting data in drug safety signal
+detection. Int J Clin Pharm. 2015;37:94–104.
+56. Pacurariu AC, Straus SM, Trifirò G, Schuemie MJ, Gini R, Herings R, et al. Useful interplay between spontaneous ADR reports
+and electronic healthcare records in signal detection. Drug Saf.
+2015;38:1201–10.
+
+

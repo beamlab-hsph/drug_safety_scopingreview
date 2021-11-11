@@ -1,0 +1,929 @@
+Received October 26, 2018, accepted November 16, 2018, date of publication November 20, 2018,
+date of current version December 19, 2018.
+Digital Object Identifier 10.1109/ACCESS.2018.2882443
+
+An Attentive Neural Sequence Labeling Model for
+Adverse Drug Reactions Mentions Extraction
+PENG DING1 , XIAOBING ZHOU
+1 School
+
+1,
+
+XUEJIE ZHANG1 , JIN WANG1 AND ZHENFENG LEI2
+
+of Information Science and Engineering, Yunnan University, Kunming 650091, China
+2 School of Information Science and Engineering, Xiamen University, Xiamen 361005, China
+
+Corresponding author: Xiaobing Zhou (zhouxb@ynu.edu.cn)
+This work was supported in part by the Natural Science Foundation of China under Grant 61463050, Grant 61702443, and Grant
+61762091, in part by the NSF of Yunnan Province under Grant 2015FB113, in part by the Educational Commission of Yunnan Province of
+China under Grant 2017ZZX030, and in part by the Project of Innovative Research Team of Yunnan Province under Grant 2018HC019.
+
+ABSTRACT Adverse drug reactions (ADRs) are a main cause of morbidity and mortality in patients.
+Extracting mentions of ADRs from the health-related text has important applications in biomedical
+research. Existing work mainly utilizes feature-based pipeline methods or neural network models that
+use only word embeddings as input features. These methods either require many efforts to design taskspecific features or suffer misclassification on those words, which have not been seen before. Therefore,
+we propose an end-to-end neural sequence labeling model that labels words in an input sequence with
+ADRs membership tags. In addition to word-level embeddings, we also adopt character-level embeddings
+and combine them via an embedding-level attention mechanism. Through such an attention mechanism,
+our model can dynamically determine how much information to utilize from a word- or character-level
+component. In addition, we use the intermediate output of the model as an auxiliary classifier and combine
+it with the final output of the model to improve the overall performance. We evaluate different architectures
+on two ADRs labeling datasets. One is an ADRs-related Twitter corpus that includes many informal
+vocabularies and irregular grammar, and the other is a biomedical text extracted from PubMed abstracts
+with many professional terms and technical descriptions. Our model achieves approximate match F1 scores
+of 0.844 and 0.906 for ADRs identification on the Twitter and PubMed datasets, respectively. It presents
+the state-of-the-art performance on both the datasets. Our system is completely end-to-end, requires no taskspecific feature engineering or hand-crafted features, and thus can be generalized to a wide range of sequence
+labeling tasks.
+INDEX TERMS Adverse drug reactions, biomedical text, deep learning, neural network, sequence labeling,
+social media.
+I. INTRODUCTION
+
+Adverse Drug Reactions (ADRs) are a potentially healththreatening problem. It is reported that about 7000 deaths
+were caused by ADRs each year in a study carried out
+in 2000 [1]. Post-market drug surveillance is therefore
+required to identify such potential ADRs after a drug’s
+release. At present, most post-market drug surveillance activities rely on passive spontaneous reporting system databases,
+such as the Federal Drug Administration’s Adverse Event
+Reporting System (FAERS) [2]. Such systems can be slow
+and inefficient. Study shows that 94% ADRs are underreported by official systems [3].
+To address the limitations of formal ADRs reporting systems, methods applied to label ADRs need to continuously
+
+VOLUME 6, 2018
+
+analyze frequently updated data sources. Previous studies
+used electronic health records (EHR) as an augmented data
+source for ADRs mentions extraction [4]–[7]. However, using
+EHR data involves challenges such as complex data preprocessing requirements and multiple standards across different
+databases [8]. Social media such as Twitter can be a useful
+platform to carry out such post-market drug surveillance due
+to its vast reach and large user base. Recent study shows
+that the number of ADRs in Twitter is three times more than
+that reported in Food and Drug Administration (FDA) [3].
+Some recent research in post-market drug surveillance has
+used Twitter as a data source [9]–[13]. However, the language in social media is highly informal. The medical concepts expressed by users are often nontechnical, descriptive,
+
+2169-3536 2018 IEEE. Translations and content mining are permitted for academic research only.
+Personal use is also permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications_standards/publications/rights/index.html for more information.
+
+73305
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+FIGURE 1. Examples of ADRs reports in Twitter dataset (a) and PubMed dataset (b).
+
+and present challenges to extraction. Compared to the ADRs
+mentions in social media, the description in biomedical
+text is very formal and has many professional vocabularies or terms. Some recent studies [14]–[16] focus on ADRs
+mentions extraction on biomedical text, which is extracted
+from PubMed abstracts. Our research is implemented on both
+tweets and biomedical text corpus. Figure 1 shows examples of ADRs reports from Twitter dataset (a) and PubMed
+dataset (b), both of them use I-O tagging scheme.
+Some traditional high performance sequence labeling
+models use statistical approaches such as Support Vector
+Machine (SVM) [17] and Conditional Random Field
+(CRF) [11]. They process ADRs labeling task through a
+pipeline way and rely heavily on hand-crafted features and
+task-specific resources. With the dramatic developments
+in deep learning technology, neural network models have
+achieved state-of-the-art performance on many sequence
+labeling tasks such as Named Entity Recognition (NER) [18]
+and Part-Of-Speech (POS) tagging [19]. Current deep learning models generally utilize word embeddings, which allow
+them to learn similar representations for semantically similar
+words. Although this is a great improvement compared to
+traditional feature-based models, there are still some shortcomings needed to be solved. The most challenging problem is how to deal with the Out-Of-Vocabulary (OOV)
+words. Whether in tweets or in biomedical text like PubMed
+abstracts, the informal spellings or over-technical descriptions may cause a large number of OOV words to appear.
+Because these words have no corresponding word embeddings, they will be randomly initialized to some specific
+values. This will cause many misclassifications of those OOV
+words in the dataset.
+In this work, we construct an end-to-end neural sequence
+labeling model to identify ADRs without any task-specific
+resources. We take advantage of the word- and character-level
+representations of a token, thus those OOV words can be better labeled due to the addition of fine-grained character representations. In addition, we introduce the embedding-level
+attention mechanism which allows the model automatically
+and dynamically to learn what features are more important.
+We also use the intermediate output of the model as an auxiliary classifier to improve the model’s prediction performance.
+To validate the effectiveness of our model, we perform
+experiments on both Twitter and PubMed datasets. Experiments show that our model with character-level features and
+embedding-level attention component outperforms existing
+state-of-the-art systems on both datasets.
+73306
+
+The rest of this paper is organized as follows.
+Section II introduces the related work on ADRs labeling.
+In Section III, We explain the specific details of our model.
+Section IV presents experiments performed on the two ADRs
+datasets. Finally, discussion and conclusion are given in
+Sections V and VI, respectively.
+II. RELATED WORK
+
+There is a wide range of previous work on exploring and
+constructing models to process ADRs labeling task. They
+can be divided into two main categories — traditional statistical methods and Deep Neural Network (DNN) models.
+The best traditional ADRs labeling method on Twitter is
+ADRMine [7], which is based on CRF. It used several handcrafted features, such as ADRs lexicon, word context, embedding cluster features and POS-tag. These features were used
+as inputs to the CRF. One drawback of the traditional model
+mentioned above is that it relies heavily on hand-crafted
+features, which is time and effort consuming. Recently, many
+neural network models have been applied to sequence labeling task due to the development of deep learning techniques.
+In [2], a Recurrent Neural Network (RNN) was used to label
+the ADRs in tweets, adopting only the word embeddings as
+the input features of Bidirectional Long-Short Term Memory
+(BLSTM) network, and explored the influence of different
+word embeddings initialization methods on the model performance. In order to solve the labeled data shortage problem, Gupta et al. [3] proposed a semi-supervised learning
+RNN model. For the unsupervised learning phase, a BLSTM
+model was trained to predict the drug name given its context
+in the tweet. For the supervised learning phase, the same
+BLSTM model was trained to predict the sequence labels
+given the tweet text. Semi-supervised learning was also used
+by [13]. Unlike [3], [13] used semi-supervised Convolutional Neural Network (CNN) models to automatically learn
+features for ADRs classification. Besides utilizing information from social media like Twitter, there are many ADRs
+labeling studies based on biomedical text. Li et al. [15]
+used a neural joint model to extract entity and relation from
+biomedical text, which is extracted from PubMed abstracts.
+This model had achieved competitive results and required
+little work on feature engineering. Some other models for
+sequence labeling combine the neural network with traditional methods such as BLSTM-CRF [20]. In addition to
+using only word embeddings as input features to the model,
+many other models incorporate richer embedding features,
+such as character embeddings [21]–[24], POS embeddings
+VOLUME 6, 2018
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+FIGURE 2. Our embedding-level attention-based BGRU model for ADRs mentions extraction.
+
+[16], [25], and some other embeddings features [26]. One
+problem needed to be noticed is that when processing long
+range tweets or biomedical text, the neural network models
+may have the problem of gradient vanishing. The introduction of attention mechanism can alleviate this problem. The
+attention mechanism breaks the constraint that uses fix-length
+vector as the context vector, which enables the model to pay
+more attention to the part that is helpful to the outputs [27].
+Ramamoorthy and Murugan [16] used a self-attention mechanism to boost intra-sequence interaction in a text sequence,
+which enabled them to learn the dependence of classifier on
+different segments of the text sequence.
+
+III. METHODS
+
+In this section, we introduce our embedding-level attentionbased neural sequence labeling model for ADRs mentions
+extraction. Our model is completely end-to-end, and does not
+require additional manual extraction of features compared
+to traditional machine learning models. First, we obtain the
+character- and word-level sequence representations through
+the character embedding layer and word embedding layer,
+respectively. After that, instead of simply concatenating
+the two level representations, we use an embedding-level
+attention mechanism to combine the two features so that
+the model can dynamically determine which information
+comes from character- or word-level features. Then, we use
+a Bidirectional Gated Recurrent Unit (BGRU) network to
+encode the output derived from the attention layer, and the
+VOLUME 6, 2018
+
+softmax function is used for normalization. Finally, we use
+the output of the previous embedding-level attention layer as
+an auxiliary classifier, and sum it with the output of BGRU
+layer to obtain the final output of the model. Figure 2 shows
+the overall structure of our model.
+A. EMBEDDING LAYER
+
+Distributed representation of words proposed in [28] has
+replaced the traditional bag-of-words encoding technique
+and achieves better results on many NLP tasks. Distributed
+embeddings map each word to a space in which semantically
+approximated words will have similar vector representations,
+making the models more generalizable. But only using words
+as the smallest feature representation units will lose some
+fine-grained information. In order to capture the morphological and orthographic information, we obtain the sequence
+representations from both character- and word-level. This is
+especially effective when dealing with those words that do
+not appear in the pretrained word embeddings or have not
+been seen before, i.e., OOV words. For example, if the word
+‘‘dizzying’’ does not have a corresponding word embedding
+vector in the embedding lookup table, a character-level model
+can still infer a representation for the word as long as it
+has seen the word ‘‘dizzy’’ and other words with the suffix
+‘‘-ing’’. On the contrary, a word-level model can only treat
+these unknown words as OOV tokens. We explain the
+character- and word-level representations of input sequence
+in sections III-A.1 and III-A.2, respectively.
+73307
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+1) CHARACTER EMBEDDING LAYER
+
+Character-level features (e.g. prefix, suffix and capitalization)
+can be represented with embeddings via a feature-based
+lookup table, or neural networks without hand-crafted features [29]. We mainly focus on using neural networks
+to obtain character sequence representations without handdefined features. Character sequence representations have
+been found helpful for morphologically rich languages and
+to deal with the out-of-vocabulary problem for tasks such
+as POS tagging and language modeling [30] or dependency
+parsing [31]. We utilize Character LSTM (Char LSTM)
+described in [21] on the character sequence of each word
+to obtain character features. Specifically, we first need to
+perform word segmentation on all sentences in the datasets,
+and then count the maximum lengths of all sentences and
+all tokens, here we record them as maxlen_s and maxlen_t,
+respectively. Next we adopt padding operation to pad all
+sentences to length maxlen_s and all tokens to length
+maxlen_t. Then the dimension of input to the neural network used to obtain the character representations should be
+(batch_size, maxlen_s, maxlen_t), where batch_size defines
+the number of samples that will be propagated through the
+network. It should be noted that in order to perform attention
+mechanism between char- and word-level representations,
+we need to ensure that the output dimension of Char LSTM is
+consistent with that of the word embedding layer, which can
+
+be easily implemented by the reshape function in Keras.1 The
+embedding for a word derived from its characters is the concatenation of its forward and backward representations from
+the Bidirectional LSTM. Formally, the formulas to update an
+LSTM unit at time step t are as follows:
+it = σ (Wi pt−1 + Ui mt + bi )
+ft = σ (Wf pt−1 + Uf mt + bf )
+c˜t = tanh(Wc pt−1 + Uc mt + bc )
+ct = ft
+
+ct−1 + it
+
+c˜t
+
+ot = σ (Wo pt−1 + Uo mt + bo )
+pt = ot
+
+tanh(ct )
+
+(1)
+
+where σ is the element-wise sigmoid function and is the
+element-wise product. mt is the input vector (i.e., the randomly initialized character embedding) of Char embedding
+layer at time step t, and pt is the output which stores hidden
+state vector at time t. ct is the cell state, Wi , Wf , Wc , Wo denote
+the weight matrices for hidden state pt , and Ui , Uf , Uc , Uo
+are the weight matrices of different gates for input mt . bi , bf ,
+bc , bo denote the bias vectors [22]. Figure 3 illustrates the
+Char LSTM structure for extraction character-level representations of the word ‘‘tired’’.
+1 https://keras.io
+
+FIGURE 3. Character LSTM for extracting character-level representations. maxlen_t and maxlen_s denote the
+max length of tokens and sentences, respectively.
+
+73308
+
+VOLUME 6, 2018
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+2) WORD EMBEDDING LAYER
+
+Word embedding layer maps the current token to a highdimensional vector space. It is found that treating embeddings as fixed constants performs better than treating them
+as learnable model parameters [2]. We adopt pretrained word
+embeddings, GloVe [32], to obtain the fixed word embedding
+of each token.
+B. EMBEDDING-LEVEL ATTENTION LAYER
+
+One significant distinction between our model and previous neural sequence labeling approaches is that we use the
+embedding-level attention to combine character-level representations with word embeddings [33]. Through a method
+similar to a gate mechanism, the model can dynamically
+determine which source of information to use for each word.
+First, we use Char LSTM to get the character representation
+of each word. The last hidden states of the forward and
+backward LSTM are used to create the character feature for
+each word. Instead of concatenating these character features
+with the word embeddings, we calculate the attention matrix
+through a two-layer perceptron and combine the two levels of
+features by a weighted sum as follows:
+a = σ (Va tanh(Wa x + Ua q))
+x̃ = a · x + (1 − a) · q
+
+(2)
+
+where Va , Wa and Ua are weight matrices for calculating
+the attention matrix a, and σ denotes the sigmoid function
+with values between 0 and 1. x and q are sequence representations of word- and character-level, respectively. The
+dimension of the attention matrix a is the same as x or q.
+The value of a determines which level’s information the
+model prefers. Without the attention mechanism, we have
+two methods to obtain the sequence representations: (1)
+Only use word-level representations, which we called x here.
+(2) Use the concatenation of word- and character-level features, i.e., [x; q]. Both methods have their drawbacks. Method
+(1) does not take the fine-grained character features into
+account, and the word-level representations are too simple
+and not rich enough. Method (2) adds character-level features,
+but the model performance is often not significantly improved
+through such simple concatenation, because doing so expands
+the dimensions of word embeddings without giving them
+any weights, information included in some dimensions of
+the embeddings may be unhelpful to improve the performance of the model. Therefore, we adopt an embedding-level
+attention mechanism to combine the word- and characterlevel representations, and we obtain x̃, which is a new representation for the sequence labeling model that incorporates
+both word- and character-level features. This embeddinglevel attention mechanism has been proved helpful to enable
+the model to dynamically decide how much information to
+use from the character-level components or from the word
+embeddings [33]. A major benefit of the introduction of
+character-level features is that it can reduce the misclassification of those OOV tokens. Instead of concatenating word
+VOLUME 6, 2018
+
+embeddings and character-level features directly, we adopt an
+embedding-level attention so that the model can decide how
+to combine the information for each specific token during the
+training process.
+C. BGRU LAYER
+
+Recurrent Neural Networks (RNNs) have been widely used
+to deal with variable-length sequence inputs. A recurrent
+neural network can be thought of as multiple copies of the
+same network, and each neural network module will pass
+the message to the next one. In the past few years, RNNs
+have achieved incredible success in the fields such as speech
+recognition [34], language modeling [35], and machine translation [36]. However, the performance of the RNN models
+can be poor when dealing with the problem of long-term
+dependencies. LSTM [37] is one of the popular variations of
+RNN to mitigate the long-term dependencies problem. The
+LSTM has the structures which are carefully regulated gates
+to remove or add information to the cell state. It has three
+gates, the input gate, the forget gate and the output gate.
+Chung et al. [38] proposed a variant of LSTM called Gated
+Recurrent Unit (GRU), which combines the forget gate and
+the input gate into a single update gate, and also merges the
+cell state and the hidden state. This makes the GRU simpler
+and more efficient than the traditional LSTM model. Given
+an input vector xt at time step t and the previous output ht−1 ,
+a GRU computes the next output ht as:
+zt = σ (Wz · [ht−1 , xt ])
+rt = σ (Wr · [ht−1 , xt ])
+h̃t = tanh(W · [rt ∗ ht−1 , xt ])
+ht = (1 − zt ) ∗ ht−1 + zt ∗ h̃t
+
+(3)
+
+where Wz , Wr and W are weight matrices for calculating
+the update gate zt , the reset gate rt and the new memory h̃t ,
+respectively. Single direction GRU has one drawback of not
+using the contextual information from the future tokens. Bidirectional GRU (BGRU) [39] processes the sequence from
+two directions, utilizing both the previous and future context. Both forward and backward sequence processing will
+generate their own independent GRU output vectors. Finally,
+the output of each time step is the concatenation of the output
+−
+→ ←
+−
+vectors from the two directions, i.e., ht = [ ht ; ht ].
+D. OUTPUT LAYER
+
+In the field of computer vision, there are some studies that
+combine the final output of the model with the output derived
+from the model’s inner layer to improve the overall performance of the model. For example, GoogleNet [40] proposed
+the concept of auxiliary classifier. The model’s final prediction depends on the combination of output from final layer
+and inner layer, which has achieved good results in image
+classification tasks. Fully Convolutional Networks proposed
+in [41] concatenate the final and intermediate output of the
+model and perform well on image segmentation tasks.
+73309
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+Inspired by these studies, we incorporate the output of the
+embedding-level attention layer (i.e., the auxiliary classifier)
+into the model’s final output (i.e., the main classifier). The
+sum of these two classifiers is used to predict the final results.
+1) MAIN CLASSIFIER
+
+After the BGRU layer, we apply a fully connected layer,
+i.e., Dense layer, to every timestep of the output derived from
+previous layer. The sizes of Dense layer are 4 for Twitter
+dataset and 3 for PubMed dataset, which indicate the number
+of labels for the two datasets. Finally, a softmax function is
+used to obtain the probabilities for each label. Formally,
+ymain = softmax(Wt h + bt )
+
+(4)
+
+where h is the concatenation of the output derived from
+all time steps of the previous BGRU layer, Wt and bt
+are weight matrices for the Dense layer. The shape of
+ymain , i.e., the output of main classifier, will be (batch_size,
+maxlen_s, num_labels).
+2) AUXILIARY CLASSIFIER
+
+In addition to the main classifier, we also introduce an auxiliary classifier. This auxiliary classifier performs the same
+operations as the main classifier. Formally,
+yauxiliary = softmax(Wp x̃ + bp )
+
+(5)
+
+where x̃ is the output of the embedding-level attention
+layer, Wp and bp are weight matrices for the Dense layer.
+The dimension of yauxiliary is consistent with that of the main
+classifier.
+
+a supplement collected between May 1, 2015, and December 31, 2015, including at least 1 search term corresponding
+to 44 brand and generic drugs used for treatment of attention
+deficit hyperactivity disorder (ADHD). The Twitter dataset
+contains a total of 844 tweets, 95% of which contain at
+least 1 adverse drug reaction or indication mention. We retain
+the train-test split in [2], 634 (75%) as the training set,
+210 (25%) as the test set. The training set contains 647 ADRs
+and 71 indications, and the test set contains 199 ADRs and
+22 indications.
+We also use a biomedical text dataset, which was extracted
+from PubMed abstracts [42]. This dataset contains 6821 sentences, each sentence contains at least one ADRs mention.
+We follow the practice in [16] and make the following two
+minor changes to the dataset: (1) Ensure that each sample
+in the dataset is annotated with only one related-drug and a
+list of all ADRs caused by the drug. (2) Remove 120 sentences. Because the ADRs annotations in these sentences
+contain the names of drugs which cause the ADRs (e.g.,
+‘‘theophylline poisoning’’, where ‘‘theophylline’’ is the cause
+of ‘‘poisoning’’). We also adopt the same dataset split ratio
+8:1:1, which is used in [16], to obtain our training set, validation set and test set. The statistics of two ADRs datasets are
+listed in Table 1.
+TABLE 1. Statistics of two ADR datasets. maxlen_s and maxlen_t
+represent the maximum lengths of the sentences and tokens,
+respectively.
+
+3) PREDICTION AND LOSS FUNCTION
+
+Finally, the output of the model is the sum of the main
+classifier and the auxiliary classifier.
+y = ymain + yauxiliary
+
+(6)
+
+Formally, assuming that the predicted label and the actual
+label of a specific token are ysi and yˆsi , the final loss for the
+sequence labeling is the sum of categorial cross-entropy loss
+as follows:
+LADR = −
+
+n X
+t
+X
+
+yˆsi logysi
+
+(7)
+
+s=1 i=1
+
+where t is the max length of the sentences, and n is the total
+number of sentences in the dataset.
+
+In order to use supervised model to train and evaluate,
+it is necessary to generate token labels to indicate the ADRs
+membership. A standard method for sequence labeling tasks
+is to use an I-O-B scheme, in which each token may appear
+at the beginning, inside or outside of the entity phrase. For
+the Twitter dataset, we use the same I-O scheme described
+in [3], each word is labeled as one of the following categories:
+I-ADR (part of an ADRs), I-Indication (part of an Indication),
+O (outside any ADRs or Indication) and h PAD i (if the word
+is a padding token). For PubMed dataset, we also use the
+I-O scheme. The difference is that there is no I-Indication
+category. Then each word in a sentence will be considered
+as a category in I-ADR, O or h PAD i.
+B. EXPERIMENT SETTINGS
+
+IV. EXPERIMENTS
+A. DATASETS
+
+Our data includes two datasets. The first dataset was used
+in [9], which combined 2 Twitter datasets, Twitter ADRs
+Dataset (v1.0) [10], [11], and ADHD Dataset [2]. The Twitter
+ADRs Dataset (v1.0) collected and annotated user-published
+tweets, using 81 drugs commonly found in the US market and
+newly published as search terms. The ADHD Dataset was
+73310
+
+Since our model is completely end-to-end, we do not need any
+task-specific resources or features. However, for the Twitter
+dataset, there may be some noise vocabularies which affect
+the model’s performance. Thus we do the following text processing for the Twitter dataset: (1) Replace all user-mentions
+such as ‘‘@Jeffrey’’ with ‘‘h USER i’’. (2) Similarly, use
+‘‘h URL i’’ as a substitute of the url links that start with
+‘‘http’’ or ‘‘https’’ in tweets. (3) Those pictures or GIF links
+VOLUME 6, 2018
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+TABLE 2. Hyperparameter settings.
+
+that start with ‘‘pic.twitter.com’’ are replaced with ‘‘h PIC i’’.
+For PubMed dataset, we don’t do any data processing.
+We use Keras, a deep learning library written in Python
+and with TensorFlow [43] as the backend, to implement our
+model. We divide the whole training data to batches and
+process one batch with back propagation through time [44]
+at a time. The TweetTokenizer in NLTK 2 is adopted for word
+segmentation. Table 2 shows the hyperparameters used in our
+experiments. For the Twitter dataset, we set the epoch to 8
+and the batch size to 1. To mitigate overfitting, we apply
+the dropout method [45] after the embedding layer and the
+BGRU layer. We set the dropout rate to 0.1 for the Twitter
+dataset. For PubMed biomedical text dataset, we set the epoch
+to 10, the batch size to 16, and the dropout rate to 0.5.
+We use GloVe pretrained word embedding tool with dimensions of 300 to map each token to a high-dimensional vector
+space. The character embedding size is set to 100, and the
+hidden sizes of Char LSTM and BGRU are 150 and 64,
+respectively. Word embedding values are treated as fixed
+constants during training process. On the contrary, character embedding values are considered to be learnable model
+parameters. We adopt adam [46] to optimize our model and
+categorical crossentropy to compute the loss function. All
+models are trained on the Microsoft Windows 10 operating
+system with a 3.2 GHz processor and 8 GB RAM. We use
+a NVIDIA GeForce GTX 1060 GPU with 6 GB memory to
+accelerate calculations.
+
+tasks [2], [3], [11]. We report the approximate match Precision, Recall and F1 score as follows:
+#ADR approximately matched
+Precision =
+#ADR spans predicted
+#ADR approximately matched
+Recall =
+#ADR spans in total
+2 × Precision × Recall
+F1 =
+(8)
+Precision + Recall
+In order to get convincing experimental results, we run
+10 times for each model, taking the average of Precision,
+Recall, and F1 scores of these models as the final results.
+Table 3 shows the results of our neural sequence labeling models with different architectures on both Twitter and
+PubMed datasets. Table 4 show the comparison between
+our model and the previous top-performance systems on the
+two datasets. Training our embedding-level attention-based
+BGRU model which combines the auxiliary classifier took
+about 12 and 14 minutes for Twitter and PubMed datasets,
+respectively. Testing took both about 8 seconds for two
+datasets.
+Experiments show that the proposed model with
+embedding-level attention mechanism and auxiliary classifier
+performs much better than other neural sequence labeling
+models and previous top-performance systems. The F1 scores
+of our model are 0.844 and 0.906, which are 8.9% and 5.3%
+higher than the current state-of-the-art systems on the Twitter
+and PubMed datasets, respectively.
+V. DISCUSSION
+A. DATASET ANALYSIS
+
+C. RESULTS
+
+As shown in Table 3, the F1 score of the ADRs labeling on
+PubMed dataset is higher than that on Twitter dataset. There
+are two reasons: (1) The number of Twitter dataset is much
+smaller than that of PubMed dataset. (2) Social media is a
+platform for freedom of expression. Users’ expressions of
+ADRs may be emotional and mixed with many special words
+such as # and -(, which have a certain bad influence on the
+mentions extraction of ADRs.
+
+For performance evaluation, we adopt approximate matching [33], which is used widely in biomedical entity extraction
+
+B. COMPARISON OF MODELS
+
+2 http://www.nltk.org/index.html
+
+As shown in Table 3, we compare the performances of
+multiple neural sequence labeling models with different
+
+TABLE 3. Results of neural sequence labeling models with different architectures over 10 training and evaluation rounds on both datasets.
+
+VOLUME 6, 2018
+
+73311
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+TABLE 4. Results of our model on test data from Twitter and PubMed
+datasets, together with top-performance systems on these two datasets.
+
+datasets, and presents the current state-of-the-art performance
+on the two datasets.
+C. WORD EMBEDDINGS
+
+architectures on two datasets. These models all adopt
+300-dimensional GloVe as the pretrained word embeddings.
+First, we compare the performances of LSTM and GRU.
+We find LSTM performs better than GRU on Twitter dataset,
+whereas GRU is slightly better than LSTM on PubMed
+dataset. Then we try BLSTM and BGRU. The performances
+of BGRU and BLSTM are almost the same on both datasets.
+However, BGRU requires less training time. To test the
+importance of character-level features on the model’s performance, we use two methods to combine character features
+and word embeddings. The first is to directly concatenate
+word embeddings and character features. Experiments show
+that this concatenating method does not improve the performance of models on the Twitter dataset, and slightly improves
+models performance on the PubMed dataset. One possible
+reason is that, as shown in Table 2, the word embeddings
+dimension we use is 300, and the hidden layer dimension
+of BLSTM for obtaining character features is 150, i.e., the
+dimension of the character features is 150 × 2 = 300,
+and the total dimension is 600 when the two features are
+concatenated. This causes the word embeddings dimension
+too large, and the parameters of the model will increase
+accordingly, which make the model difficult to converge,
+thus the model performance is not outstanding. The second
+way of combining word embeddings and character features
+is the mechanism of embedding-level attention proposed
+in [33]. We try this attention mechanism on BLSTM and
+BGRU, respectively. The results show that the performance
+of BGRU models with embedding-level attention is better
+than the BLSTM models and is significantly better than all
+other models. Compared with BLSTM, the model structure
+of BGRU is simpler, the training time of the model is greatly
+shortened. After adding the attention mechanism, the model
+not only obtains the feature input from the word level, but
+can dynamically chooses between the character features and
+the word embeddings, so that the model can obtain a richer
+sequence representations, therefore greatly improves the performance of the model. Finally, we compare the performance
+of the model after adding the auxiliary classifier. The results
+show that the model with an auxiliary classifier outperforms
+the model only uses the embedding-level attention mechanism. This indicates that the combination of the intermediate
+output and the final output of the model is beneficial to the
+improvement of the model performance.
+As shown in Table 4, we also list performance of previous
+top ADRs mentions extraction systems obtained on Twitter
+and PubMed datasets. Our model outperforms the previous
+top-performance systems on both Twitter and PubMed
+73312
+
+To demonstrate the importance of pretrained word embeddings, we use several different publicly published ones,
+as well as random sampling method to initialize our models.
+Both random word and character embedding weights are
+initialized by lecun_uniform in Keras. As shown in Table 5,
+the models using pretrained word embeddings outperform
+those initializing the word embeddings with random values
+on both datasets. We also try domain-specific word embeddings. For the Twitter dataset, we adopt a published set
+of 400-dimensional word embeddings which were trained
+on more than 400 million tweets [47]. For the PubMed
+dataset, we use the drug related word embeddings trained
+with PubMed abstracts and DrugBank data. Experimental
+results show that using specific domain word embeddings
+can improve the model’s performance compared with those
+models with randomly initialized word embeddings. Finally,
+we perform experiments on the two most used pretrained
+word embeddings, Word2Vec and GloVe. We find that the
+models using the GloVe word embeddings outperform those
+using the Word2Vec word embeddings, especially on the
+Twitter dataset. One possible reason that the performance
+on Word2Vec is poorer than GloVe on the Twitter dataset is
+because of the vocabulary mismatch. Word2Vec embeddings
+are trained in case-sensitive manner, excluded many common
+symbols such as punctuations and digits [22]. Since we do not
+process these symbols or punctuation in the Twitter dataset,
+many words may not find the corresponding word embeddings, which will affect the performance of the model.
+
+TABLE 5. F1 scores for different choices of word embeddings on the two
+datasets.
+
+TABLE 6. Results with and without dropout on two datasets.
+
+TABLE 7. Statistics of the OOV tokens in the test set of two datasets.
+
+VOLUME 6, 2018
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+TABLE 8. Results for OOV analysis.
+
+D. EFFECT OF DROPOUT
+
+We explore the effect of dropout on the model’s performances
+on two datasets. We adopt different dropout rates due to the
+different numbers of the two datasets. For the Twitter dataset,
+we use a dropout rate of 0.1, and for the PubMed dataset,
+the dropout rate is 0.5. We use dropout after the embedding
+layer and the BGRU layer. Table 6 shows the results of using
+and not using the dropout layer on both datasets. We observe
+that for the two datasets, the F1 scores can be increased
+slightly after adding the dropout layer, which proves the
+effectiveness of dropout for reducing overfitting.
+E. OOV ERROR ANALYSIS
+
+We carry out error analysis on in-vocabulary and out-ofvocabulary words with our embedding-level attention-based
+BGRU model and other models. Following [22], we divide
+the words in the test set into four subsets: In-Vocabulary
+words (IV), Out-Of-Training-Vocabulary words (OOTV),
+Out-Of-Embedding-Vocabulary words (OOEV) and Out-OfBoth-Vocabulary words (OOBV). The difference is that since
+our previous evaluation criteria are based on words, we analyze the OOV at the word level instead of the entity or chunks.
+A word is considered to be IV if it appears in both the
+training set and the embedding vocabulary. If a word only
+appears in the embedding vocabulary but does not appear in
+the training set, it is classified as OOTV. On the contrary,
+if a word does not appear in embedding vocabulary but in
+the training set, then it will be considered as OOEV. Words
+that do not appear in embedding vocabulary or in the training
+set are considered to be OOBV. Table 7 shows the statistics
+for the OOV words contained in each subset. The results
+of the experiments are shown in Table 8. For the Twitter
+dataset, the largest improvements are on the IV and OOTV
+subsets, while for the PubMed dataset, our model achieves
+significantly improvements on the IV, OOTV and OOEV
+words over the other models. This result shows that the model
+is more powerful for the classification of these OOV words
+after adding character features and the attention mechanism.
+VI. CONCLUSION
+
+Recent study shows neural models perform well on many
+sequence labeling tasks such as ADRs labeling. While wordlevel representation learning is a powerful tool for automatically discovering useful features, there are still deficiencies
+in these methods — the OOV words have low-quality representations. The model’s recognition of these words can only
+VOLUME 6, 2018
+
+be derived from word embeddings, while other features such
+as suffix or morphology are nowhere to be obtained.
+In this paper, we propose a novel neural sequence labeling
+model for ADRs mentions extraction task and validate its
+effectiveness on Twitter and PubMed datasets. We obtain
+higher F1 scores than the current state-of-the-art systems
+by 8.9% and 5.3% on Twitter and PubMed datasets, respectively. Unlike traditional feature-based models, our model is
+completely end-to-end and does not require any additional
+hand-crafted features, greatly reduces the work on feature
+engineering. Compared to the previous neural sequence labeling models, we combine character- and word-level features
+through an embedding-level attention mechanism, allowing
+the model to dynamically determine which part of the information is needed. This has improved the labeling performance of OOV words to some extent. In addition, we combine
+the intermediate output with the final output of the model,
+allowing the model to use richer information when making
+predictions and further improving the overall performance of
+the model.
+In the future, once larger ADRs labeling datasets are
+released, we will validate our model on these datasets. Due
+to the lack of labeled data, we will seek to enhance the
+generalization of our model on small datasets through transfer
+learning methods.
+The source code of our model is available online.4
+REFERENCES
+[1] L. Hazell and S. A. W. Shakir, ‘‘Under-reporting of adverse drug reactions,’’ Drug Saf., vol. 29, no. 5, pp. 385–396, 2006.
+[2] A. Cocos, A. G. Fiks, and A. J. Masino, ‘‘Deep learning for pharmacovigilance: Recurrent neural network architectures for labeling adverse drug
+reactions in Twitter posts,’’ J. Amer. Med. Inform. Assoc., vol. 24, no. 4,
+pp. 813–821, 2017.
+[3] S. Gupta, S. Pawar, N. Ramrakhiyani, G. K. Palshikar, and V. Varma,
+‘‘Semi-supervised recurrent neural network for adverse drug reaction mention extraction,’’ BMC Bioinf., vol. 19, no. 8, p. 212, 2018.
+[4] P. M. Nadkarni, ‘‘Drug safety surveillance using de-identified EMR and
+claims data: Issues and challenges,’’ J. Amer. Med. Inform. Assoc., vol. 17,
+no. 6, pp. 671–674, 2010.
+[5] X. Wang, G. Hripcsak, M. Markatou, and C. Friedman, ‘‘Active computerized pharmacovigilance using natural language processing, statistics,
+and electronic health records: A feasibility study,’’ J. Amer. Med. Inform.
+Assoc., vol. 16, no. 3, pp. 328–337, 2009.
+[6] P. LePendu et al., ‘‘Pharmacovigilance using clinical notes,’’ Clin. Pharmacol. Therapeutics, vol. 93, no. 6, pp. 547–555, 2013.
+[7] R. Harpaz et al., ‘‘Combing signals from spontaneous reports and electronic health records for detection of adverse drug reactions,’’ J. Amer. Med.
+Inform. Assoc., vol. 20, no. 3, pp. 413–419, 2012.
+4 https://github.com/Deep1994/An-Attentive-Neural-Model-for-labelingAdverse-Drug-Reactions
+
+73313
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+[8] B. Davazdahemami and D. Delen, ‘‘A chronological pharmacovigilance network analytics approach for predicting adverse drug events,’’ J.
+Amer. Med. Inform. Assoc., vol. 25, no. 10, pp. 1311–1321, 2018, doi:
+10.1093/jamia/ocy097.
+[9] R. Ginn et al., ‘‘Mining Twitter for adverse drug reaction mentions: A corpus and classification benchmark,’’ in Proc. 4th Workshop Building Eval.
+Resour. Health Biomed. Text Process., 2014.
+[10] K. O’Connor, P. Pimpalkhute, A. Nikfarjam, R. Ginn, K. L. Smith, and
+G. Gonzalez, ‘‘Pharmacovigilance on Twitter? Mining tweets for adverse
+drug reactions,’’ in Proc. AMIA Annu. Symp., 2014, pp. 924–933.
+[11] A. Nikfarjam, A. Sarker, K. O’Connor, R. Ginn, and G. Gonzalez, ‘‘Pharmacovigilance from social media: Mining adverse drug reaction mentions
+using sequence labeling with word embedding cluster features,’’ J. Amer.
+Med. Inform. Assoc., vol. 22, no. 3, pp. 671–681, 2015.
+[12] T. Huynh, Y. He, A. Willis, and S. Rüger, ‘‘Adverse drug reaction classification with deep neural networks,’’ in Proc. 26th Int. Conf. Comput.
+Linguistics: Tech. Papers, 2016, pp. 877–887.
+[13] K. Lee et al., ‘‘Adverse drug event detection in tweets with semi-supervised
+convolutional neural networks,’’ in Proc. 26th Int. Conf. World Wide Web,
+2017, pp. 705–714.
+[14] F. Li, Y. Zhang, M. Zhang, and D. Ji, ‘‘Joint models for extracting adverse
+drug events from biomedical text,’’ in Proc. IJCAI, 2016, pp. 2838–2844.
+[15] F. Li, M. Zhang, G. Fu, and D. Ji, ‘‘A neural joint model for entity and
+relation extraction from biomedical text,’’ BMC Bioinf., vol. 18, no. 1,
+p. 198, 2017.
+[16] S. Ramamoorthy and S. Murugan. (2018). ‘‘An attentive sequence model
+for adverse drug event extraction from biomedical text.’’ [Online]. Available: https://arxiv.org/pdf/1801.00625
+[17] S. Kiritchenko, S. M. Mohammad, J. Morin, and B. de Bruijn. (2018).
+‘‘NRC-Canada at SMM4H shared task: Classifying tweets mentioning adverse drug reactions and medication intake.’’ [Online]. Available:
+https://arxiv.org/pdf/1805.04558
+[18] M. Habibi, L. Weber, M. Neves, D. L. Wiegandt, and U. Leser, ‘‘Deep
+learning with word embeddings improves biomedical named entity recognition,’’ Bioinformatics, vol. 33, no. 14, pp. i37–i48, 2017.
+[19] C. D. Santos and B. Zadrozny, ‘‘Learning character-level representations
+for part-of-speech tagging,’’ in Proc. 31st Int. Conf. Mach. Learn. (ICML),
+2014, pp. 1818–1826.
+[20] Z. Huang, W. Xu, and K. Yu. (2015). ‘‘Bidirectional LSTM-CRF
+models for sequence tagging.’’ [Online]. Available: https://arxiv.org/
+pdf/1508.01991
+[21] G. Lample, M. Ballesteros, S. Subramanian, K. Kawakami, and C. Dyer.
+(2016). ‘‘Neural architectures for named entity recognition.’’ [Online].
+Available: https://arxiv.org/pdf/1603.01360
+[22] X. Ma and E. Hovy. (2016). ‘‘End-to-end sequence labeling via
+Bi-directional LSTM-CNNs-CRF.’’ [Online]. Available: https://arxiv.
+org/pdf/1603.01354
+[23] E. Tutubalina and S. Nikolenko, ‘‘Combination of deep recurrent neural networks and conditional random fields for extracting adverse drug
+reactions from user reviews,’’ J. Healthcare Eng., vol. 2017, Sep. 2017,
+Art. no. 9451342.
+[24] S. Wunnava, X. Qin, T. Kakar, E. A. Rundensteiner, and X. Kong, ‘‘Bidirectional LSTM-CRF for adverse drug event tagging in electronic health
+records,’’ in Proc. Mach. Learn. Res., vol. 90, 2018, pp. 48–56.
+[25] B. Dandala, D. Mahajan, and M. Devarakonda, ‘‘IBM research system at
+TAC 2017: Adverse drug reactions extraction from drug labels,’’ in Proc.
+TAC, 2017, pp. 1–9.
+[26] B. Tang, J. Hu, X. Wang, and Q. Chen, ‘‘Recognizing continuous and
+discontinuous adverse drug reaction mentions from social media using
+LSTM-CRF,’’ Wireless Commun. Mobile Comput., vol. 2018, Apr. 2018,
+Art. no. 2379208.
+[27] M.-T. Luong, H. Pham, and C. D. Manning. (2015). ‘‘Effective approaches
+to attention-based neural machine translation.’’ [Online]. Available:
+https://arxiv.org/pdf/1508.04025
+[28] Y. Bengio, R. Ducharme, P. Vincent, and C. Janvin, ‘‘A neural probabilistic
+language model,’’ J. Mach. Learn. Res., vol. 3, pp. 1137–1155, Feb. 2003.
+[29] J. Yang, S. Liang, and Y. Zhang. (2018). ‘‘Design challenges and misconceptions in neural sequence labeling.’’ [Online]. Available: https://arxiv.
+org/pdf/1806.04470
+[30] W. Ling et al. (2015). ‘‘Finding function in form: Compositional character
+models for open vocabulary word representation.’’ [Online]. Available:
+https://arxiv.org/pdf/1508.02096
+73314
+
+[31] M. Ballesteros, C. Dyer, and N. A. Smith. (2015). ‘‘Improved transitionbased parsing by modeling characters instead of words with LSTMs.’’
+[Online]. Available: https://arxiv.org/pdf/1508.00657
+[32] J. Pennington, R. Socher, and C. Manning, ‘‘Glove: Global vectors for
+word representation,’’ in Proc. Conf. Empirical Methods Natural Lang.
+Process. (EMNLP), 2014, pp. 1532–1543.
+[33] M. Rei, G. K. O. Crichton, and S. Pyysalo. (2016). ‘‘Attending to characters in neural sequence labeling models.’’ [Online]. Available: https://
+arxiv.org/pdf/1611.04361
+[34] A. Graves, A.-R. Mohamed, and G. Hinton, ‘‘Speech recognition with deep
+recurrent neural networks,’’ in Proc. IEEE Int. Conf. Acoust., Speech Signal
+Process. (ICASSP), May 2013, pp. 6645–6649.
+[35] T. Mikolov, M. Karafiát, L. Burget, J. Černocký, and S. Khudanpur,
+‘‘Recurrent neural network based language model,’’ in Proc. 11th Annu.
+Conf. Int. Speech Commun. Assoc., 2010, pp. 1045–1048.
+[36] D. Bahdanau, K. Cho, and Y. Bengio. (2014). ‘‘Neural machine translation
+by jointly learning to align and translate.’’ [Online]. Available: https://
+arxiv.org/pdf/1409.0473
+[37] S. Hochreiter and J. Schmidhuber, ‘‘Long short-term memory,’’ Neural
+Comput., vol. 9, no. 8, pp. 1735–1780, 1997.
+[38] J. Chung, C. Gulcehre, K. Cho, and Y. Bengio. (2014). ‘‘Empirical evaluation of gated recurrent neural networks on sequence modeling.’’ [Online].
+Available: https://arxiv.org/pdf/1412.3555
+[39] D. Bahdanau, K. Cho, and Y. Bengio. (2014). ‘‘Neural machine translation by jointly learning to align and translate.’’ [Online]. Available:
+https://arxiv.org/pdf/1409.0473
+[40] C. Szegedy et al., ‘‘Going deeper with convolutions,’’ in Proc. IEEE Conf.
+Comput. Vis. Pattern Recognit., Jun. 2015, pp. 1–9.
+[41] J. Long, E. Shelhamer, and T. Darrell, ‘‘Fully convolutional networks
+for semantic segmentation,’’ in Proc. IEEE Conf. Comput. Vis. Pattern
+Recognit., Jun. 2015, pp. 3431–3440.
+[42] H. Gurulingappa, A. M. Rajput, A. Roberts, J. Fluck, M. Hofmann-Apitius,
+and L. Toldo, ‘‘Development of a benchmark corpus to support the automatic extraction of drug-related adverse effects from medical case reports,’’
+J. Biomed. Inform., vol. 45, no. 5, pp. 885–892, Oct. 2012.
+[43] M. Abadi et al., ‘‘TensorFlow: A system for large-scale machine learning,’’
+in Proc. OSDI, vol. 16, 2016, pp. 265–283.
+[44] P. J. Werbos, ‘‘Backpropagation through time: What it does and how to do
+it,’’ Proc. IEEE, vol. 78, no. 10, pp. 1550–1560, Oct. 1990.
+[45] N. Srivastava, G. Hinton, A. Krizhevsky, I. Sutskever, and
+R. Salakhutdinov, ‘‘Dropout: A simple way to prevent neural networks
+from overfitting,’’ J. Mach. Learn. Res., vol. 15, no. 1, pp. 1929–1958,
+2014.
+[46] D. P. Kingma and J. Ba. (2014). ‘‘Adam: A method for stochastic optimization.’’ [Online]. Available: https://arxiv.org/pdf/1412.6980
+[47] F. Godin, B. Vandersmissen, W. de Neve, and R. van de Walle, ‘‘Multimedia lab ACL WNUT NER shared task: Named entity recognition for Twitter
+microposts using distributed word representations,’’ in Proc. Workshop
+Noisy User-Generated Text, 2015, pp. 146–153.
+
+PENG DING received the B.E. degree from the
+Jiangsu University of Science and Technology,
+China, in 2016. He is currently pursuing the master’s degree with the School of Information Science and Engineering, Yunnan University, China.
+His research interests include machine learning,
+deep learning, and natural language processing.
+
+XIAOBING ZHOU received the Ph.D. degree
+in computer software and theory from the University of Electronic Science and Technology of
+China in 2008. He is currently a Professor with
+the School of Information Science and Engineering, Yunnan University, China. His research interests include machine learning, deep learning, and
+nonlinear dynamics.
+
+VOLUME 6, 2018
+
+P. Ding et al.: Attentive Neural Sequence Labeling Model for ADRs Mentions Extraction
+
+XUEJIE ZHANG received the Ph.D. degree in
+computer science and engineering from The
+Chinese University of Hong Kong in 1998. He is
+currently a Professor with the School of Information Science and Engineering and the Director of
+the High Performance Computing Center, Yunnan
+University, China. His research interests include
+machine learning, high-performance computing,
+cloud computing, and big data analytic.
+
+ZHENFENG LEI received the B.S. degree in
+computer science from Zhengzhou University
+in 2015 and the M.A.Eng. degree (Hons.) in computer science from Yunnan University in 2017.
+He is currently pursuing the Ph.D. degree with
+the School of Information Science and Engineering, Xiamen University, Xiamen, China. He had
+special insights in the field of protein sub-cellular
+localization. His current research interests include
+data mining and deep learning techniques, knowledge graph, and recommended system. He received the First Prize of the
+China Graduate Contest on Application, Design and Innovation of Mobile
+Terminal, which held at Xiamen University in 2018.
+
+JIN WANG received the Ph.D. degree in computer science and engineering from Yuan Ze University and the Ph.D. degree in communication
+and information systems from Yunnan University.
+He is currently a Lecturer with the School of Information Science and Engineering, Yunnan University, China. His research interests include artificial
+intelligence and natural language processing.
+
+VOLUME 6, 2018
+
+73315
+
+

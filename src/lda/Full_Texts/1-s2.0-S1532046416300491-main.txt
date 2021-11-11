@@ -1,0 +1,1407 @@
+Journal of Biomedical Informatics 62 (2016) 78–89
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+A new algorithmic approach for the extraction of temporal associations
+from clinical narratives with an application to medical product safety
+surveillance reports
+Wei Wang a, Kory Kreimeyer b, Emily Jane Woo b, Robert Ball c, Matthew Foster b, Abhishek Pandey b,
+John Scott b, Taxiarchis Botsis b,⇑
+a
+
+Engility Corporation, Chantilly, VA, United States
+Office of Biostatistics and Epidemiology, Center for Biologics Evaluation and Research, US Food and Drug Administration, Silver Spring, MD, United States
+c
+Office of Surveillance and Epidemiology, Center for Drug Evaluation and Research, US Food and Drug Administration, Silver Spring, MD, United States
+b
+
+a r t i c l e
+
+i n f o
+
+Article history:
+Received 14 January 2016
+Revised 11 June 2016
+Accepted 17 June 2016
+Available online 17 June 2016
+Keywords:
+Natural language processing
+Post-marketing surveillance
+Temporal information
+
+a b s t r a c t
+The sheer volume of textual information that needs to be reviewed and analyzed in many clinical settings
+requires the automated retrieval of key clinical and temporal information. The existing natural language
+processing systems are often challenged by the low quality of clinical texts and do not demonstrate the
+required performance. In this study, we focus on medical product safety report narratives and investigate
+the association of the clinical events with appropriate time information. We developed a novel algorithm
+for tagging and extracting temporal information from the narratives, and associating it with related
+events. The proposed algorithm minimizes the performance dependency on text quality by relying only
+on shallow syntactic information and primitive properties of the extracted event and time entities. We
+demonstrated the effectiveness of the proposed algorithm by evaluating its tagging and time assignment
+capabilities on 140 randomly selected reports from the US Vaccine Adverse Event Reporting System
+(VAERS) and the FDA (Food and Drug Administration) Adverse Event Reporting System (FAERS). We compared the performance of our tagger with the SUTime and HeidelTime taggers, and our algorithm’s eventtime associations with the Temporal Awareness and Reasoning Systems for Question Interpretation
+(TARSQI). We further evaluated the ability of our algorithm to correctly identify the time information
+for the events in the 2012 Informatics for Integrating Biology and the Bedside (i2b2) Challenge corpus.
+For the time tagging task, our algorithm performed better than the SUTime and the HeidelTime taggers
+(F-measure in VAERS and FAERS: Our algorithm: 0.86 and 0.88, SUTime: 0.77 and 0.74, and HeidelTime
+0.75 and 0.42, respectively). In the event-time association task, our algorithm assigned an inappropriate
+timestamp for 25% of the events, while the TARSQI toolkit demonstrated a considerably lower performance, assigning inappropriate timestamps in 61.5% of the same events. Our algorithm also supported
+the correct calculation of 69% of the event relations to the section time in the i2b2 testing set.
+Published by Elsevier Inc.
+
+1. Introduction
+The development of Natural Language Processing (NLP) systems
+for clinical texts has focused primarily on the extraction of clinical
+events and, secondarily, on their association with temporal information. The latter was specifically tackled in the 2012 Informatics
+for Integrating Biology and the Bedside (i2b2) Shared-Task and
+Workshop on Challenges in Natural Language Processing for
+⇑ Corresponding author at: Office of Biostatistics and Epidemiology, Center for
+Biologics Evaluation and Research, FDA, 10903 New Hampshire Ave, WO71 – 1233,
+Silver Spring, MD 20993-0002, United States.
+E-mail address: Taxiarchis.Botsis@fda.hhs.gov (T. Botsis).
+http://dx.doi.org/10.1016/j.jbi.2016.06.006
+1532-0464/Published by Elsevier Inc.
+
+Clinical Data, where participants were invited to develop systems
+for processing temporal relations in clinical records. According to
+Uzuner et al., ‘‘the 2012 i2b2 Challenge systems only scratched
+the surface in this task” and ‘‘open questions remain about the
+applicability of the developed systems for real life practical
+questions” [1].
+The US Vaccine Adverse Event Reporting System (VAERS) is a
+Spontaneous Reporting System (SRS) that collects safety reports
+for adverse events (AEs) following immunization for vaccines
+licensed for use in the United States [2]. The US FDA (Food and
+Drug Administration) Adverse Event Reporting System (FAERS)
+is a database that contains information on adverse event and
+medication error reports submitted to FDA [3]. Reports submitted
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+to the FDA from manufacturers, health care providers, and the
+public include AE narratives of varying length and text quality.
+They also provide a good example of real-life data that would
+benefit from NLP applications. Spontaneous post-marketing
+reports may provide early evidence of new and unexpected AEs
+that were not identified during premarketing clinical trials. As
+of April 2015, the VAERS contains more than 500,000 reports of
+AEs following immunization, and the FAERS contains more than
+10 million reports of AEs after drug exposure.1 Duggirala et al.
+estimated that VAERS and FAERS receive 35–40,000 and 770,000
+reports per year, respectively, and this number is expected to grow
+[4]. The volume of textual information in these surveillance databases points to the need for NLP approaches to retrieve the key
+clinical and temporal information to aid medical and epidemiological review.
+Many systems have been developed to respond to particular
+challenges requiring the processing of temporal information in
+clinical texts [5]. Rule-based, machine learning (ML), and hybrid
+systems have been developed to detect temporal relations [6–
+11]. Rule-based approaches primarily use domain-specific handcrafted rules that require a great amount of human effort to
+develop and lack portability to other domains [12]. ML approaches
+learn from annotated data sets and therefore performance often
+decreases when transferring a ML-based system from one domain
+to another [12]. In both approaches, temporal information extraction algorithms typically rely on grammatical and syntactical attributes, such as part-of-speech (POS) tags, event modalities, and
+tenses. For example, the baseline system used by D’Souza et al.
+relied on 40 grammatical features, 10 entity attributes and 7
+semantic features [7]. The extraction of these attributes is problematic in low quality texts (poor grammar, many abbreviations,
+etc.), as found in many clinical narratives (VAERS and FAERS
+reports often fall into this category), and will considerably affect
+the performance of systems that rely on these attributes. It is
+therefore necessary to develop strategies with less dependency
+on the text quality.
+Previous studies attempted to address the shortcomings in clinical time extraction using the Time Markup Language (TimeML)
+specification as the starting point [13]. Notable exceptions include
+the work of Zhou et al. on a Simple Temporal Problem Approach
+[14], and the Clinical Narrative Temporal Relation Ontology, which
+has been developed as a Web Ontology Language [15]. Additionally, Raghavan et al. have shown that a good deal of temporal information can be captured into useful timelines simply by assigning
+events into coarse time-bins [16]. However, it is the TimeMLbased approaches that have remained popular in recent years.
+The THYME project is a large effort to both define a TimeMLbased markup for clinical text and create a useful corpus of temporally marked-up electronic health record data using the TimeML
+specification [17]. A portion of the THYME corpus was recently
+used for the Clinical TempEval task at SemEval 2015. The participating teams were able to extract event and time features with
+high reliability, but the mapping of temporal relations suffered
+from poorer performance [18]. The 2012 i2b2 Challenge also
+focused on the temporal relations in clinical narratives and the
+eighteen teams that participated in the competition achieved
+encouraging performance [19,20]. After both challenges, Lin et al.
+evaluated their own multilayered temporal system against TempEval’s THYME dataset and the i2b2 corpus and found superior performance; however, they still struggled with temporal mappings
+for long-distance relationships, such as cross-sentence relations
+[21].
+
+1
+US VAERS and FAERS contained 526,991 and 10,146,489 reports, respectively, on
+5/01/2015 (11:00 am).
+
+79
+
+We previously developed and evaluated a text mining system
+for the extraction of clinical features from VAERS reports [22,23].
+The next generation of this system, the Event-based Text-mining
+of Health Electronic Records (ETHER), has been equipped with
+new functionalities and expanded to process FAERS reports. ETHER
+includes a novel rule-based algorithm that extracts temporal information and assigns it to the ETHER clinical features (or events). It
+consists of a time expression tagger and a module to assign the
+appropriate time to events. Our time tagger identifies a broad
+range of time expression patterns. The key contribution of our
+algorithm is its minimal dependency on text quality when extracting temporal associations from the narrative. In our approach both
+the event and time entities are characterized by their primitive
+properties only and no additional syntactic information, such as
+POS and tense, is required. Instead, properties like the text location
+of each event or time entity are used to support the identification
+of temporal associations. We particularly construct time impact
+zones for evaluating the time flow and organizing the temporal
+information within a narrative. The core algorithm attempts to
+assign a timestamp to all events with certain exceptions defined
+through secondary rules. These rules are domain-specific and support certain needs, e.g. the secondary rules in this work have been
+tailored for safety surveillance reports. These domain-specific rules
+are all incorporated in the preprocessing stage and act independently of the core algorithm. Therefore, the core algorithm can be
+potentially incorporated into any other NLP system and assign
+timestamps to completely different types of events in a different
+application. We here describe our algorithm, compare it with existing systems using a set of VAERS and FAERS reports, and evaluate
+its applicability to other settings using the 2012 i2b2 Challenge
+corpus [19,20].
+
+2. Methodology
+Temporal information extraction consists of the following subtasks: (1) event extraction; (2) time expression tagging; and (3)
+association of events and temporal information.
+
+2.1. Event extraction
+The event extraction process can vary significantly between different systems, depending on how an ‘‘event” is defined. For example, the organizers of the 2012 i2b2 Challenge defined four types of
+clinically relevant events: clinical concepts, clinical departments,
+evidentials, and occurrences [19]. In contrast, many systems define
+events as verbs and event extraction is based on verb features such
+as class, tense, aspect, and polarity. For example, Jung et al. focused
+on verbs and verb features for event extraction and then linked
+them to clinical concepts to construct a timeline [24]. In this study,
+we define events as ETHER clinical features, which are described
+below.
+Our software, ETHER, extracts certain clinical features: (i) primary diagnostic features: primary diagnosis and cause of death;
+(ii) secondary diagnostic features: secondary diagnosis, rule-out
+diagnosis, and symptoms; (iii) causal assessment features: time to
+the onset of the first symptom(s) following exposure to a product,
+family and medical history; and (iv) exposure-related features: vaccine and drug names [23]. These clinical features will play the role
+of events and will be associated with time information that is captured and calculated by our time algorithm. A detailed description
+of the extraction of clinical features can be found in [23]. This
+paper focuses on the time expression tagging and the association
+of events and temporal information only.
+
+80
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+2.2. Time expression tagging
+TimeML is a widely used standard and was developed based on
+the TIDES (Translingual Information Detection, Extraction, and
+Summarization) standard to capture events, relationships between
+events and temporal expressions, and relationships between two
+events [25–28].
+HeidelTime [26], SUTime [29] and USFD2 [30] TimeML taggers
+are rule-based systems that can successfully process high quality
+texts. Both HeidelTime and SUTime were used in previous challenges to support the extraction of temporal information from clinical texts [8,31–33]. Time expressions in high quality texts usually
+appear in standardized formats, such as ‘‘2013–02–12”,
+‘‘2/12/2013”, ‘‘Feb. 12, 2013”, and ‘‘5 days”. In contrast, clinical documents contain non-standardized time expressions, many of which
+cannot be efficiently captured by the existing taggers, as demonstrated in our first evaluation (see Sections 2.3 and 3.1). The following nonstandard time expressions are often found in VAERS and
+FAERS but are not currently recognized by the existing taggers:
+ Various dates and interval formats:
+‘‘02APR13”, ‘‘??–Aug–2013”, ‘‘4/2–5/13”, and ‘‘4/2–
+5/3/2013”.
+ Incomplete dates:
+‘‘Feb. 2013”, ‘‘Feb. 12”, ‘‘Feb. 12”, ‘‘3–Sep.”, ‘‘3/12”, and ‘‘3/5”.
+ Abbreviations and their combinations with numerical values:
+‘‘2 wks”, ‘‘1 1/2 wk”, and ‘‘1 wk”.
+In order to recognize these nonstandard time expressions, we
+examined the USFD2 tagger and expanded its time tagging capabilities through the addition of multiple regular expression (regex)
+patterns. The addition of these regex patterns allows our tagger
+to identify time expressions that cannot be captured by either
+USFD2 or other taggers.
+We define and capture the following types of time expressions:
+ Absolute date-time (Date) – an absolute time point with date
+and time (hours and minutes). For simplicity reasons, we tag
+the date part only since the actual time information is relatively
+rare in VAERS and FAERS reports.
+ Age – an expression like ‘‘<three days> old”.
+ Relative time (Relative) – a time span for specifying the time point
+based on a time reference, e.g. ‘‘<three days> after 02APR13”.
+ Duration – a time span for specifying a time interval, e.g. ‘‘for
+<three days> after 02APR13”.
+ Frequency – an expression like ‘‘every <three days>”.
+The type of a time expression is primarily determined based on
+its string pattern, however the neighboring words will play an
+important role. The rules for assigning each type in our system
+are as follows:
+ Date – if a time string does NOT contain time intervals such as
+‘‘day”, ‘‘month”, ‘‘year”, ‘‘hours”, etc.
+ Age – if a time string is followed by ‘‘old”, ‘‘of age”, ‘‘y/o”, or ‘‘yo”.
+ Relative– if the time string:
+s is adjacent to relative signal words, such as ‘‘before”, ‘‘after”,
+‘‘prior”, ‘‘later”, ‘‘earlier”, ‘‘post”, ‘‘ago”, ‘‘next”, and
+‘‘following”.
+s contains words like ‘‘same”, ‘‘time”, ‘‘morning”, ‘‘evening”, as
+well as weekdays such as: ‘‘Sunday”, and ‘‘Monday”.
+ Duration – if the time string follows words like ‘‘for”, ‘‘over”,
+‘‘lasting”, and ‘‘within”.
+ Frequency – if the time string follows words like ‘‘every” or ‘‘per”.
+
+For the normalization of time expressions of the ‘‘Date” type,
+we developed a complementary Date parser to use in combination with the parser from the Python ‘‘dateutil” module. This
+complementary parser contains a number of customized regex
+patterns for the calculation of dates that do not fit any of the
+existing regex patterns. A time string is first passed to the
+built-in parser; if it fails to return a valid date-time, the complementary parser is called.
+2.3. Association of events and temporal information
+We built an algorithmic approach (Fig. 1) for the extraction of
+temporal information and the construction of the timeline with
+minimum dependency on text quality, the type of text, and domain
+knowledge. Most machine learning and rule-based algorithms
+require grammatical (such as POS tagging and modality) features
+to perform these tasks, and the extraction of this information is
+problematic in low quality texts. Our algorithm minimizes the
+dependency on the text quality by solely relying on the primitive
+properties of Event, Timex and Time Signal (see below). Fig. 1
+shows the main components of our algorithm. An event is first
+associated with a Timex, if applicable. If the Timex is associated
+with an absolute date, the event is stamped with this time directly.
+If the Timex is associated with a relative time, it is first evaluated
+for potential recalculation of the time zone and then the appropriate timestamp is assigned to the event. For those events that cannot be associated with any Timex, they may be assigned with a
+time based on the context.
+2.3.1. Definitions
+In our study, each ETHER feature is treated as an Event and has
+the following two properties:
+ Text location: the start and end position of the event string
+(ETHER feature text) in the text.
+ Type: ETHER feature type.
+We borrowed the term ‘‘Timex” from TimeML to specify a time
+entity. It has the following properties:
+ Text location: the start and end position of the time string in the
+text based on the character offsets.
+ Type: datetime, relative, duration, age, and frequency.
+ Value: normalized date or interval (can be blank).
+ Role: determines how the Timex value is used in timeline construction. Possible values are: NORMAL by default, IGNORE,
+SKIP, or blank.
+Only ‘‘Text location” and ‘‘Type” are mandatory properties for
+defining a Timex.
+A time signal is a time conjunction and has a single property:
+ Time Signal: specifies the relation (‘‘before”, ‘‘after”, or ‘‘equal”)
+of the time expression to its reference. The reference can be an
+Event anchor (see Section 2.3.3 about Event anchors) or an
+absolute time statement from the neighboring time zone. For
+example, in the statement ‘‘3 days after vaccination”, ‘‘3 days”
+is the time expression, ‘‘vaccination” is the Event anchor
+already linked to a certain date, and ‘‘after” is the time signal
+that supports the calculation of the ‘‘new date” based on the
+‘‘vaccination date” (‘‘new date” = ‘‘vaccination date” + ‘‘3 days”).
+The ‘‘new date” stamps the Event(s) that belong to time impact
+zone.
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+81
+
+Fig. 1. Algorithm for the extraction of temporal associations. Events and Timexes are first extracted independently. Domain specific rules such as the exception for ‘‘received
+date” are incorporated by specifying the role of a Timex in the Timex preprocessing module. The role of the sentence is specified in the Sentence labelling module. Each Event
+is assigned a Timex in the Event-Timex association module and if a Timex is not found, a blank value is assigned. The time impact zones are created based on Timexes with an
+absolute date and will be updated whenever a relative time is calculated. In the Relative time evaluation module, all relative times are calculated. An Event anchor is
+associated with an absolute date and is calculated before the relative time evaluation step. In the Final event scan module, if an Event that has not been timestamped belongs
+to a time impact zone, it will be assigned the time of this time zone. The output is the events with their timestamps.
+
+Note that all the properties are primitive for the characterization of the entities and no additional syntactic or grammatical
+information is required.
+2.3.2. Association of events with Timexes
+Events and Timexes are initially extracted from the text independently (Fig. 1) and then linked based on the ground rules
+shown in Fig. 2. All the Timex types (excluding the ‘‘age” type)
+can be linked to an Event. It should be noted though that a Timex
+might not be linked to any Event, e.g. when no Event appears in the
+same sentence with a tagged Timex.
+The following are some examples that demonstrate the application of the ground rules. We use [] to denote Event, and <> for the
+Timex; we also underline the Event anchors (see Section 2.3.3
+about Event anchors). The association between an Event and a
+Timex is denoted by [Event] @ <Timex>.
+ Patient received [VACCINE A] on <3/5/2012>.
+[VACCINE A] @ <3/5/2012>. Rule #1 is applied.
+ Patient had a [rash] <3 days> after vaccination.
+[rash] @ <3 days>. Rule #1 is applied.
+ Patient had a [rash] and a [low-grade fever] <3 days> after
+vaccination.
+ {[rash], [low-grade fever]} @ <3 days>. [rash] and [low-grade
+fever] form an Event bundle. Rule 2 is applied.
+ Patient received his [VACCINE C] vaccinations on <3/2/2003>,
+<12/30/2004>, <11/26/2007>, [VACCINE D] on <2/19/2010>, and
+[VACCINE E] on <10/16/2010>.
+[VACCINE C] @ {<3/2/2003>, <12/30/2004>, <11/26/2007>}. Rule
+4b is applied to form a Timex bundle;
+[VACCINE D] @ <2/19/2010>. Rule 4c is applied to assign
+<2/19/2010> to [VACCINE D] instead of assigning <11/26/2007>;
+[VACCINE E] @ <10/16/2010>. Rule 4c is applied to assign
+
+[VACCINE F] would normally be assigned the Timex <10-AUG2009> (under Rule #1). This is an incorrect assignment though
+since the time of [VACCINE F] is probably not related to the date
+a report was received and should be considered as unknown. To
+address this problem, we added the following secondary rule:
+the first date in a sentence will be labeled as ‘‘IGNORE” if the sentence contains the word ‘‘received” or ‘‘obtained” and any of the
+following words: ‘‘report”, ‘‘information”, ‘‘case”, or ‘‘summary”.
+Another secondary rule was created for product expiration dates.
+In the following text: ‘‘Patient took Clindamycin (expiry date
+1/1/2013) on 6/24/2012”; the expiration date of the vaccine would
+be ignored during timeline construction. It should be noted that
+the dates in sentences with a medical or family history Event will
+be labeled with the ‘‘SKIP” tag and will not contribute to the timeline construction. This is the difference between ‘‘IGNORE” and
+‘‘SKIP”: the former ends a time impact zone, while the latter does
+not affect it.
+It is worth mentioning that the ground rules in Fig. 2 are all generic rules and not domain-specific. These exceptions, however, are
+domain-specific, but they are applied during the preprocessing
+step prior to the application of the main rules. We therefore argue
+that the core of our algorithm can be customized to other settings
+and used for other texts.
+2.3.3. Evaluation of relative time expressions
+In the Event-Timex Association step in Fig. 1, an Event can be
+stamped with either an absolute date or a relative time expression
+such as ‘‘3 days later” or ‘‘3 days after vaccination”. To evaluate
+these relative time expressions, the algorithm first finds the time
+reference for the relative expression and then calculates its absolute time based on its time reference and relative value.
+Consider the following examples in which ‘‘3 days” is the relative time expression and will be used by the algorithm for the corresponding calculations:
+
+<10/16/2010> to [VACCINE E] instead of assigning <2/19/2010>.
+In addition to the ground rules shown in Fig. 2, we incorporated
+secondary rules for our application-specific scenarios. For example,
+the date a VAERS or FAERS report is received is often stated in the
+beginning of the narrative, which may differ from the date of product administration and cause errors for the Events mentioned in
+the same place. For example, in the sentence:
+‘‘Information was received on <10-AUG-2009> concerning an 8
+year old female vaccinated with [VACCINE F] in the left arm.”
+
+(i) Patient received [VACCINE] on <10/16/2012>, and he had a
+fever <3 days> later.
+(ii) Patient received [VACCINE] on <10/16/2012>. He had a fever
+<3 days> later.
+(iii) Patient received [VACCINE] on <10/16/2012>, and he had a
+fever <3 days> after vaccination.
+In (i), the reference time is ‘‘10/16/2012”, which is located
+before the relative time ‘‘3 days”;
+
+82
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+Fig. 2. Ground rules for Event-Timex association. Distance (Rules 3, 4c) is used to compare the closeness of one or two Timexes to a given Event. It is first measured by the
+number of semicolons and instances of the word ‘‘and” between two positions. If these numbers are equal, the number of commas is used as the next parameter. If these
+numbers are also equal, the number of words between the Timex and the Event is the final parameter.
+
+In (ii), the reference time appears in the previous sentence;
+In (iii), the reference time, represented by ‘‘vaccination”, is
+located after the relative time.
+The search for the reference time occurs within the sentence. As
+shown in Fig. 3, we use a set of regex patterns to determine the
+search direction.
+The three Backward patterns depict cases where the search for
+the time reference should proceed backwards starting from the
+location of the relative time. The key for these patterns is the existence of the relative time or time signal at the end of a sentence.
+The two Forward patterns depict cases in which the search for
+the time reference should proceed forward in the sentence from
+the location of the relative time string. The search for a time reference will stop when:
+1. an absolute date is found (example (i), using a Backward
+search); or
+2. the beginning or the end of a sentence is reached in the Backward or the Forward, respectively, search (example (ii), using a
+Backward search); or
+3. an Event anchor is found (example (iii), using a Forward
+search).
+An Event anchor (underlined in all the previous and following
+examples) is an Event from a predefined set of key Events that
+have been assigned an absolute time. The key Events we defined
+for safety reports were: (a) ‘‘vaccination” with all the term variations, such as ‘‘vaccinated” and ‘‘vaccinations”; (b) ‘‘hospitalization” and all the term variations, such as ‘‘hospitalized”, plus
+‘‘admission” and its term variations, such as ‘‘admitted”; and (c)
+the ‘‘DRUG” and ‘‘VACCINE” ETHER features. In example (iii) above,
+after ‘‘VACCINE” is associated with the absolute time ‘‘10/16/2012”,
+two Event anchors (use of ‘‘VACCINE” and ‘‘vaccination”) are created on ‘‘10/16/2012”. Thus, when the reference time of ‘‘vaccination” is found, the algorithm immediately recognizes that the time
+of vaccination refers to ‘‘10/16/2012”. The neighboring Events will
+also receive the same date but the timeline will not be affected.
+Event anchors are specified by a set of tags and therefore the algorithm can be customized using any appropriate tags of interest.
+In example (ii) above, the Backward search for the reference
+time terminates at the sentence boundary without finding a time
+reference. In this case, the relative time ‘‘3 days” will need to be
+
+evaluated in the time impact zones step of Fig. 1. We define the
+time impact zone as the text segment between an absolute Timex
+(or a calculated relative Timex) and the next valid Timex. The time
+impact zone describes the influence range of a time expression in
+the narrative and is represented by the triplet: {t, start, end}, where
+t is an absolute date, and start and end are integers specifying the
+start and end location of the time zone based on the character offsets. Once a time is directly captured or calculated, it will stamp
+any Event without an assigned Timex until another time is captured or calculated, or until the narrative ends. Time impact zones
+can extend across multiple sentences if they do not contain any
+evaluable time expressions.
+Fig. 4 shows an example of the creation and usage of a time
+impact zone. It should be noted that time continuity may be broken in the narrative. For example, in the following text:
+Patient received [VACCINE] on <10/16/2012>. He had a [fever] on
+an unknown date. He also experienced [chest pain].
+the time impact zone of ‘‘2012–10–16” ends when the ‘‘unknown date” string is found. In this case ‘‘fever” and ‘‘chest pain”
+will receive a blank timestamp. The same rule is applied when a
+sentence contains tags like <Hospitalization> and <Administration> that break the time line. These are some of the specific tags
+used for our application. They cause the algorithm to label these
+sentences as IGNORE in the preprocessing stage.
+In the final step of the algorithm, for an event that is not associated with any Timex, it will be assigned with the absolute time of
+the time impact zone it belongs to. Considering the discontinuity of
+time impact zones, an event may not belong to any zones, and its
+time will be set unknown in this scenario.
+The entire time association process of the algorithm relies only
+on primitive properties of the event and time entities, i.e., their
+location and type. Although shallow syntactic information is
+extracted in the search for time references, the associations are
+mainly determined by the relative locations of the Timex and Time
+Signals, which are rather insensitive to text quality. In addition, the
+domain-specific knowledge required for processing the safety
+reports is applied during the preprocessing step prior to the application of the core algorithm (see Fig. 1). We therefore argue that
+our algorithm can be customized to other settings and applied to
+other domains.
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+83
+
+Fig. 3. The list of regular expression patterns that determine the search direction for the time reference. The three Backward patterns depict three cases where the time
+reference should be searched backwards starting from the location of the relative time. The key in these patterns is the existence of the relative time or time signal at the end
+of the sentence. The Forward patterns depict cases where the reference should be searched in the sentence after the location of the relative time string.
+
+Fig. 4. Example of creation and usage of time impact zone. The time impact zones are constructed as follows: (i) the absolute Timex <10/16/2012> is found and its impact
+zone is created that affects the next sentences; (ii) the relative Timex <3 days> is found and the time reference is searched backwards; (iii) the search stops at ‘‘2012–10–16”
+and this date is combined with ‘‘3 days” to calculate the starting point (‘‘2012–10–19”) of the new impact zone; (iv) the impact zone of ‘‘2012–10–16” is restricted to {, He had
+a fever}, and the new impact zone of ‘‘2012–10–19” affects the remaining text. The Event [chest pain] will not be associated with any Timex since none exists in the same
+sentence; it will be stamped with the time impact zone date, i.e. the ‘‘2012–10–19” stamp. The Event [fever] will not be stamped with ‘‘2012–10–16” since Timex <3 days>
+exists in the same sentence and supports the calculation of ‘‘2012–10–19”; the latter will timestamp ‘‘fever”.
+
+2.4. Algorithm evaluation
+Through a modified random selection process we selected a
+total of 100 VAERS reports and 40 FAERS reports. Using submission
+identifiers, we weighted the data to ensure adequate representation of AEs reported by a manufacturer (55 VAERS and 20 FAERS)
+or a health care provider (45 VAERS and 20 FAERS), because reports
+from these sources tend to be more detailed and complete and follow a similar structure. We applied random selection to all VAERS
+and FAERS reports that fulfilled the following criteria: (i) contained
+more than 1500 characters in the AE description; (ii) were received
+by 12/31/2014; and (iii) belonged to one of the above reporting
+sources (based on submission identifiers). The sample size was
+determined by the selection of 1000 timestamps (actual and blank
+dates or intervals assigned to each Event) for each of the four conditions (2  2: manufacturer and health provider reporting sources
+for VAERS and FAERS) to achieve a 95% confidence interval of width
+approximately equal to 5% (sample proportion ±2.5%). VAERS
+reports are generally shorter than FAERS reports, requiring us to
+include a larger sample of VAERS than FAERS reports to attain
+1000 timestamps for each of the four conditions in our experiment.
+The tagging and time assignment capabilities of our algorithm
+were evaluated in two rounds using two dedicated modules that
+were developed for this purpose and are described in the Supplementary Material.
+In the first evaluation, two pharmacologists (MF and AP)
+received some basic guidance about tagging and then annotated
+the reports by tagging time expressions using one of the following
+tags: date, duration, weekday, frequency, relative, age, or time.
+Even though ‘‘weekdays” is grouped under the ‘‘relative” Timex
+entity type, and ‘‘date” and ‘‘time” under the ‘‘datetime” Timex
+entity type in our algorithm, we elected to tag them separately;
+aiming at higher granularity and the potential use of the annotated
+texts in future studies. To perform the tagging, the annotators
+imported the 140 reports into a time annotation module that
+was developed as part of the ETHER system to support this evaluation. The module included a viewer for the report narrative and
+supported the selection and tagging of time expressions (see
+
+Supplementary Material). An adjudicator (KK) evaluated their
+annotations, resolved their disagreements, and generated a reference standard using the same module. For the Inter-Annotator
+Agreement (IAA), we used average recall and precision, as previously described by Sun et al. [19]. This involved using one annotator’s results as a standard to calculate the recall and precision of
+the second annotator’s results, and vice versa; the recall and precision of both annotators were then averaged to evaluate IAA. We
+subsequently examined the time tagging capabilities of our algorithm, as well as two other time tagging tools: SUTime (version
+1.3.3) and HeidelTime (version 1.9), against the reference standard.
+SUTime and HeidelTime are each based on the TimeML standard
+markup language for time tagging but include unique algorithms
+and normalization processes. For the comparison of the three taggers with the reference standard, we evaluated Exact Matching,
+and Type-insensitive Matching using the standard metrics of
+recall, precision and F measure. In Exact Matching, time expressions had to capture the same relevant text and be assigned the
+same type to be considered as true positives. In Type-insensitive
+Matching, time expressions could have differing types as long as
+their text spans were consistent. We focused on the date, duration,
+relative, time, and frequency expressions and excluded age expressions as these are not part of TimeML and were not tagged by
+SUTime and HeidelTime.
+The second evaluation was performed by two experienced medical reviewers (RB and EJW) who determined the following types of
+associations between Events and timestamps:
+ Full match (FM): correct date OR correct interval OR correctly
+assigned blank date (i.e. no date was supplied by the algorithm,
+and could not be deduced from the narrative either) to an Event.
+ Partial match (PM): partially captured interval OR partially captured date.
+ Mismatch (MM): wrong date OR wrong interval OR incorrectly
+assigned blank date/interval to an Event (no date was supplied
+by the algorithm, but could be deduced from the narrative) OR
+date/interval assignment to an Event that should appear with a
+blank date/interval entry.
+
+84
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+These reviewers also provided comments and, in most cases,
+the expected timestamp (actual or blank date/interval) for the
+MM and the PM cases. An event-timestamp association module
+was developed in ETHER to: (i) visualize the narratives and the
+Events with associated timestamps as extracted by ETHER and
+(ii) support the review of the associations and the recording of
+reviewers’ comments (see Supplementary Material). The medical
+reviewers used their expertise and no strict guidelines were provided: they were allowed to use their medical judgement for identifying the appropriate event-timestamp associations. An
+adjudicator (TB) used the same module to resolve any disagreements and construct the gold standard with the expected timestamps for each of the Events. The Inter-Reviewer Agreement
+(IRA) was calculated as percentages of the Event-time associations
+the two reviewers labeled the same (FMs vs. FMs, PMs vs. PMs, and
+MMs vs. MMs) or differently (FMs vs. PMs, FMs vs. MMs, and PMs
+vs. MMs). Based on the adjudicated FMs, MMs, and PMs, we further
+calculated:
+1. Recall, precision and F-measure for the assignment of actual
+(true positives) or blank (true negatives) dates and intervals
+by the algorithm versus the adjudicated findings;
+2. FM, PM, and MM ratios.
+The first set of metrics (recall, precision and F-measure) indicated the algorithm’s ability to assign any date or interval value
+when expected to do so but did not offer any indication on the correct assignment of a date or interval. To evaluate the latter, we calculated the FM, PM, and MM ratios and subsequently carried out a
+qualitative error analysis of the MMs and PMs. We specified four
+error types to label cases in which a date or interval was not associated, incorrectly associated, or partially associated with an Event
+(errors were calculated per Event):
+a. Tagging error: not captured, incorrectly captured, or partially captured.
+b. Assignment error: appropriately captured but was not
+assigned, incorrectly assigned, or partially assigned.
+c. Calculation error: not calculated, incorrectly calculated, or
+partially calculated.
+d. Context-related error: not assigned, incorrectly assigned, or
+partially assigned because it was too context-dependent.
+The gold standard from the second evaluation was subsequently used to evaluate the performance of the TARSQI Toolkit,
+version 1.0, in terms of assigning the appropriate timestamps to
+the extracted ETHER features, i.e. our Events. The TARSQI Toolkit
+integrates extraction of events and time expressions with creation
+of temporal links based on the TimeML language [28]. The ETHER
+features acted as TARSQI events, and TARSQI created the temporal
+links and assigned the date stamps to the events. To support this
+task, we normalized the time expressions according to the ISO date
+and time format. We then compared the TARSQI timestamps with
+the ones in the gold standard and calculated the FM, PM, and MM
+ratios. This part of the analysis supported the side-by-side comparison with the corresponding performance of our algorithm.
+2.5. Algorithm application to the 2012 i2b2 Challenge corpus
+To evaluate the generalizability of the proposed approach, we
+used the annotated corpus that was constructed for the 2012
+i2b2 Challenge. This corpus includes hospital discharge summaries
+with a ‘‘HISTORY” and ‘‘HOSPITAL COURSE” section as well as an
+admission and a discharge date listed at the top of each document.
+The i2b2 corpus has been annotated based on the TimeML specifications with minor modifications [19,20]. The temporal relations
+
+are annotated by the TLINK tags, which indicate connections
+between: an EVENT and a TIMEX3 (TIMEX stands for ‘‘TIME
+Expression”, version 3, and is the tag used to mark temporal
+expressions), two EVENTs, and two TIMEX3s (in the case of relative
+TIMEX3). Of particular interest are the event-section time relations, where each event from the ‘‘HISTORY” and ‘‘HOSPITAL
+COURSE” section is linked to the admission and discharge date,
+respectively, using the ‘‘BEFORE”, ‘‘AFTER”, ‘‘OVERLAP” and
+‘‘BEFORE_OVERLAP” TLINK tags.
+Since our algorithm generates timestamps for events, it is
+impossible to directly evaluate its performance using the official
+evaluation scripts provided by the i2b2 Challenge organizers.
+Instead, we used the TLINK, EVENT and TIMEX3 tags found in the
+i2b2 annotations to retrieve the timestamps for the events. When
+a TLINK indicated a temporal relation between an EVENT and a
+TIMEX3, we assigned the Value attribute of the TIMEX3 tag to
+the event. We excluded the events linked to a TIMEX3 tag that
+did not have a date type value because the corresponding information was not sufficient to timestamp them. When a TLINK indicated
+a relation between two events, we assigned the same timestamp to
+both events. This process was conducted recursively until all the
+events linked (directly or indirectly) to a date type were timestamped. The i2b2 texts with all the timestamped events annotated
+as clinical features were then passed to ETHER and our time algorithm assigned a timestamp to them. We subsequently examined
+whether an event occurred before, after or at the section time
+(i.e., either on the admission or on the discharge date).
+The training set (N = 190 discharge summaries) was used to
+identify any potential customizations required prior to the application of our algorithm to the discharge summaries of the testing set
+(N = 120). The following modifications were made:
+ Certain regex patterns were added to our time expression tagger to capture some special time expressions that appeared in
+the training set. For example, words like ‘‘HD#1” and ‘‘POD#2”
+are often used in discharge reports to represent ‘‘Hospital Day”
+and ‘‘Post-Operative Day”, respectively, as well as incomplete
+dates such as ‘‘09–02” for ‘‘September 2nd”.
+ The provided admission and discharge dates were used for initializing the time impact zones.
+ Operation and Discharge tags were included in the time
+anchors, and a small lexicon was created for each. For example,
+‘‘operation” and ‘‘surgery” for the ‘‘Operation” tag; ‘‘discharge”
+and ‘‘discharged” for the ‘‘Discharge” tag.
+It should be noted that these modifications supported the processing of the i2b2 texts and no adjustments or changes were performed on our core algorithmic approach.
+The evaluation of our algorithm’s performance over the i2b2
+testing set included the comparison of: (1) the timestamps
+assigned by our algorithm to the events with the timestamps
+retrieved from the i2b2 annotations for the same events; and (2)
+the ‘‘BEFORE”, ‘‘AFTER”, ‘‘OVERLAP” relations of the events to the
+section time in the i2b2 annotations – the ‘‘BEFORE_OVERLAP”
+relation was excluded from the latter comparison since it was
+not possible to appreciate it using the timestamps generated by
+our time algorithm. In both cases we calculated the match ratios
+between the generated timestamps or calculated relations from
+our approach and the retrieved timestamps or annotated relations
+from the i2b2 gold standard:
+
+Match Ratio ¼
+
+matched timestamps or ev ent section relations
+total timestamps or ev ent section relations in i2b2
+
+This metric should be considered equivalent to recall and was further used to examine our performance under the prism of the previous relevant findings on the i2b2 corpus [19].
+
+85
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+time-related words and phrases, not always being used with their
+temporal meaning:
+
+3. Results
+3.1. Algorithm evaluation
+ETHER extracted 2050 and 2015 events from the 100 VAERS and
+the 40 FAERS reports, respectively (Table 1). Our algorithm tagged
+2283 time expressions (1245 in the VAERS and 1038 in the FAERS
+narratives). The tag and timestamp distributions are shown in
+Table 1.
+For the time expressions, the IAA was 87% and 91.5% in terms of
+average recall and precision, respectively. The final corpus of the
+reference standard contained 2486 time expressions, consisting
+of a span of text and one of the following assigned types: Age, Date,
+Duration, Frequency, Relative, Time, or Weekday. Expressions of
+the ‘Age’ type (N = 130) were excluded from all matching and calculations since this type does not exist in SUTime and HeidelTime.
+The results for the three taggers are shown in Table 2. Since the
+TimeML standard used as the basis for SUTime and HeidelTime also
+does not contain Relative or Weekday(s) types, the Typeinsensitive Matching method is a much better measure of their
+performance. ETHER outperformed the other two taggers with
+the exception of VAERS precision, for which HeidelTime performed
+best. The poor recall of SUTime and HeidelTime in FAERS is primarily caused by the commonly occurring date formats 10–JUN–2010,
+10–JUN–10, 10JUN2010, and 10JUN10 that are not captured by
+these programs but are tagged by ETHER. All of the software
+systems struggled to interpret nonstandard time formats
+(e.g. ‘‘7–14 days”, ‘‘15/07/2008”, ‘‘On12March09”). For common
+false positives, each program found a slightly different set of
+
+ ETHER – ‘‘the time”, ‘‘several times”, ‘‘night”;
+ SUTime – ‘‘previous(ly)”, ‘‘(the) past”, ‘‘now”, ‘‘current(ly)”,
+‘‘present”;
+ HeidelTime – ‘‘now”, ‘‘recent(ly)”, ‘‘current(ly)”.
+For the second evaluation, the two medical reviewers agreed on
+their evaluation for the algorithm performance in 70.5% of the
+event-time associations (FMs vs. FMs = 56.7%, PMs vs. PMs = 1.1%,
+and MMs vs. MMs = 12.7%) and disagreed in the remaining 29.5%
+(FMs vs. PMs = 4.9%, FMs vs. MMs = 19.7%, and PMs vs.
+MMs = 4.9%). Their level of agreement was higher in the VAERS
+subset (74% vs. 67% in the FAERS subset). Following the resolution
+of their disagreements by the adjudicator, we calculated the algorithm’s ability to assign an actual or blank date/interval to Events.
+Total recall, precision, and F-measure were equal to 91.9% (VAERS:
+89.9%; FAERS: 93.9%), 89.6% (VAERS: 96.1%; FAERS: 83.9%) and
+0.907 (VAERS: 0.929; FAERS: 0.887), respectively.
+To evaluate the algorithm’s ability to appropriately stamp
+Events with the appropriate blank or actual date/interval, we calculated matching ratios of the total event-time associations: FM
+67.2% (N = 2731), PM 7.8% (N = 319), and MM 25% (N = 1015). The
+MM ratios were equal in VAERS and FAERS subsets (MM = 25%).
+The FM and PM ratios were slightly and relatively different
+between the VAERS and the FAERS subset (FMs: 69.8% vs. 64.4%
+and PMs: 5.2% vs. 10.6%). Tables 3 and 4 show the total MMs and
+PMs for the full set (the VAERS plus the FAERS subset) organized
+by error type and weakness, The major MMs were related to the
+
+Table 1
+The counts for the events extracted by ETHER as well as the time expressions that were tagged and the timestamps that were assigned to the events by the algortihm.
+Time expressionsa
+
+Events
+
+VAERS
+FAERS
+Total
+a
+b
+
+Timestamp typesb
+
+Manufacturer
+
+Provider
+
+Date
+
+Duration
+
+Relative
+
+Other
+
+Blank
+
+Dates
+
+Intervals
+
+1026
+1004
+2030
+
+1024
+1011
+2035
+
+780
+704
+1484
+
+105
+170
+275
+
+115
+267
+382
+
+38
+104
+142
+
+467
+451
+918
+
+1487
+1564
+3051
+
+61
+35
+96
+
+The corresponding tags were used by our algorithm.
+As assigned to the events by the algorithm.
+
+Table 2
+Performance of the three taggers.
+Events
+
+Exact matching
+
+Type-insensitive matching
+
+Precision
+
+Recall
+
+F Measure
+
+Precision
+
+Recall
+
+F Measure
+
+ETHER
+
+VAERS
+FAERS
+
+1209
+1027
+
+0.89
+0.94
+
+0.78
+0.79
+
+0.83
+0.86
+
+0.89
+0.94
+
+0.83
+0.82
+
+0.86
+0.88
+
+SUTIME
+
+VAERS
+FAERS
+
+1025
+534
+
+0.82
+0.71
+
+0.47
+0.24
+
+0.60
+0.36
+
+0.87
+0.76
+
+0.69
+0.31
+
+0.77
+0.44
+
+HeidelTime
+
+VAERS
+FAERS
+
+874
+598
+
+0.92
+0.85
+
+0.44
+0.23
+
+0.60
+0.36
+
+0.95
+0.87
+
+0.62
+0.28
+
+0.75
+0.42
+
+Table 3
+Mismatch (MM) ratios for VAERS and FAERS data organized by weaknesses and error types. The total percentages (calculations based on the total number of Events in the full set)
+for our algorithm weaknesses are compared with the corresponding TARSQI findings.
+Not blank
+Missing date (%)
+Error types
+
+Ether totals
+TARSQI
+
+Tagging
+Assignment
+Calculation
+Context-related
+
+0.2
+3.4
+0.9
+1.3
+
+Blank (%)
+Missing interval (%)
+
+Date
+
+Interval
+
+Incorrect date (%)
+
+Total (%)
+
+Irrelevant date (%)
+
+Incorrect interval (%)
+
+1.4
+3.1
+2.3
+3.3
+
+0.0
+0.2
+0.0
+0.0
+
+0.0
+0.0
+0.1
+0.0
+
+1.6
+8.9
+3.5
+11.0
+
+8.3
+
+10.1
+
+0.2
+
+0.1
+
+25.0
+
+5.6
+
+11.2
+
+0.7
+
+0.0
+
+61.5
+
+0.0
+0.1
+0.2
+0.0
+
+0.0
+2.0
+0.0
+6.3
+
+5.9
+
+0.3
+
+37.8
+
+6.3
+
+86
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+Table 4
+Partial match (PM) ratios organized by weaknesses and error types. The total
+percentages (calculations based on the total number of Events in the full set) for our
+algorithm weaknesses are compared with the corresponding TARSQI findings.
+Date
+Partially
+correct (%)
+
+Interval
+Partially
+correct (%)
+
+Other
+(%)
+
+Totals
+(%)
+
+0.3
+0.0
+0.0
+0.0
+
+0.1
+3.7
+1.0
+2.0
+
+0.0
+0.5
+0.0
+0.2
+
+0.4
+4.1
+1.0
+2.2
+
+Ether totals
+
+0.3
+
+6.8
+
+0.7
+
+7.8
+
+TARSQI
+
+0.1
+
+2.4
+
+0.2
+
+2.7
+
+Error types
+
+Tagging
+Assignment
+Calculation
+Context-related
+
+algorithm’s inability to: (i) provide the correct date to 410 Events
+(incorrect dates in 40.4% of the total MMs); (ii) leave the date or
+interval field blank for 337 Events (33.4% of the total MMs); and
+(iii) assign a date to 241 Events (23.5% of the total MMs). The error
+types were mostly context-related (43.7% of the total MMs) and
+assignment (35.7% of the total MMs) errors. The PMs were mainly
+related to the partial capture of intervals (86.5% of the total PMs;
+N = 149). The partial capture was mainly due to the use of one of
+the dates that defined (either first or last date) or were part (any
+other date) of the corresponding period. Further description and
+examples for each type of error are presented in Appendix A.
+When using the TARSQI toolkit to create the event-time associations, the performance with the time expressions in their actual
+format was very poor (data not shown). The date and time normalization to the ISO format better supported TARSQI. Even so, its
+overall performance was still low with an FM ratio of 35.8%.
+TARSQI assigned an incorrect date to 11.2% of the Events and did
+not find a date or interval for many of the Events (37.8% and
+6.3%, respectively). TARSQI performed better than our algorithm
+only in terms of leaving the time field blank when expected
+(5.6% versus 8.3% MMs).
+3.2. Algorithm application to the 2012 i2b2 Challenge corpus
+Our algorithm accurately generated 3189 out of 5610 timestamps found in the i2b2 testing set (match ratio = 0.57). It also supported the correct calculation of 7346 out of 10,626 event relations
+to the section time (match ratio = 0.69). The corresponding ratios
+in the training set were equal to 0.63 and 0.72, respectively. These
+results cannot be compared directly with the findings from the
+2012 i2b2 Challenge that did not focus on the assignment of timestamps to the events or use them to directly calculate the event
+relations to the section time. However, our algorithm demonstrated an equivalent performance to systems presented in the
+2012 i2b2 Challenge where recall in the TLINK track ranged from
+0.54 to 0.72 [19].
+4. Discussion
+We have developed and evaluated a novel algorithm for the
+extraction of temporal information and assignment of timestamps
+to events extracted from vaccine and drug safety reports. By minimizing dependency on syntactic information, the proposed
+approach achieves greater robustness than existing systems when
+processing low quality texts. In terms of tagging time expressions,
+our algorithm performed better than SUTime and Heideltime. In
+the time assignment task, for 25% of the events, our algorithm
+did not assign the appropriate timestamp (total mismatches).
+Areas of weakness included the assignment of incorrect dates,
+missing dates, and the assignment of either a date or interval when
+
+this field should be blank. The most common error type was the
+context-related type (43.7% of the total errors). Our algorithmic
+approach outperformed the TARSQI toolkit that assigned inappropriate timestamps in 61.5% of the same events. The inappropriate
+assignment of timestamps to 25% of the events may give the
+impression of only moderate performance of our algorithmic
+approach; however, it demonstrated superior performance in
+side-by-side comparisons with other systems.
+VAERS and FAERS narratives form a challenging textual
+resource for NLP-related tasks. Often the time expressions are misleading, ambiguous, and incomplete, even for human interpretation. Narratives may also lack detailed information to support the
+time calculations. The imperfect agreement between the medical
+reviewers supports these observations and indicates the level of
+difficulty in the task.
+The processing of the 2012 i2b2 Challenge corpus demonstrated
+the potential use of our algorithm in other domains, and highlighted a few interesting aspects. Unlike the VAERS and FAERS
+reports, where adverse events are usually described in a storytelling style with some time information included, the discharge
+reports summarize a list of clinical events and, often, timelines
+cannot be clearly depicted. After closely examining some of
+the texts in the i2b2 corpus, we found that the admission and
+discharge dates had been used extensively to stamp events, even
+when other timestamps were potentially valid. Two representative
+examples are described in detail in Appendix B. For cases where
+our algorithm inappropriately overrode the admission or discharge
+dates with a separate time impact zone, a possible solution might
+be a heuristic constraint on new time impact zones, e.g. restricting
+them to three (or fewer) sentences to increase the effect of the
+admission date and discharge date. Additional customizations like
+these could be added to tailor the algorithm for this specific corpus,
+if desired. For the processing of VAERS and FAERS reports, special
+secondary rules were adopted to improve timeline construction
+by the core algorithm. On the other hand, only a few domainspecific rules were used for the processing of the i2b2 documents.
+More extensive incorporation of domain knowledge might have
+improved the performance of our approach over the i2b2 corpus;
+however, these tasks are beyond the scope of the current study
+and would be better addressed in future research.
+Despite the promising results of our algorithm for extracting
+temporal information, this study has some limitations. First, we
+did not perform a stratified analysis of the results for each reporting source. Manufacturers and health care providers may describe
+an adverse event (and the supporting temporal information) differently and are not the sole reporting sources for VAERS and FAERS,
+though they provide the majority of reports. Detailed examination
+of this heterogeneity may show it to be significant but is beyond
+the scope of the current study. A second limitation is that we did
+not compare the performance of our algorithm with all available
+solutions, but focused only on major systems that are widely used
+by the research community and have been applied to the clinical
+domain. It is possible that other approaches may perform well on
+passive surveillance data. Med-TTK system, a customized extension of the TARSQI Toolkit designed to capture time statements
+from the clinical domain could have been one of them [34]. A third
+limitation is that we evaluated TARSQI using the ETHER events and
+a gold standard based on ETHER events. The comparison of our
+algorithm with TARSQI focused on the appropriate assignment of
+timestamps only to a selected set of events and both approaches
+could have been better evaluated in a different setting with other
+events.
+Our Timex time entity should not be confused with the TIMEX3
+tags [25,27,28]. We treat certain temporal expressions tagged with
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+one of the four TimeML (‘‘DATE”, ‘‘TIME”, ‘‘DURATION”, and ‘‘SET”)
+differently by defining three new time types (‘‘relative”, ‘‘frequency”, and ‘‘age”) along with ‘‘datetime” and ‘‘duration”. This
+allows for more granularity, e.g. ‘‘weekday” tagged with ‘‘DATE”
+or ‘‘SET” in TimeML is tagged with ‘‘relative” in our approach. We
+also use the time signals to determine the time type and the
+appropriate tag. For example, the statement ‘‘every 2 days” that
+is tagged with ‘‘SET” in TimeML is split into the time signal ‘‘every”
+and the time expression ‘‘2 days”, which will be tagged with ‘‘frequency” in our approach. This level of granularity is critical for
+the time calculations and the creation of the timeline by our
+algorithm.
+The introduction of the time impact zone concept for the association of Events with the appropriate timestamps is also an
+important deviation from the TimeML standard. The TSLINK, SLINK,
+and ALINK TimeML tags that encode the temporal relationships in
+a document heavily rely on the use of verbs, evidential information, negative particles, and syntax. Our approach does not depend
+on this type of information. Instead, we simply attempt to assign
+absolute dates to as many Events as possible, thereby constructing
+a timeline. As long as one Timex in a relative chain has an absolute
+date, then all events and time statements relative to it can be fully
+specified, without the need for concern about closure of temporal
+relations. In fact, the impact of an absolute time statement can
+extend forward into the remaining text. This idea is consistent with
+the concept of Narrative Times discussed by Pustejovsky and
+Stubbs [35]. Because of this, long-distance relationships between
+time statements and events, even across multiple sentences, are
+not uncapturable, although there are still many confounding
+factors.
+The inclusion of clear time expressions next to events, or within
+the same or neighboring sentences, facilitates time assignment. An
+NLP system should be able to assign time values reliably when provided a date followed by the clinical term or vice versa. Our algorithm demonstrated solid performance on VAERS and FAERS
+texts, but our results indicate that further refinement is needed
+for the tool to process time expressions that are vague, deeply hidden in semantics, or nested in the description of an additional
+event. The time assignment task will be extremely difficult (or perhaps impossible) for any algorithm when the context is of paramount importance and requires multiple readings by humans to
+identify the correct temporal associations. Our results demonstrate
+an important advance in the use of NLP to interpret temporal information and may guide future research in text mining of electronic
+health records.
+Competing interests
+
+87
+
+Data sharing statement
+For access to the corpus and the code for the time algorithm,
+please contact the FDA Technology Transfer Program at
+techtransfer@fda.hhs.gov.
+
+Acknowledgments
+This work was supported in part by the appointments of Matthew Foster, Kory Kreimeyer, and Abhishek Pandey to the Research
+Participation Program administered by ORISE through an interagency agreement between the US Department of Energy and the
+US FDA.
+Deidentified clinical records used in this research were provided by the i2b2 National Center for Biomedical Computing
+funded by U54LM008748 and were originally prepared for the
+Shared Tasks for Challenges in NLP for Clinical Data organized by
+Dr. Ozlem Uzuner, i2b2 and SUNY.
+Appendix A. Qualitative error analysis for mismatches (MMs)
+and partial matches (PMs)
+The error types for MMs were mostly context-related (43.7%)
+and assignment (35.7%) errors. Here are some characteristic examples for each type of error:
+a. Tagging errors (6.6%) – this was a small class of errors that
+were due to either idiosyncratic and non-common patterns
+that were not included in the code (e.g. ‘‘ Thursday, February
+17/11”) or typos (e.g. the extra slash in ‘‘8/4/–8/6/06”).
+b. Assignment errors (35.7%) – the correct timestamp was not
+assigned to an Event because:
+o it was reported in distant sentences or appeared in the
+structured field only; or
+o it was proximal to the Event, but other time expressions
+complicated the time assignment.
+A significant portion of these errors could also be attributed to
+context interpretation, which would move them to the corresponding class of errors. However, the existence of a time expression that could have been selected by the algorithm justifies their
+inclusion in this category. For example, there was a hospitalization
+period statement followed by an initial short description of the
+admission process and a list of tests and procedures performed
+in the hospital; the actual symptoms that led to the admission
+came after but were embedded in the actual diagnosis and, consequently, received the discharge (instead of the admission) date.
+
+None.
+Contributors
+WW developed the algorithm, participated in the study design,
+contributed to the first draft and edited the manuscript; KK adjudicated the annotations, created the annotation reference standard
+and measured the performance of the three taggers, contributed
+to the first draft and edited the manuscript; EJW and RB performed
+the second evaluation, contributed to the generation of the gold
+standard and edited the manuscript; MF and AP performed the
+annotation of the time expressions and edited the manuscript; JS
+participated in the study design and edited the manuscript; TB
+adjudicated the annotations of the medical experts, generated
+the gold standard, evaluated the time assignment capability of
+the algorithm and compared it with the TARSQI’s performance,
+prepared the first draft, finalized the manuscript, designed and
+led the study as the PI of the ETHER project.
+
+c. Calculation errors (14.0%) – this was mainly related to the
+incomplete or wrong use of relative expressions in the calculations, or the existence of a wrong date baseline. The lack of
+hour tagging and their subsequent inclusion in the calculations resulted in a group of mismatches, e.g. ‘‘2 am the night
+after vaccination” was ignored and the events following this
+statement received the date of vaccination.
+d. Context-related errors (43.7%) – this was a complicated class
+of errors that came about for a number of different reasons.
+Here are a few (non-exhaustive) examples:
+s A lawsuit report with all the time information referring to
+the lawsuit and none of the clinical Events – this report
+was incorrectly labeled as a manufacturer report in the
+FAERS system, which explains its inclusion in our selection. The same issue was observed with two literature
+reports that had not labeled as such and included misleading time information.
+
+88
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+
+s A VAERS report in which it was unclear whether the dates
+assigned to 13 out 28 Events were correct (due to a single
+and rather confusing transition from the past to the present tense); the two reviewers disagreed in this occasion
+(FM vs. MM) and the adjudicator could not resolve the
+discrepancy after many careful readings – they were
+finally classified as MMs to err on the side of caution.
+s A FAERS report in which 16 out of 26 Events were inappropriately associated with a ‘‘FUP” (i.e. ‘‘follow-up”) date
+– even though the algorithm generally ignored follow-up
+dates, it did not relate the ‘‘FUP” abbreviation to this type
+of statements and could not ignore them.
+The PMs were mainly related to the partial capture of intervals
+(86.5% of the total PMs; N = 149) that spanned the four error types.
+The algorithm typically assigned a single date that was part of the
+correct interval, usually the start or end date. Additionally, there
+were fourteen dates that were partially annotated, and these
+should be attributed to a typo error, e.g. the extra space in the date
+‘‘28–JAN–2004” resulted in the tagging of the second part only
+‘‘JAN–2004”. Finally, the ‘‘Other” category included weaknesses
+not related to intervals or partial dates, such as instances where:
+– the date stamp was correct based on the structured date field,
+however incorrect based on the corresponding information in
+the narrative (tagging error);
+– the timestamp was correctly used but was characterized incorrect by the reviewers and the adjudicator based on the overall
+context (context-related error);
+– only one of two or more single dates associated with a particular Event was captured (assignment error).
+Appendix B. Examples of typical error from the algorithm
+application to the 2012 i2b2 Challenge corpus
+The timestamps of events in the i2b2 corpus heavily relied on
+the admission and discharge dates. When the time of an event
+was not clearly specified in the text, the event was usually stamped
+with the admission date or the discharge date depending on
+whether it was reported in the ‘‘History of Present Illness” or the
+‘‘Hospital Course” section, respectively. On the other hand, our
+algorithm utilized the time information from the text when available. Two examples drawn from the i2b2 testing set illustrate this
+difference (actual text has been changed slightly for anonymity):
+1. Algorithm errors related to the admission date.
+‘‘ADMISSION DATE: 10–20–15
+DISCHARGE DATE: 11–12–15
+HISTORY OF PRESENT ILLNESS:
+This is a 30 year old female with a history of breast cancer. On
+<10/10/2006>, she had a surgery followed by chemotherapy
+and radiation; she was noted to have low white blood cell count
+after receiving the first regimen. She then suffered from [nausea] and [ondansetron] was used to. . .”
+In the i2b2 standard, [nausea] and [ondansetron] were timestamped with the admission date ‘‘2015–10–20”. Our algorithm
+would timestamp both events with ‘‘2006–10–10” because they
+were in the time impact zone of <10/10/2006>, which would
+override the admission date’s time impact zone which we
+applied at the beginning of the ‘‘History of present illness” section (see custom modifications in Section 2.4).
+2. Algorithm errors related to the discharge date.
+‘‘Admission Date: 2015–06–29
+Discharge Date: 2015–07–09
+
+. . .Patient had increased blood glucose levels. Overall, his blood
+chemistry was normal. Physical examination normal too However on <08–02> he complained for abdominal pain. Simultaneous amylase and lipase tests were ordered. The elevated lipase
+levels and additional tests were consistent with [pancreatitis].”
+In the i2b2 standard, [pancreatitis] was timestamped with the
+discharge date ‘‘2015–07–09”. Our algorithm would stamp it
+with ‘‘2015–08–02” because of the existence of <08–02>.
+Appendix C. Supplementary material
+Supplementary data associated with this article can be found, in
+the online version, at http://dx.doi.org/10.1016/j.jbi.2016.06.006.
+References
+[1] O. Uzuner, A. Stubbs, W. Sun, Chronology of your health events: approaches to
+extracting temporal relations from medical narratives, J. Biomed. Inform. 46
+(Suppl) (2013) S1–S4.
+[2] F. Varricchio, J. Iskander, F. Destefano, R. Ball, R. Pless, M.M. Braun, et al.,
+Understanding vaccine safety information from the vaccine adverse event
+reporting system, Pediatr. Infect. Dis. J. 23 (2004) 287–294.
+[3] FDA Adverse Event Reporting System (FAERS), <http://www.fda.gov/Drugs/
+InformationOnDrugs/ucm135151.htm> 2016, Accessed 6/23/2016.
+[4] H.J. Duggirala, J.M. Tonning, E. Smith, R.A. Bright, J.D. Baker, R. Ball, et al., Use of
+data mining at the food and drug administration, J. Am. Med. Inform. Assoc. 23
+(2016) 428–434.
+[5] W. Sun, A. Rumshisky, O. Uzuner, Temporal reasoning over clinical text: the
+state of the art, J. Am. Med. Inform. Assoc. 20 (2013) 814–819.
+[6] Y.-C. Chang, H.-J. Dai, J.C.-Y. Wu, J.-M. Chen, R.T.-H. Tsai, W.-L. Hsu, TEMPTing
+system: a hybrid method of rule and machine learning for temporal relation
+extraction in patient discharge summaries, J. Biomed. Inform. 46 (2013) S54–
+S62.
+[7] J. D’Souza, V. Ng, Knowledge-rich temporal relation identification and
+classification in clinical notes, Database 2014 (2014) bau109.
+[8] C. Grouin, N. Grabar, T. Hamon, S. Rosset, X. Tannier, P. Zweigenbaum, Eventual
+situations for timeline extraction from clinical reports, J. Am. Med. Inform.
+Assoc. 20 (2013) 820–827.
+[9] A. Nikfarjam, E. Emadzadeh, G. Gonzalez, Towards generating a patient’s
+timeline: extracting temporal relationships from clinical notes, J. Biomed.
+Inform. 46 (Suppl) (2013) S40–S47.
+[10] F. Peng, A. McCallum, Information extraction from research papers using
+conditional random fields, Inf. Process. Manage. 42 (2006) 963–979.
+[11] B. Tang, Y. Wu, M. Jiang, Y. Chen, J.C. Denny, H. Xu, A hybrid system for
+temporal information extraction from clinical text, J. Am. Med. Inform. Assoc.
+20 (2013) 828–835.
+[12] J. Strötgen, M. Gertz, Multilingual and cross-domain temporal tagging, Lang.
+Resour. Eval. 47 (2012) 269–298.
+[13] J. Pustejovsky, K. Lee, H. Bunt, L. Romary, ISO-TimeML: an international
+standard for semantic annotation, in: N.C.C.C. Calzolari, Khalid, Bente
+Maegaard, Joseph Mariani, Jan Odijk, Stelios Piperidis, Mike Rosner, Daniel
+Tapias (Eds.), Proceedings of the Seventh International Conference on
+Language Resources and Evaluation (LREC’10), European Language Resources
+Association (ELRA), Valletta, Malta, 2010.
+[14] L. Zhou, G.B. Melton, S. Parsons, G. Hripcsak, A temporal constraint structure
+for extracting temporal information from clinical narrative, J. Biomed. Inform.
+39 (2006) 424–439.
+[15] C. Tao, W.-Q. Wei, H.R. Solbrig, G. Savova, C.G. Chute, CNTRO: a semantic web
+ontology for temporal relation inferencing in clinical narratives, in: AMIA
+Annual Symposium Proceedings, 2010, pp. 787–791.
+[16] P. Raghavan, E. Fosler-Lussier, A.M. Lai, Temporal classification of medical
+events, in: Proceedings of the 2012 Workshop on Biomedical Natural Language
+Processing, Association for Computational Linguistics, Montreal, Canada, 2012,
+pp. 29–37.
+[17] W.F. Styler IV, S. Bethard, S. Finan, M. Palmer, S. Pradhan, P.C. de Groen, et al.,
+Temporal Annotation in the Clinical Domain, Transactions of the Association
+for Computational Linguistics 2 (2014) 143–154.
+[18] S. Bethard, L. Derczynski, G. Savova, J. Pustejovsky, M. Verhagen, SemEval2015 Task 6: clinical TempEval, in: Proceedings of the 9th International
+Workshop on Semantic Evaluation (SemEval 2015), Association for
+Computational Linguistics, Denver, Colorado, 2015, pp. 806–814.
+[19] W. Sun, A. Rumshisky, O. Uzuner, Evaluating temporal relations in clinical text:
+2012 i2b2 Challenge, J. Am. Med. Inform. Assoc. 20 (2013) 806–813.
+[20] W. Sun, A. Rumshisky, O. Uzuner, Annotating temporal information in clinical
+narratives, J. Biomed. Inform. 46 (Suppl) (2013) S5–S12.
+[21] C. Lin, D. Dligach, T.A. Miller, S. Bethard, G.K. Savova, Multilayered temporal
+modeling for the clinical domain, J. Am. Med. Inform. Assoc. 23 (2016) 387–
+395.
+[22] B. Baer, M. Nguyen, E. Woo, S. Winiecki, J. Scott, D. Martin, et al., Can natural
+language processing improve the efficiency of vaccine adverse event report
+review?, Methods Inf Med. 54 (2015).
+
+W. Wang et al. / Journal of Biomedical Informatics 62 (2016) 78–89
+[23] T. Botsis, T. Buttolph, M.D. Nguyen, S. Winiecki, E.J. Woo, R. Ball, Vaccine
+adverse event text mining system for extracting features from vaccine safety
+reports, J. Am. Med. Inform. Assoc. 19 (2012) 1011–1018.
+[24] H. Jung, J. Allen, N. Blaylock, W. De Beaumont, L. Galescu, M. Swift, Building
+timelines from narrative clinical records: initial results based-on deep natural
+language understanding, in: BioNLP 2011 Workshop, Association for
+Computational Linguistics, Portland, Oregon, 2011, pp. 146–154.
+[25] R. Sauri, J. Littman, B. Knippen, R. Gaizauskas, A. Setzer, J. Pustejovsky. TimeML
+Annotation Guidelines Version 1.2.1. January 31, 2006: TimeML; 2006.
+[26] J. Strötgen, M. Gertz, HeidelTime: high quality rule-based extraction and
+normalization of temporal expressions, in: 5th International Workshop on
+Semantic Evaluation, Uppsala, Sweden, 2010, pp. 321–324.
+[27] J. Pustejovsky, J.M. Castano, R. Ingria, R. Sauri, R.J. Gaizauskas, A. Setzer, et al.,
+TimeML: robust specification of event and temporal expressions in text, New
+Dir. Quest. Answering 3 (2003) 28–34.
+[28] J. Pustejovsky, I. Mani, J. Hobbs, in: B. University (Ed.), Temporal Awareness
+and Reasoning Systems for Question Interpretation, Brandeis University, 2007.
+[29] A.X. Chang, C.D. Manning, SUTime: a library for recognizing and normalizing
+time expressions, LREC, Tunisia, Sousse, 2012, pp. 3735–3740.
+
+89
+
+[30] L. Derczynski, R. Gaizauskas, USFD2: Annotating temporal expressions and
+TLINKs for TempEval-2, in: 5th International Workshop on Semantic
+Evaluation, Association for Computational Linguistics, Uppsala, Sweden,
+2010, pp. 337–340.
+[31] T. Hamon, N. Grabar, Tuning HeidelTime for identifying time expressions in
+clinical texts in English and French, in: EACL 2014, 2014, pp. 101–105.
+[32] T. Mkrtchyan, D. Sonntag, Deep Parsing at the CLEF2014 IE Task, in: CLEF
+(Working Notes), 2014, pp. 138–146.
+[33] S. Sohn, K.B. Wagholikar, D. Li, S.R. Jonnalagadda, C. Tao, R.K. Elayavilli, et al.,
+Comprehensive temporal information detection from clinical text: medical
+events, time, and TLINK identification, J. Am. Med. Inform. Assoc. 20 (2013)
+836–842.
+[34] R.M. Reeves, F.R. Ong, M.E. Matheny, J.C. Denny, D. Aronsky, G.T. Gobbel, et al.,
+Detecting temporal expressions in medical narratives, Int. J. Med. Informatics
+82 (2013) 118–127.
+[35] J. Pustejovsky, A. Stubbs, Increasing informativeness in temporal annotation,
+in: Proceedings of the 5th Linguistic Annotation Workshop, Association for
+Computational Linguistics, Portland, Oregon, 2011, pp. 152–160.
+
+

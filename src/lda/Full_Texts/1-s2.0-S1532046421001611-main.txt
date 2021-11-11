@@ -1,0 +1,2167 @@
+Journal of Biomedical Informatics 119 (2021) 103833
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+Original Research
+
+Augmenting aer2vec: Enriching distributed representations of adverse
+event report data with orthographic and lexical information
+Xiruo Ding a, *, Justin Mower b, Devika Subramanian b, Trevor Cohen a, *
+a
+b
+
+Department of Biomedical Informatics & Medical Education, University of Washington, Seattle, WA, USA
+Department of Computer Science, Rice University, Houston, TX, USA
+
+A R T I C L E I N F O
+
+A B S T R A C T
+
+Keywords:
+Pharmacovigilance
+Post-marketing surveillance
+Natural language processing
+Word embeddings
+Retrofitting
+Subword embeddings
+
+Adverse Drug Events (ADEs) are prevalent, costly, and sometimes preventable. Post-marketing drug surveillance
+aims to monitor ADEs that occur after a drug is released to market. Reports of such ADEs are aggregated by
+reporting systems, such as the Food and Drug Administration (FDA) Adverse Event Reporting System (FAERS). In
+this paper, we consider the topic of how best to represent data derived from reports in FAERS for the purpose of
+detecting post-marketing surveillance signals, in order to inform regulatory decision making. In our previous
+work, we developed aer2vec, a method for deriving distributed representations (concept embeddings) of drugs
+and side effects from ADE reports, establishing the utility of distributional information for pharmacovigilance
+signal detection. In this paper, we advance this line of research further by evaluating the utility of encoding
+orthographic and lexical information. We do so by adapting two Natural Language Processing methods, subword
+embedding and vector retrofitting, which were developed to encode such information into word embeddings.
+Models were compared for their ability to distinguish between positive and negative examples in a set of
+manually curated drug/ADE relationships, with both aer2vec enhancements offering advantages in perfor­
+mances over baseline models, and best performance obtained when retrofitting and subword embeddings were
+applied in concert. In addition, this work demonstrates that models leveraging distributed representations do not
+require extensive manual preprocessing to perform well on this pharmacovigilance signal detection task, and
+may even benefit from information that would otherwise be lost during the normalization and standardization
+process.
+
+1. Introduction
+Adverse drug events (ADEs) were defined by the International Con­
+ference on Harmonisation (ICH) as “a response to a drug which is
+noxious and unintended and which occurs at doses normally used in
+man for prophylaxis, diagnosis, or therapy of disease or for the modifi­
+cation of physiologic function”[1]. ADEs are quite common and some­
+times preventable. For example, an ADE rate of 10% (10 potential ADEs
+per 100 admissions) was reported in two pediatric care clinics[2]. A
+similar rate of 6.5 per 100 admissions was reported in two tertiary care
+hospitals in Boston, Mass, during a 6-month period and 28% of these
+ADEs were judged to have been preventable[3]. ADEs are also very
+costly: the report, Preventing Medication Errors, by the Institute of Med­
+icine, estimated a cost of $1,983 per preventable ADE, with a total na­
+tional annual cost of $887 million[4].
+Many adverse effects of drugs, especially rare ones, may not be
+
+revealed before their release to market. This is in part due to the limi­
+tations of clinical trials, such as not having a sufficiently large cohort to
+account for the variety of human responses in a larger population[5].
+One way to address this issue is to use a postmarketing surveillance
+system to monitor ADEs, by collecting and aggregating reports from
+consumers, physicians, and manufacturers. Many countries have
+developed their own reporting system infrastructures. Prominent ex­
+amples include the United States (U.S.) Food and Drug Administration
+(FDA) Adverse Event Reporting System (FAERS), the European Medicine
+Agency (EMA) pharmacovigilance system, the Yellow Card Scheme in
+the United Kingdom, and the Canada Vigilance Program. In the U.S.,
+pharmaceutical manufacturers are obliged to submit reports to FAERS
+when serious or unexpected ADEs occur, or on a periodic basis, under
+Code of Federal Regulations 21 CFR 314.80 (a). In addition, voluntary
+reports may be submitted by healthcare practitioners or consumers.
+On account of the large number of submitted reports (increasing
+
+* Corresponding author.
+E-mail addresses: xiruod@uw.edu (X. Ding), jmm21@rice.edu (J. Mower), devika@rice.edu (D. Subramanian), cohenta@uw.edu (T. Cohen).
+https://doi.org/10.1016/j.jbi.2021.103833
+Received 10 February 2021; Received in revised form 10 May 2021; Accepted 2 June 2021
+Available online 8 June 2021
+1532-0464/© 2021 Elsevier Inc. All rights reserved.
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+from around 200,000 in the year 2000 to over 2 million in 2019 [6]), the
+question arises of how to prioritize drug/ADE relationships identified
+within these data for regulatory attention. The U.S. FDA has already
+implemented several data mining methods to detect potential ADE sig­
+nals, including disproportionality methods (the Proportional Reporting
+Ratio[7], Reporting Odds Ratio[8], and Multi-Item Gamma Poisson
+Shrinker[9]), change-point analysis (CPA)[10], text mining [11], and
+incorporation of external data (such as various chemical and biological
+data sources and geographical information system technology) into data
+mining approaches[12]. Disproportionality methods in particular have
+been widely used for signal detection by the FDA and EMA [13,14],
+amongst others. These methods utilize discrete report-level statistics,
+such as counts of co-occurrence events between a drug and ADE of in­
+terest. As a consequence, they are fundamentally limited in their ability
+to draw connections between similar ADEs (such as those with related
+pathophysiology) and drugs (such as those with related mechanisms).
+This inability to leverage similarity is analogous to the inability of
+Natural Language Processing (NLP) techniques based on discrete counts
+of words to recognize useful relationships such as synonymy.
+In the context of post-marketing drug surveillance, one implication
+of this lack of generalization capabilities concerns the inability to
+address different forms of the same drug. This becomes especially
+serious when raw FAERS data are used for signal detection. For example,
+in the dataset used in the current work, the reporting frequency of clo­
+zaril is 18,862, while other similar forms, ”clozapine” (N = 15,908),
+”clozapine_tablets” (N = 8), ”clozaril_(clozapine)_unknown” (N = 4), are
+comparably less reported. However, we know that clozaril and clozapine
+have the same active ingredients, so their signals should arguably be
+aggregated. In this case, it is very unlikely for disproportionality
+methods to report a strong signal for ”clozapine_tablets”, which was only
+reported 8 times. For ”clozaril” and ”clozapine”, which were highly
+frequently reported, disproportionality metrics will fail to aggregate the
+signal from across these two terms without pre-processing using explicit
+mapping procedures. Unlike drugs, ADEs are mapped to MedDRA
+”Preferred Terms” as part of the reporting procedure. While this should
+mitigate for the problem of the same side effect being reported in
+different terms, it remains the case that standard disproportionality
+metrics are unable to aggregate signal from side effects with similar
+pathophysiological mechanisms, such as thrombotic stroke and
+myocardial infarction.
+In NLP, the limited ability of models treating words as discrete fea­
+tures to generalize has motivated the rapid adoption of continuous
+representations of words, known as word vectors or word embeddings
+[15–17], as an alternative representational paradigm. Word embeddings
+are trained on large corpora in an unsupervised or semi-supervised
+manner, such that words occurring in similar contexts will have
+similar vector representations. This permits downstream machine
+learning models to generalize. Neural word embeddings have gained
+prominence as a method of generating such representations since the
+introduction of computationally efficient training methods that permit
+them to scale to large corpora. In particular, the skipgram-withnegative-sampling (SGNS) algorithm introduced by Mikolov et al. [17]
+has been widely employed as a component of the popular word2vec1
+and gensim2 software packages. With SGNS, a neural network learns to
+predict the terms surrounding an observed term, P(tc |to ), where to is a
+term observed within the text, and tc is a context term observed within a
+window radius of a fixed number of terms (for example, five). The
+network is trained using an efficient training procedure that maximizes
+this probability for terms observed within a given proximity scope, and
+minimizes it for randomly drawn counterexamples (known as negative
+samples). On account of the training procedure, words that occur in
+similar contexts will have similar input weight vectors, and will result in
+
+1
+2
+
+similar context term predictions. Once training has concluded, the input
+weights of the neural network for each term are extracted, and serve as
+word embeddings for downstream tasks.
+In our previous work, we have shown that embeddings trained on
+ADE reports can learn to generalize in a similarly useful manner,
+providing a means to integrate distributional similarity into pharmaco­
+vigilance signal detection. Specifically, the aer2vec algorithm adapts
+the SGNS training procedure to predict P(drug|ADE), or vice versa, with
+context in this case defined at the report level without considering local
+proximity relationships. Recapitulating the probabilistic training
+objective of this model as a method of signal detection resulted in im­
+provements in performance over disproportionality metrics in current
+use on pharmacovigilance signal detection tasks [18]. However, the
+capacity for generalization provided by aer2vec representations is
+limited to that which can be derived from the distribution of drugs and
+ADE in the set of reports used to train them. Additional lexical knowledge
+of potential utility for pharmacovigilance is embedded within structured
+knowledge resources such as RxNorm[19]. The retrofitting algo­
+rithm[20] was developed to encode lexical knowledge from WordNet
+[21] into pretrained word embeddings using a secondary training pro­
+cedure in which the embeddings for terms that are lexically related are
+drawn together in vector space. We adapted this algorithm to the task of
+integrating lexical knowledge from RxNorm into aer2vec drug repre­
+sentations, which led to further improvements in performance in most
+evaluations[22].
+The rapid increase in data size is another issue that constrains the
+processing time required for methods that can be applied to the entire
+set of FAERS reports. Similar constraints apply when considering the
+prospect of real-time signal detection. The number of FAERS reports
+grew from around 200,000 in the year 2000, to over 2 million in 2019,
+making manual annotation and examination of the full set infeasible [6].
+In an effort to render these reports amenable to automated analysis,
+Banda et al. derived a normalized, standardized dataset from FAERS
+using terminological mapping procedures, and shared their code for the
+full pre-processing pipeline involved [23]. However, the design of this
+pipeline requires detailed knowledge of the terminologies involved, and
+reimplementation is required to accommodate changes in FAERS data
+models (with two significant changes having occurred to date).
+Furthermore, the dataset resulting from this work was published in 2016
+and has not been updated since. For these reasons, methods to minimize
+the effort required for pre-processing are needed.
+In the current paper we extend our previous work in two ways, in an
+effort to address the issues described above. First, we compare the utility
+of aer2vec embeddings (with and without integrating lexical knowl­
+edge) and disproportionality metrics when trained on ADE reports that
+have undergone extensive terminologically-driven normalization pro­
+cedures to that of those trained on raw reports. Our hypothesis in doing
+so was that the capacity for generalization provided by aer2vec with
+retrofitting would obviate the need for such normalization proced­
+ures. This investigation was motivated in part by a call for methods with
+“scalability to accommodate growing databases” using rapid or minimal
+preprocessing of data to enable real-time surveillance[12]. To this end,
+we also evaluate the utility of encoding orthographic similarity into our
+aer2vec models, using an approach originally developed to encode
+morphological information into neural word embeddings [24]. Our
+hypothesis was that enriching drug embeddings in this way would
+provide them with the capacity to generalize on the basis of surface
+similarity between terms (such as rofecoxib and celecoxib) and offer
+further improvements in performance. Through both retrofitting
+and subword embedding methods, we are trying to avoid meaningful
+signal remaining undetected because it is scattered across counts for
+discrete entities that are related to one another but treated as though they
+were independent. As such, the work described in this paper provides an
+extensive evaluation of the utility of distributional similarity, ortho­
+graphic information and lexical knowledge for pharmacovigilance
+signal detection, with and without extensive pre-processing.
+
+https://github.com/tmikolov/word2vec
+https://radimrehurek.com/gensim/
+2
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+2. Material and methods
+
+to assess performance in the context of minimally preprocessed FAERS
+data. However, we did perform a subsequent analysis to establish the
+extent to which deduplication influences performance. This additional
+analysis used a raw set including only those records that exist in the
+standardized set (only in this case, without any standardization or
+normalization, as described in further detail in Section 3.6). The large
+difference in the numbers of unique DRUGNAMEs between the stan­
+dardized and raw sets indicates the amount of variability there is in the
+unrefined contents of the DRUGNAME field. This variability is due to re­
+porter entry of different trade names, routes, doses, and preparations of
+a single generic drug, and is a key issue we aim to address with the
+current work.
+
+2.1. FDA Adverse Event Reporting System (FAERS)
+The FDA Adverse Event Reporting System (FAERS) monitors re­
+ported adverse events to inform decisions such as product labeling
+changes, and re-evaluations of approval[25]. FAERS is a spontaneous
+reporting system, where health professionals, consumers, and manu­
+facturers submit adverse events or medication errors either voluntarily
+(for healthcare professionals and consumers) or mandatorily (for man­
+ufacturers)[26]. The project originated in 1969 using a computerized
+repository, and underwent a major change in 1997, when the system
+shifted from using Coding Symbols for Thesaurus of Adverse Reaction
+Terms to Medical Dictionary for Regulatory Activities (MedDRA)[27] as
+an underlying terminology. After this, MedDRA became the standard­
+ized coding terminology for adverse events and medication errors in
+FAERS. In contrast, drug names are not standardized, with the DRUG­
+NAME field indicating either valid trade names or drug names from user
+inputs. Up to 2013, around 77% of DRUGNAME fields were filled with
+valid trade names, the rest being user inputs. In addition, the system
+introduced a new data field, PROD_ID, in the third quarter of 2014 to
+capture the active ingredient(s) of a drug.
+The publicly available FAERS data reports are published quarterly,
+dating from 2004 to 2020 Q2 at the time of this study. On account of the
+date of dissemination of the evaluation set used for this study, we only
+use data up to the end of 2012, which includes 4,514,527 records. There
+are four categories for a drug’s presumed role in an adverse event: Pri­
+mary Suspect (PS), Secondary Suspect (SS), Concomitant (C), and
+Interacting (I), and almost all reports have at least one primary suspect
+medication. These categories indicate reporter designations of suspicion
+(PS in particular), and taking them into account has been shown to have
+a significant impact on model performance in our previous work[22].
+Consequently in the current research, we consider two variants of our
+data set: (1) The FULL set (includes all report-level drug/ADE events);
+and (2) the PS set (includes only PS drugs for all reports), in order to
+further observe the effects of reporter designations of suspicion. For
+ADEs, we use the PT field which stands for Preferred Term, mapped to
+MedDRA. For drugs, we use the DRUGNAME field directly in the model,
+with the following minimal preprocessing steps: (1) all entries were
+changed into lower case; (2) spaces were replaced with underscores; (3)
+trailing special characters were removed. For simplicity, we refer to this
+minimally preprocessed dataset as the “raw” set. In addition, we
+consider the standardized FAERS dataset released by Banda et al. in
+2016, which was constructed with the additional preprocessing step of
+mapping drugs to RxNorm standard ingredients and clinical drug forms
+(henceforth referred as the “standardized” set)[23]. We use this dataset,
+with the same time cutoff of 2012 Q4, to facilitate comparison with
+models trained on minimally preprocessed data. To this end, two
+matching sets (FULL and PS) were created based on the standardized
+dataset also.
+Counts for the number of reports, the number of unique DRUGNAMEs,
+and the number of unique ADEs are shown in Table 1. Of note, there is a
+discrepancy in the number of reports between the standardized set and
+the raw set. Banda et al. describe a de-duplication step in their pro­
+cessing pipeline, whereby reports sharing the same case id, event date,
+drugs, adverse events, demographics and reporter country were
+consolidated into a single record[23]. In our initial experiments, we did
+not re-implement this de-duplication pipeline, in keeping with a desire
+
+2.2. Encoding distributional information with aer2vec
+The aer2vec algorithm[18] adapts the SGNS algorithm[17,28] for
+application to ADE reports, where concepts are divided into drugs and
+ADEs. By analogy with the idea of an observed term (to ) and context
+term (tc ) in natural language, two aer2vec architectures were devel­
+oped: aer2vec+ and aer2vec-, modeling P(drug|ADE) and P(ADE|drug)
+respectively. Using negative sampling, optimization functions for the
+two architectures are as follows[18]:
+aer2vec+ : argmax v
+[
+(
+)
+∑
+logσ vdrug ⋅vADE +
+(ADE,drug)∈W
+
+aer2vec− : argmax v
+[
+(
+)
+∑
+logσ vADE ⋅vdrug +
+(drug,ADE)∈W
+
+FULL
+PS
+
+# Reports
+Raw
+
+3,185,921
+3,154,081
+
+4,514,527
+4,514,501
+
+# Unique DRUGNAMEs
+STD
+Raw
+
+# Unique ADEs
+STD
+Raw
+
+3,912
+2,108
+
+16,352
+16,330
+
+364,945
+62,631
+
+(
+logσ
+
+)]
+− vdrug′ ⋅vADE
+
+(ADE,drug′ )∈W ′
+
+∑
+
+(
+logσ
+
+)]
+− vADE′ ⋅vdrug
+
+(drug,ADE′ )∈W ′
+
+where vdrug and vADE represent the weight vectors of drugs and ADEs for
+observed entities, and vdrug′ and vADE′ represent these weight vectors for
+negative samples. With aer2vec+, which predicts P(drug|ADE), ADEs are
+represented by input weight vectors, and drugs are represented by the
+network’s output weight vectors. With aer2vec-, the reverse is true. W
+and W′ represent the vocabulary of observed and randomly sampled
+ADE-drug pairs respectively. The goal of training is to maximize pre­
+dicted probabilities for elements of W, and minimize predicted proba­
+bilities for elements of W′ , with probabilities estimated as σ(vADE ⋅vdrug ).
+Following the parameters of the best-performing models from the
+original work[18], the dimension of vectors was set to 100, and models
+were trained across five epochs in each experiment. Furthermore, only
+aer2vec+ was used for the current experiments, on account of its su­
+perior performance in pharmacovigilance signal detection tasks. Drug
+and ADE embeddings were trained on each of the four data sets (with
+and without normalization, and with and without the PS constraint)
+using the aer2vec implementation in the open source Semantic
+Vectors package 3[29,30]. To evaluate the robustness of performance
+in the context of randomization effects in both training sequence and
+stochastic initialization of model weights, we repeated the experiments
+ten times with regeneration of the drug and ADE embeddings.
+2.3. Encoding lexical information with retrofitting
+The retrofitting algorithm is a graph-based method developed to
+enrich pretrained word embeddings with lexical information from a
+taxonomy[20]. The underlying idea is to bring the vectors representing
+words closer to the vectors representing their lexical neighbors in a
+taxonomy, while ensuring they do not move too far from their original
+position in semantic vectors space. This is achieved by minimizing the
+following cost function[20]:
+
+Table 1
+Summary counts for different sets. STD = standardized.
+STD
+
+∑
+
+16,707
+16,707
+
+3
+
+3
+
+https://github.com/semanticvectors/semanticvectors
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+[
+]
+n
+⃒⃒
+⃒⃒2 ∑ ⃒⃒
+⃒⃒2
+( ) ∑
+⃒
+⃒
+⃒
+⃒
+⃒
+⃒
+⃒
+⃒
+Ψ A =
+α qi − ̂q i +
+β qi − qj
+i=1
+
+original retrofitting implementation, in which vectors are reduced to
+unit length, obscured information encoded in the magnitude of the
+output weight vectors that was of value for predictive modeling[22].
+Consequently in the current work we employ the rescaled retrofitting
+variant of the algorithm developed in this work. With rescaled retrofit­
+ting, the original magnitude of the vector to be retrofitted (‖ ̂
+q i ‖) is
+stored, and the vector resulting from the retrofitting procedure is
+̂
+restored to this magnitude subsequently (i.e. qi = qi ‖‖qqii‖‖).
+
+(i,j)∈E
+
+where E is the set of semantic relations of interest, qi the retrofitted
+representation for concept i, ̂
+q i the original vector representation for this
+concept, qj the vector representing a neighbor of qi in E, and model
+parameters α a weight assigned to the original vector representations,
+and β a weight assigned to the lexical information. The twin goals of
+maintaining a representation of the original meaning of a word and
+drawing the vector for a word closer to the vector representing its lexical
+neighbors are embodied in the first and second terms of the equation,
+respectively. This cost function is minimized by repeating the following
+update step until convergence is attained (usually after approximately
+10 iterations):
+∑
+α̂q i + βqj
+j:(i,j)∈E
+∑
+qi =
+α+β
+
+2.4. Encoding orthographic information with subword embeddings
+The two methods described in the previous sections, aer2vec and
+retrofitting, were developed to incorporate distributional patterns and
+lexical information into word representations, respectively. However,
+orthographic similarity, the similarity between the surface forms of words,
+can also be of value in recognizing connections between related words
+and the entities they represent. For example, in general English, “run”,
+“runs” and “running” are different orthographic forms stemming from
+the same root, “run”. In recent work, Bojanowski et. al. developed an
+approach through which to provide the skipgram-with-negativesampling algorithm with the capacity to represent letter sequences
+within words (such as “run” in “running”), termed subwords [24].
+The underlying idea of this method involves decomposing a word
+into its component n-grams. For example, if we consider only n-grams of
+length between three and six characters, the word “running” would be
+decomposed as follows:
+
+j:(i,j)∈E
+
+The taxonomy we employed for the current work is RxNorm, which
+represents clinical drugs and their relationships, and is a component of
+the Unified Medical Language System (UMLS)[19]. RxNorm, as a stan­
+dard drug terminology, is curated by the National Library of Medicine
+based on 13 different source vocabularies (as of September 2020),
+including FDA Structured Product Labels, FDB MedKnowledge, Drug­
+Bank and the U.S. Edition of SNOMED CT. Seven RxNorm relation types
+are supported in the January 6th, 2020 release version: RO, SY, RB, RN,
+SIB, CHD, and PAR[19]. Table 2 provides definitions and counts for each
+relation for this version of RxNorm. We utilized the RN, RO and SY re­
+lations for the current work. Retrofitting to these relation types has been
+shown to improve correspondence between pairwise similarities of
+literature-derived embeddings and human judgment of semantic simi­
+larity and relatedness in prior work[31].
+To facilitate the retrofitting process, the pair-wise relationship file
+RXREL.RRF was transformed such that related concepts are grouped
+together on a single line, for input into a publicly available imple­
+mentation4 of the retrofitting algorithm that accompanied the original
+paper. As in our previous work[22], we experimented with different
+values of the retrofitting model hyperparameters. Since α and β serve as
+weights and are subsequently normalized, we can maintain α +β = 1
+which reduces the preceding equation to its numerator. As we have
+shown in previous work[22], setting α = β = 0.5 (as was done by Far­
+uqui et al. in their seminal work [20]) may not be the optimal balance
+point between distributional information (learned by aer2vec) and
+lexical information (from RxNorm) for pharmacovigilance signal
+detection. In order to further examine weighting effects in this setting,
+we evaluate performance at β increments of 0.1, starting from 0 (no
+retrofitting: distributional information only) to 1 (representations
+dominated by information from neighboring terms).
+This prior work also revealed that the normalization procedure in the
+
+- 3-grams:
+- 4-grams:
+- 5-grams:
+- 6-grams:
+
+The subword embedding method maps each of these n-grams to an
+input weight vector. The vector for a word (such as “running”) is then
+generated on-the-fly, as the average of these input weight vectors.
+P(tc |to ) is then estimated as the scalar product between this vector
+average (representing the observed term, to ) and the output weight
+vector for the context term (tc ), with updates propagating back to the
+component n-gram input weight vectors. As is apparent from the
+decomposition of the word “running”, each individual word maps to
+numerous subwords. A naive implementation of this procedure runs the
+risk of exceeding the boundary of the RAM available to store embed­
+dings for each of them. To negotiate this constraint, Bojanowski et al.
+take a pragmatic approach in which the mapping from subword to
+subword embedding is accomplished using a hash function that maps to
+a fixed number of embeddings (on the order of 106 )[24]. While this
+means that collisions may at times occur, with unrelated subwords
+sharing the same embedding, the resulting embeddings have been
+shown to improve performance in word similarity and analogical
+retrieval tasks [24], and subword embeddings are now a core compo­
+nent of the widely-used fastText package5 for embedding generation
+and text classification.
+In the context of the current work, orthographic information is
+especially important in relation to molecular components and drug
+names, where systematic naming conventions are used for organic
+chemicals (IUPAC[32]) and generic or nonproprietary names (INNs
+[33]). The FDA also has policies on usage of drug names regulating
+usage of brand names, established names, proprietary names, and so
+forth beyond INNs and IUPAC [34]. Two orthographic forms that are
+readily recognizable across drug names are prefixes and suffixes. For
+example, the prefix “sulfa-” indicates drugs that inhibit dihyrdopteroate
+synthase (sulfacetamide, sulfadiazine, sulfamethoxazole, sulfasalazine),
+
+Table 2
+RxNorm relation (REL), descriptions, and counts for January 6th, 2020 release.
+REL
+
+Description
+
+Count
+
+RO
+SY
+RB
+RN
+SIB
+CHD
+PAR
+
+REL other than synonymy, narrower, or broader
+source asserted synonymy
+broader REL
+narrower REL
+sibling REL in a Metathesaurus source vocabulary
+child REL in a Metathesaurus source vocabulary
+parent REL in a Metathesaurus source vocabulary
+
+5,231,682
+566,715
+373,253
+373,253
+16,186
+6,619
+6,619
+
+4
+
+run, unn, nni, nin, ing
+runn, unni, nnin, ning
+runni, unnin, nning
+runnin, unning
+
+5
+
+https://github.com/mfaruqui/retrofitting
+4
+
+https://fasttext.cc/
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+from this procedure 7. For consistency, the same training configurations
+and hyperparameter settings were used as with subword embeddings
+and retrofitting alone, and the evaluation process for the combined
+model was repeated on the four training sets separately.
+
+including antibiotics or anti-inflammatory agents. The suffix“-profen”
+(fenoprofen, flurbiprofen, ibuprofen, ketoprofen) is often applied to
+nonsteroidal anti-inflammatory drugs (NSAIDs).
+In order to represent orthographic information of this sort, we
+adapted the subword embedding approach to facilitate its application to
+the aer2vec architecture. As described previously, the underlying idea
+of subword embedding in the context of SGNS is to construct n-grams on
+character level for each word, and use those n-grams to construct a
+representation for this word using summation[24] as follows:
+∑
+̂t o = wt to + wg
+zg
+
+2.6. Training and Evaluation
+For every model variation and on every dataset, the training process
+was repeated in 10 independent experiments with different stochastic
+starting points, and training occurred over five epochs. The number of
+negative samples was set to 5 for all scenarios. Results for the reference
+set were generated from the ten instantiations of each configuration,
+with reporting of the synthesis of these results for each model variant.
+The reference set from the Observational Medical Outcomes Part­
+nership (referred to as the OMOP set) is used as the evaluation set for all
+models. The OMOP set contains 165 positive controls and 234 negative
+controls for 4 ADEs: acute liver injury, acute kidney injury, acute
+myocardial infarction (MI), and upper gastrointestinal bleeding, each of
+which has approximately 40 positive controls (i.e. drug/ADE relation­
+ships considered to be causal in nature) and 60 negative controls (where
+drugs are considered not to cause the ADE in question) [38]. The set was
+constructed by using NLP methods to extract product labeling infor­
+mation from the FDA’s DailyMed website to identify candidate positive
+controls, and performing systematic literature review to refine the initial
+list. To identify negative controls, similar information sources were used
+to find cases where no available evidence showed a causal relationship
+between the drugs and ADEs concerned[38].
+The baseline metrics used in evaluation are the Proportional
+Reporting Ratio (PRR) and the Reporting Odds Ratio (ROR), two dis­
+proportionality metrics that are widely used in pharmacovigilance to
+detect signals from spontaneous reporting data[7]. Both can be derived
+from the following 2 × 2 disproportionality table:
+Given Table 3 where a, b, c, d are co-occurrence counts, PRR and ROR
+can be calculated as:
+a / c
+PRR =
+a+b c+d
+a/ c
+ROR =
+b d
+
+g∈G t
+
+where G t is the set of N n-grams of the observed term, represented by the
+embedding to , and zg is the vector for n-gram g. wt and wg are weighting
+terms that determine the relative influence of the term and subword
+embeddings respectively, and vary across the subword embedding
+literature[24,35]. For the current experiments, we set wt = 1 and wg =
+1
+N, following Mikolov et al.[35].
+We developed our subword embedding implementation by adapting
+thee aer2vec[18] and subword embedding[36] capabilities of the open
+source Semantic Vectors package[30,29]6. An important distinction
+between the original implementation of subword embedding in the
+context of SGNS and our implementation within aer2vec + is that in
+our case subword embeddings are derived for drugs, which are repre­
+sented by the output (rather than input) weights of the neural network.
+As such, the vector ̂
+v drug (and ̂
+v drug′ in the case of negative samples) is
+constructed on-the-fly during training as the following linear sum:
+̂
+v drug = vdrug +
+
+1∑
+zg
+N g∈G t
+
+P(drug|ADE) can then be estimated as σ (̂
+v drug . vADE ), with the resulting
+output weight updates concerning both the subword (zg ) and drug (vdrug )
+embeddings. As with the original implementation of aer2vec, this
+estimation procedure is identical to that used to estimate the strength of
+the relationship between a drug and ADE for evaluation purposes.
+Two additional details concern the addition of symbols to encode the
+start (<’) and end (>’) of a word, and the size of the n-gram components
+selected for modeling. For example, 7-gram forms of “ibuprofen” include
+“ < ibupro”, “ibuprof”, “buprofe”, “uprofen”, and “profen>”.
+There are two points to clarify here: (1) each word is preprocessed by
+adding angle brackets (“<>”) around it, so the 9-character word
+“ibuprofen” becomes 11-character word “ < ibuprofen>”, permit­
+ting selective representation of prefixes and suffixes; (2) the 7-gram form
+used in this illustrates number needed to represent the suffix
+“profen>’’. We elected to represent all n-grams of 4 to 8 characters in
+length on the basis of observations of some common prefixes, suffixes,
+and stems for drugs, such as “-vir”, “-arot-”, “-terol”, and “-cycline”[37].
+Finally, while we note that another benefit of subword embedding is the
+abilty to generate representations for out-of-vocabulary (OOV) words,
+we do not utilize this feature in the current paper to facilitate fair
+comparison with other methods where OOV words in the evaluation set
+cannot be represented.
+
+ROR and PRR are very similar in form, and they were also shown to have
+almost identical results on the same data in our previous work[22]. For
+the sake of simplicity, only ROR will be shown in this paper unless
+otherwise specified. For evaluation, the probability P(drug|ADE) was
+̅̅→ ̅̅→
+estimated as σ (ADE⋅drug) using our embedding models. PRR and ROR
+were estimated from the same data sets. These procedures were
+completed for each of the drug/ADE pairs in the OMOP evaluation set,
+and the Area Under the Receiver Operating Characteristic Curve (AUC)
+was used for comparison between different methods.
+
+Table 3
+Basis for Calculation of Disproportionality Metrics.
+
+2.5. Combining lexical knowledge and orthographic information
+
+Drug of Interest
+Other Drugs
+
+As lexical knowledge and orthographic representations provide
+distinct information about words, we hypothesized that they may be
+complementary. While preceding sections provide ways to encode lex­
+ical relations and orthographic similarity separately, the methods used
+for this purpose can be combined by applying subword embeddings
+within aer2vec first, and then retrofitting the embeddings that result
+6
+
+ADE of Interest
+
+Other ADEs
+
+a
+c
+
+b
+d
+
+7
+While the retrofitting process changes the drug embeddings (̂
+v drug ) pro­
+duced by the subword embedding procedure, these updates will not propagate
+back to the subword level.
+
+https://github.com/semanticvectors/semanticvectors
+5
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+3. Results
+
+Table 5
+Unaugmented aer2vec on raw FAERS.
+
+3.1. aer2vec without augmentation
+The results from experiments with the aer2vec + architecture
+without augmentation are shown in Table 4. In these experiments,
+aer2vec was trained on two sets of standardized FAERS data: the FULL
+set (all drugs) and the PS set (primary suspects only). Both PRR and ROR
+were also calculated as baseline models to detect drug signals. Given
+that aer2vec training was repeated over 10 independent experiments
+(each with different stochastic initializations of the neural network
+weights), mean AUC and standard error of the mean (or related confi­
+dence intervals for graphs) are reported.
+The results in Table 4 confirm that the aer2vec algorithm has
+significantly better performance than baseline PRR and ROR models, on
+both FULL and PS sets (consistent with prior work [18]), and that
+training on the PS set results in a larger increase in AUC for aer2vec
+than is observed with the FULL set (0.088 vs 0.078). It is also worth
+noting that PRR and ROR have very similar results in both sets.
+Results from experiments in which the aer2vec architecture was
+trained on minimally preprocessed FAERS data (still including both the
+FULL set and the PS subset, with PRR and ROR baselines) are shown in
+Table 5. These results show the same patterns as those in Table 4 where
+the standardized data were used. The aer2vec models always perform
+better than the baseline PRR and ROR disproportionality metrics.
+Furthermore, when moving from the standardized to the minimally
+preprocessed FAERS data, both PRR and ROR drop in performance. In
+contrast, results from the aer2vec algorithm on the PS set significantly
+improved, with an increase in AUC of 0.018 (Welch’s t-test: p-val­
+ue=.01). While an increase is observable for the FULL set, this is not
+statistically significant (increase of 0.01, Welch’s t-test: p-value=.22).
+
+FULL
+
+0.632
+
+0.633
+
+0.710 ± 0.007
+
+PS
+
+0.733
+
+0.733
+
+0.821 ± 0.005
+
+FULL
+
+0.623
+
+0.624
+
+0.720 ± 0.004
+
+PS
+
+0.706
+
+0.707
+
+0.839 ± 0.003
+
+3.4. Combination results
+After evaluating their effects independently, we evaluated the com­
+bined utility of lexical and orthographic information. Subword embed­
+dings were applied during the training of aer2vec drug/ADE
+embeddings, and the resulting subword-aware embeddings were then
+retrofitted to different degrees (with the influence of lexical information
+controlled by β parameters ranging from 0 to 1, as in our prior experi­
+ments). For comparison, performance with retrofitting on unaugmented
+aer2vec embeddings (blue lines and areas: means and 95% confidence
+intervals) is also shown in Fig. 2.
+As shown in Fig. 2, the results of combined methods invariably
+perform better than baseline ROR statistics. The most obvious benefit
+from subword embeddings is from the models trained on the standard­
+ized FULL set (Fig. 1a), but some benefit is evident in all models. When
+combined with subword embeddings, the retrofitting effects remain the
+same as in Section 3.2 when examined independently: the effects on the
+raw FAERS dataset are larger than those on the standardized set. Overall
+performance with retrofitting and subword embeddings is better than
+that of any individual model. Table 8 summarizes models of best per­
+formance for each of the four datasets, and provides their corresponding
+AUCs. All four best performing models include both aer2vec and sub­
+word embeddings, with retrofitting playing an important role with the
+raw FAERS datasets.
+3.5. Performance on individual side effects
+To further investigate the embeddings we generated using different
+methods and training sets, we performed an analysis of their utility for
+each of the four side effects in the OMOP set.
+We limited our examination to the PS set only. In this set, we
+examined unaugmented aer2vec embeddings derived from both
+standardized and raw sets, aer2vec with subword embeddings on the
+raw set, and aer2vec with subword embeddings and retrofitting with
+β = 0.8 on the raw set (best performance overall). Fig. 3 shows the re­
+sults for all four ADEs. The results suggest that variant models perform
+differently for different side effects. For example, the unaugmented
+aer2vec model performs significantly worse when trained on stan­
+dardized data for acute hepatic failure, conflicting with a general trend
+of better performance than with raw data on the other three side effects
+and overall. Similarly, the performance improvement with subword
+embeddings may be largely attributable to improvements with acute
+myocardial infarction in particular, with a smaller improvement with
+gastrointestinal haemorrhage. In general, however, the variant with
+overall best performance also yields highest AUCs for individual ADEs,
+with the sole exception of gastrointestinal haemorrhage, where the
+mean AUCs are not significantly different between unaugmented
+aer2vec (standardized PS) and overall best performance variant
+
+Table 4
+Unaugmented aer2vec on standardized FAERS.
+aer2vec (mean ± se)
+
+aer2vec(mean ± se)
+
+Subword embedding was first used with the unaugmented aer2vec
+algorithm in order to isolate its effects on the resulting drug/ADE em­
+beddings. The results of these experiments are shown in Table 7. With
+the standardized FULL and raw PS set, there are statistically significant
+improvements in AUCs (at a significance level of α = 0.05). While in­
+creases in AUCs are observable for the other two training sets, these are
+not statistically significant.
+
+To evaluate retrofitting effects on the unaugmented aer2vec algo­
+rithm, a range of retrofitting parameters (β’s) from 0 to 1 was used, with
+increments of 0.1. For each β value, 10 repeated experiments were
+performed to assess robustness of results in the context of stochastic
+elements of the algorithm (such as random initialization of vectors). This
+process was repeated for all four training sets: the standardized and raw
+FAERS datasets, and their FULL and PS subsets, with results grouped by
+subset.
+As shown in Fig. 1, retrofitting has a different effect depending on the
+nature of the underlying data set. With the minimally preprocessed data,
+retrofitting aer2vec improves performance. This improvement is
+accentuated as the influence of retrofitting (indicated by β) is increased,
+up to the point where β is large enough (> 0.8) that the retrofitting
+process obscures the distributional information encoded by aer2vec.
+Also, the β needed to achieve the best AUC is different in each set, at β =
+0.6 for the minimally preprocessed FULL set, and β = 0.8 for the mini­
+mally processed PS set (as shown in Table 6). However, there is no
+pattern of improvement with the standardized sets, where RxNorm was
+applied during preprocessing and before the application of aer2vec.
+On the contrary, with the standardized sets best performance is attained
+without retrofitting (β=0) for the FULL set, or with no or little retrofit­
+ting (β <= 0.3) for the PS subset (Table 6).
+
+PRR
+
+PRR
+
+3.3. Subword embedding results
+
+3.2. Retrofitting results
+
+ROR
+
+ROR
+
+6
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+Fig. 1. retrofitting results on the FULL set and PS set of standardized and minimally preprocessed FAERS dataset respectively.
+
+results presented in Table 9.
+As anticipated when moving from the standardized set to the raw set,
+the set of drug names retrieved expands to include trade names and
+other variants. For example, aer2vec detects signal from drug names
+such as Avandia (rosiglitazone) and amn107 (nilotinib), neither of
+which appear as top 10 results with the standardized set, but represent
+drugs with known cardiovascular risk profiles[39,40].
+When considering the best performing model (bottom right cell of
+the table), we observe strong signal from drugs such as “heparin_­
+sodium_injection” and “reteplase_(reteplase”, whose generic forms also
+appear in the results from the standardized set. In addition, the effects of
+incorporating orthographic information are apparent, with “amn107”
+and “amn107_amn + cap” proximally ranked when subword embed­
+dings were applied.
+From a historical perspective, it is worth noting one drug in partic­
+ular. Vioxx (rofecoxib) has long been recognized for increased risk of
+cardiovascular events, as revealed by Merck’s Vioxx Gastrointestinal
+Outcomes Research study in 2000 (for a historical account see [41]). The
+different forms of Vioxx (rofecoxib) in the standardized and raw sets also
+have different reporting rates, as shown in Table 10, which shows the
+number of reports referring to this drug by different names in each set (a
+more detailed list with the 100 top-ranked drug forms in the raw and
+standardized sets is provided in Supplementary Table 1). The trade
+name, Vioxx, was predominantly used in raw FAERS reports, but these
+mentions were all converted into the generic form in the standardized
+set. The differences in signal associating Vioxx with acute myocardial
+infarction across datasets and models can be further examined by
+considering the results in Table 11, which shows the strength of this
+prediction in each set. When the raw set is used, the predominant
+reporting form of “Vioxx” is strongly associated with acute MI. Signal is
+present for the generic term “rofexocib” also, but not for the variant form
+“rofecoxib_50_mg”. Subword embedding does not strengthen the signal
+for this form, perhaps on account of noise introduced by character ngrams related to drug dosage (e.g. 50_mg), and the relatively small
+number of training examples using the generic name of the drug. This
+result notwithstanding, it is apparent that when subword embedding is
+applied, the representations of “rofecoxib” and “rofecoxib_50_mg” are
+drawn closer together in the resulting embedding space (Table 12). This
+suggests that subword embedding is having the desired effect of drawing
+the coxib family together, even though it does not appear to do so in a
+manner that permits generalization of this particular drug/ADE associ­
+ation. In contrast, when retrofitting is used to introduce lexical infor­
+mation, signal from the rarely-used form of “rofecoxib_50_mg” is
+strengthened by its taxonomic relationship to both “rofecoxib” and
+“vioxx”. However, this comes at the cost of reducing the strength of the
+
+Table 6
+Detailed results of retrofitting.
+FULL
+Raw
+
+PS
+
+β
+
+Standardized
+
+Standardized
+
+Raw
+
+0.0
+
+0.710 ± 0.007
+
+0.720 ± 0.004
+
+0.821 ± 0.005
+
+0.839 ± 0.003
+
+0.1
+
+0.709 ± 0.007
+
+0.727 ± 0.004
+
+0.821 ± 0.005
+
+0.847 ± 0.003
+
+0.2
+
+0.708 ± 0.006
+
+0.734 ± 0.004
+
+0.821 ± 0.005
+
+0.854 ± 0.003
+
+0.3
+
+0.706 ± 0.006
+
+0.740 ± 0.004
+
+0.821 ± 0.005
+
+0.859 ± 0.003
+
+0.5
+
+0.701 ± 0.006
+
+0.749 ± 0.004
+
+0.819 ± 0.006
+
+0.867 ± 0.003
+
+0.6
+
+0.698 ± 0.006
+
+0.750 ± 0.004
+
+0.819 ± 0.006
+
+0.870 ± 0.003
+
+0.8
+
+0.690 ± 0.006
+
+0.743 ± 0.003
+
+0.816 ± 0.006
+
+0.872 ± 0.003
+
+1.0
+
+0.660 ± 0.006
+
+0.676 ± 0.003
+
+0.800 ± 0.006
+
+0.813 ± 0.002
+
+ROR
+
+0.632
+
+0.623
+
+0.733
+
+0.706
+
+Table 7
+Subword effects on standardized and raw FAERS datasets (sub = subword em­
+beddings. F = FULL set. P = PS set).
+Standardized
+aer2vec sub
+
+aer2vec
+
+p☆
+
+aer2vec
+
+Raw
+aer2vec
+sub
+
+p☆
+
+F
+
+0.710±0.007
+
+0.738±0.003
+
+< .01
+
+0.720±
+0.004
+
+0.729 ±
+0.003
+
+0.087
+
+P
+
+0.821±0.005
+
+0.829±0.004
+
+0.252
+
+0.839±
+0.003
+
+0.847 ±
+0.001
+
+0.019
+
+☆
+
+p-value from Welch’s t-test.
+
+(Welch’s t-test, p-value=.08).
+In addition, we performed a qualitative evaluation of the nearest
+neighboring concepts in the resulting embedding spaces. When
+comparing drug and ADE embeddings, we recapitulate the training
+objective of the model, the sigmoid function of the scalar product be­
+tween the embeddings concerned:
+⃒
+(
+)
+(
+)
+̂ drug⃒⃒ADE = σ vdrug ⋅vADE
+P
+=
+
+1
+1 + e−
+
+vdrug ⋅vADE
+
+where vdrug and vADE are embeddings for drug and ADE, respectively. The
+mean sigmoid function of the scalar product over 10 independent ex­
+periments with the same settings is shown, and used for ranking. We
+investigated the highest ranked drugs for a single ADE, acute myocardial
+infarction. The same four embedding spaces are compared, with detailed
+7
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+Fig. 2. Performance of aer2vec with subword embeddings and retrofitting.
+
+which has reasonably high reporting frequencies in both raw and stan­
+dardized sets (n = 11,832 and n = 18,522, respectively, as shown in
+Supplementary Table 1). Two drugs with the same “-ine” suffix,
+“chlorpromazine” and “theophylline”, were drawn closer to “clozapine”
+when subword embeddings were applied in the standardized set. This
+increase in proximity is also observed with “clozaril” and “olanzapine”
+in the raw set. However, the effect of retrofitting (with β(0.8)) on
+proximity between drug vectors is far more pronounced. After retrofit­
+ting, “clozapine_tablets” and “fazaclo” are closest in proximity to the cue
+drug “clozapine”, despite their relatively low reporting frequencies (8
+and 24, respectively).
+A more detailed list of the nearest neighbors to “clozapine” is pro­
+vided in the Supplementary Table 2 accompanying this manuscript.
+
+Table 8
+Best performances on four training sets.
+Standardized
+
+Raw
+
+FULL
+
+0.738 ± 0.003 (aer2vec + subword)
+
+0.754 ± 0.002 (aer2vec +
+subword + retrofit β = 0.5)
+
+PS
+
+0.829 ± 0.004 (aer2vec + subword
++ retrofit β <=0.2)
+
+0.877 ± 0.001 (aer2vec +
+subword + retrofit β = 0.8)
+
+signal from these relatives. The high cosine similarities between vectors
+representing taxonomically related terms that may occur when retro­
+fitting is used are shown in Table 12. This increase in relatedness ex­
+plains the increase in signal from “rofecoxib_50_mg” when retrofitting is
+employed, by allowing the underlying model to adjust for underrepresented signals, or reporting rates in practice. This observation
+also suggests a potential mechanism for the decrease in signal from
+“vioxx” which may be diluted by information from other neighboring
+terms that are unrelated to myocardial infarction. More broadly, the
+model-specific similarities between different forms of Vioxx (rofecoxib)
+shown n Table 12 illustrate how introducing orthographic information
+(row 3) enhances the similarity between vector representations of
+“rofecoxib” and “rofecoxib_50_mg”, and how retrofitting draws the
+vector representations of these taxonomically-related terms together
+(rows 4 and 5).
+Differences between embedding representations can often be dis­
+cerned by comparing the nearest neighboring embedding to a cue term
+of interest in different vector spaces. Table 13 provides additional details
+about the ten closest drug embeddings to the embedding for “clozapine”,
+
+3.6. De-duplication on raw full set
+Upon investigation of the report counts across data sets (shown in
+Table 1), we found that the discrepancy in the number of reports be­
+tween the standardized set and the raw set mostly originated from the
+de-duplication step in the process of standardization. To further inves­
+tigate the effect of this preprocessing step on performance, and also to
+assure fairness of comparison between models on raw and standardized
+sets, we constrained our raw FULL set to reports with report IDs repre­
+sented in the standardized set. We will referred to this set as the filtered
+raw FULL set. In a subsequent experiment, we trained all models
+(aer2vec, subword embeddings, and retrofitting frameworks) on this
+filtered data set, as well as estimating disproportionality metrics as a
+point of comparison.
+8
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+Fig. 3. AUCs from different methods grouped by ADEs. AUCs are plotted as means with 95% CI. *This is the best setting for raw PS set, where β = 0.8 is used for
+retrofitting, together with aer2vec and subword embeddings.
+Table 9
+Top 10 closest drugs with acute myocardial infarction in 4 embedding spaces trained on the Primary Suspect (PS) subset of the data. For the best-performing model
+(retrofit - bottom right panel), the retrofitting β parameter = 0.8. STD indicates the standardized set. RAW indicates the minimally preprocessed set. SigScalar indicates
+the sigmoid function of the scalar product between the relevant drug and ADE representations.
+STD-PS base aer2vec
+
+Drug
+
+SigScalar
+
+Drug
+
+RAW-PS base aer2vec
+
+SigScalar
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+rofecoxib
+reteplase
+tirofiban
+bivalirudin
+heparin
+prasugrel
+digoxin
+streptokinase
+cilostazol
+ticagrelor
+
+0.828
+0.589
+0.565
+0.543
+0.502
+0.499
+0.497
+0.48
+0.455
+0.434
+
+avandia
+amn107
+prasugrel_hydrochloride
+tasigna
+digoxin
+polygam_s/d
+amn107_amn + cap
+retevase
+heparin_sodium_injection
+reteplase_(reteplase
+
+0.776
+0.773
+0.674
+0.666
+0.652
+0.625
+0.624
+0.608
+0.606
+0.606
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+RAW-PS aer2vec subword
+Drug
+avandia
+amn107
+prasugrel_hydrochloride
+tasigna
+amn107_amn + cap
+vioxx
+aggrastat
+digoxin
+heparin_sodium_injection
+retevase
+
+SigScalar
+0.785
+0.733
+0.709
+0.664
+0.652
+0.64
+0.639
+0.625
+0.621
+0.619
+
+RAW-PS aer2vec subword retrofit
+Drug
+amn107
+amn107_amn + cap
+heparin_sodium_injection
+retevase
+polygam_s/d
+reteplase_(reteplase
+posicor
+blinded;_abcixima
+novoseven
+pletal
+
+SigScalar
+0.733
+0.652
+0.621
+0.619
+0.612
+0.593
+0.511
+0.507
+0.494
+0.48
+
+Fig. 4a (an expansion of Fig. 2b) shows the performance of aer2vec
+with and without retrofitting. Performance on the filtered raw FULL set
+still exceeds that on the standardized set, indicating that this improve­
+ment is not attributable to the effect of duplicate reports. The removal of
+approximately one million duplicated reports does not harm perfor­
+mance for aer2vec with or without retrofitting, or ROR. Rather, per­
+formance with all of these methods improves slightly, indicating that the
+duplicated reports constitute noise rather than meaningful signal. It is
+
+Table 10
+Counts of different forms of Vioxx (rofecoxib) in reports.
+
+“rofecoxib”
+“rofecoxib_50_mg
+“vioxx”
+
+Standardized (PS)
+
+Raw (PS)
+
+35,714
+0
+0
+
+39
+2
+65,730
+
+9
+
+X. Ding et al.
+
+10
+
+0.649
+
+0.639
+leponex_/_clozaril_
+(clozapine)_lex + tab
+0.549
+
+leponex_/_clozaril_
+(clozapine
+zoton_(lansporazole
+0.570
+
+0.555
+
+amisulpride_
+(amisulpride
+leponex_/_clozaril_
+(clozapine)_lex + tab
+0.557
+
+carbidopa_/ _entacapone_/
+_levodopa_oral_tablet
+10
+
+0.454
+
+procyclidine
+
+0.484
+
+leponex_/_clozaril_
+(clozapine)_lex + tab
+olanzapine
+0.487
+risperidone
+olanzapine
+9
+
+0.455
+
+0.491
+0.488
+haloperidol
+iloperidone
+perphenazine
+risperidone
+7
+8
+
+0.466
+0.460
+
+0.639
+
+0.679
+
+0.721
+0.682
+
+clozaril_(clozapine
+leponex_/_clozaril_
+(clozapine
+leponex_/_clozaril
+0.719
+0.666
+fazaclo_odt
+leponex_/_clozaril
+0.598
+0.594
+olanzapine
+leponex_/_clozaril
+0.606
+0.558
+
+0.747
+fazaclo_odt
+
+0.994
+0.990
+0.825
+fazaclo
+clozaril
+leponex
+0.990
+0.990
+0.762
+
+clozapine
+clozapine_tablets
+1.000
+0.993
+
+0.761
+leponex
+0.622
+0.613
+
+leponex_/ _clozaril_
+(clozapine
+leponex_/_clozaril
+zoton_(lansporazole
+0.492
+maprotiline
+
+The results of our experiments confirm the advantages of distributed
+representations as compared with traditional statistical methods methods that are in current use for pharmacovigilance signal detection.
+In our experiments, using unaugmented aer2vec embeddings to reca­
+pitulate the training objective of the model, P(drug|ADE), outperformed
+PRR and ROR statistics on the OMOP evaluation set, which is consistent
+with prior results [18,22]. The current work goes beyond these previous
+experiments by evaluating the utility of the aer2vec model in the
+context of both standardized and minimally preprocessed data. While
+moving from standardized to minimally preprocessed (raw) data is
+detrimental to the performance of disproportionality metrics, aer2vecbased models are not adversely affected by the lack of standardization,
+and even improve in performance in this setting. The finding that dis­
+proportionality metrics benefit more from standardization is expected,
+on account of their inability to draw connections between different ways
+of referring to the same drug in a report. For example paroxetine has
+several forms beyond the generic form in the original FAERS dataset,
+including “PARoxetine hydrochloride 10 MG”, “PARoxetine hydro­
+chloride 10 MG Oral Tablet”, and brand names such as “Brisdelle”,
+
+0.473
+
+4. Discussion
+
+chlorpromazine
+
+Table 13
+Top 10 closest drugs to “clozapine” (mean cosine similarities across 10 iterations).
+
+1.000
+0.791
+
+also noteworthy that after de-duplication, ROR with the raw set now
+performs better than that with the standardized set, which is not the case
+with the unfiltered raw set.
+Fig. 4b shows the performance of aer2vec, subword embedding,
+and retrofitting. In comparison of Fig. 2b, the patterns of subword
+embedding and retrofitting remain the same, with comparable AUCs as
+well. Both models on two raw sets outperform the one on the stan­
+dardized set (Fig. 2a).
+These results also indicate that unlike ROR, aer2vec is relatively
+resistant to data redundancy, as performance with the raw set exceeds
+performance with the standardized set irrespective of this filtering step,
+and remains comparable with or without it.
+
+6
+
+0.955
+
+0.798
+0.695
+0.623
+
+0.981
+
+clozaril
+fazaclo_odt
+leponex_/_clozaril_
+(clozapine
+clozaril_(clozapine
+
+0.991
+
+0.746
+0.685
+0.668
+
+0.970
+
+leponex
+clozaril_(clozapine
+fazaclo_odt
+
+0.986
+
+0.543
+0.529
+0.524
+
+0.993
+
+amisulpride
+chlorpromazine
+theophylline
+
+0.295
+
+0.578
+0.493
+0.489
+
+0.639
+
+amisulpride
+iloperidone
+procyclidine
+
+0.684
+
+3
+4
+5
+
+0.404
+
+clozapine
+clozapine_tablets (N =
+8)
+fazaclo (N = 24)
+clozaril
+clozaril_(clozapine
+
+0.662
+
+1.000
+0.799
+
+0.603
+
+clozapine
+leponex
+
+NA
+
+clozapine
+clozaril
+
+NA
+
+1.000
+0.679
+
+NA
+
+clozapine
+ziconotide_acetate
+
+(“vioxx”,
+“rofecoxib_50_mg”)
+
+1.000
+0.662
+
+RAW-PS
+aer2vec,
+subword,
+retrofit β =
+0.8
+
+(“rofecoxib”,
+“vioxx”)
+
+RAW-PS, aer2vec, subword
+
+STD-PS base
+aer2vec
+RAW-PS base
+aer2vec
+RAW-PS
+aer2vec,
+subword
+RAW-PS
+aer2vec,
+retrofit β =
+0.8
+
+(“rofecoxib”,
+“rofecoxib_50_mg”)
+
+RAW-PS aer2vec, retrofit β =
+0.8
+
+Table 12
+Cosine similarities between different forms of Vioxx (means across 10
+iterations).
+
+clozapine
+ziconotide_acetate
+
+NA
+0.481
+0.640
+0.385
+
+1
+2
+
+“vioxx”
+
+NA
+0.050
+0.045
+0.219
+
+RAW-PS base aer2vec
+
+“rofecoxib_50_mg”
+
+STD-PS aer2vec, subword
+
+“rofecoxib”
+0.828
+0.406
+0.335
+0.303
+
+STD-PS base aer2vec
+
+STD-PS base aer2vec
+RAW-PS base aer2vec
+RAW-PS aer2vec, subword
+RAW-PS aer2vec, subword,
+retrofit β = 0.8
+
+RAW-PS aer2vec, subword, retrofit
+β = 0.8
+
+Table 11
+Sigscalar similarities between different forms of Vioxx(Rofecoxib) and acute
+myocardial infarction.
+
+1.000
+0.994
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+Fig. 4. Additional results of models training on filtered raw FULL set. (a) base aer2vec trained on 3 datasets: raw FULL, filtered raw FULL, standardized FULL; (b)
+aer2vec trained on filtered raw FULL set, with and without subword embedding.
+
+“Paxil”, and “Pexeva”[42]. Failure to capture related forms directly re­
+duces capacity for signal detection, as shown in the decrease of perfor­
+mance with PRR and ROR (where only counts are used), when extensive
+preprocessing is not applied. Though it seems intuitive that this would
+be the case, it is interesting to note that ROR performance with the
+deduplicated raw FULL set is slightly better than with the standardized
+equivalent, suggesting that with this evaluation set, this filtering step
+may play a greater role in improving performance than standardization
+of drug terms. Nonetheless, as is apparent from examining the case of
+“rofecoxib” (Table 10), the exact match required by ROR results in a
+distortion of the 2 × 2 table used for calculation, omitting the vast ma­
+jority of reports in which the drug is named by its brand name, “Vioxx”.
+This is likely to result in inaccurate estimates in many cases, and would
+be particularly harmful in the case of emerging side effects where re­
+ports using the generic name may not exist. In contrast, aer2vec takes a
+distributional approach, where drugs appearing in similar contexts
+develop similar representations. Consequently models can utilize signal
+disseminated across the variant forms of a drug. However, it is not
+immediately apparent why distributional methods would improve their
+performance in the absence of standardization. One possible reason for
+this may involve data loss in cases in which terminological mapping
+during the standardization step was not possible.
+Subword embedding, as a way to incorporate orthographic infor­
+mation about drugs, improves the performance of the aer2vec model.
+With the construction of subword embeddings, drugs with similar names
+are represented similarly. This is useful in the context of drug names, on
+account of their systematized nomenclature. For example, the stan­
+dardized names of COX-2 inhibitors generally end with the suffix
+“coxib”. However, we found that generic forms were seldom used in the
+raw set, with trade names predominating in the most frequently re­
+ported drug terms. Trade names often deviate from the meaningful
+patterns of orthographic similarity that characterize the names of
+generic drugs. As a consequence, the generic forms following naming
+conventions found in the standardized set may provide a better source of
+orthographic information than the raw set. Additionally, inspection of
+the nearest neighboring drugs to the subword embeddings themselves
+suggests that distributional information may dilute orthographic infor­
+mation during the course of training, especially when orthographically
+similar drugs are scarcely reported. For example, the subword embed­
+ding representation for the 5-gram ‘coxib’ is similar to vectors repre­
+senting other non-steroidal anti-inflammatory agents, in addition to the
+Cox-2 inhibitor (-coxib) group. While performance improvements with
+the incorporation of subword embeddings were statistically significant
+on two of the reference subsets only, performance improved across all
+
+four subsets, and advantages over PRR and ROR statistics were retained.
+Therefore, we would recommend the use of subword embeddings when
+developing distributed representations of AER data for pharmacovigi­
+lance purposes.
+Retrofitting improved aer2vec performance with the raw FAERS
+training set (for both the FULL set, and the PS subset). However, this was
+not the case with the standardized sets, where performance decreased
+with retrofitting (or remained stable and then decreased) as shown in
+Table 6. This is not surprising, as both retrofitting and terminologically
+driven standardization offer means to leverage lexical knowledge to
+improve pharmacovigilance signal detection, and it seems intuitive that
+applying both methods would be redundant. As performance with the
+raw training set benefits from retrofitting, this shows that the lexical
+information from RxNorm serves as a complement to distributional in­
+formation learned from the data directly, which in our case includes data
+from spontaneous reports but excludes drug classes, relations, and hi­
+erarchy, just as most distributional semantics algorithms don’t take
+lexical knowledge beyond the training corpus into account. These ex­
+periments also considered the role of the β hyperparameter of the ret­
+rofitting method, with optimal values for this parameter varying across
+training data set configurations. While it isn’t necessarily the case that
+the optimal setting for performance on the OMOP set would generalize
+to other evaluation settings, it is interesting to note that the optimal
+performance with the FULL set (0.6) was close to the algorithm’s default
+setting of 0.5, while performance with the PS set was best when
+increasing the influence of retrofitting further (β=0.8). This suggests a
+greater need for generalization using lexical knowledge in the context of
+the relatively limited distributional information provided by this smaller
+training set.
+An overarching goal of the current work was to evaluate the utility of
+combining retrofitting with subword embeddings. When trained on
+minimally preprocessed data, this combination led to the best docu­
+mented aer2vec performance on the OMOP set to date (AUCs of 0.754
+± 0.007 and 0.877 ± 0.004 with the FULL and PS sets respectively). As
+one might anticipate given the results with these components individ­
+ually, retrofitting did not improve performance over aer2vec with
+subword embeddings when trained on the standardized set. However,
+performance with this standardized set was exceeded when applying
+subword embeddings and retrofitting in the context of minimally pre­
+processed data. These results support the hypothesis that this combi­
+nation of distributional methods could provide a convenient alternative
+to standardization of discrete data elements using terminologically
+driven normalization procedures.These findings also provide further
+evidence that orthographic information and lexical knowledge are
+11
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+complementary to the distributional similarity learned during the pro­
+cess of training aer2vec embeddings. This holds true with and without
+deduplication of the raw set, indicating that our methods are sufficiently
+resistant to redundancy to permit them to maintain much of their per­
+formance without this pre-processing procedure.
+The overall differences in performance when considering the PS and
+FULL sets have been discussed in our previous papers[18,22], and the
+conclusions still hold here. The PS set usually provides a significant
+improvement in AUC over the FULL set, and this is true for both stan­
+dardized and raw FAERS datasets, as well as in almost all configurations
+of subword embeddings and retrofitting. Given the nature of this PS
+label, it is clear that the expert knowledge that informs the physician or
+reporter’s designation of suspicion, or perhaps their ability to access
+broader contextual information concerning the patient’s medical his­
+tory, plays an important role in filtering out unrelated or even
+misleading information in the same report. While this does introduce the
+potential for additional bias beyond the well-documented reporting
+biases inherent in these data (such as [43]), the improvements in per­
+formance demonstrated when considering these reporter designations of
+suspicion at a minimum suggests a need for further investigation into the
+circumstances under which they might be advantageous for postmarketing signal detection.
+When evaluating performance with individual ADEs, the findings
+vary. When augmenting aer2vec with lexical or orthographic infor­
+mation, performance generally increases, with the greatest improve­
+ments observed when using subword embeddings in acute myocardial
+infarction, and the largest retrofitting effect in acute hepatic failure.
+Upon qualitative evaluation of the predictions for acute MI across
+models, drug name variants such as Avandia and AMN107 predominate
+in the raw set, as opposed to generic forms in the standardized set. The
+specific example of Vioxx showed that lexical information is helpful,
+while orthographic information is not, in discovering potentially underreported forms of Vioxx (eg, “rofecoxib_50_mg” with N = 2 in the raw
+set), but sometimes at the expense of diluting the signal from the
+predominantly-reported forms of drugs (Table 11). However, while
+qualitative evaluation does provide some insight into how model vari­
+ants selectively emphasize different results in particular cases, it is also
+the case that both subword embedding and retrofitting improve overall
+performance.
+The approaches proposed in this paper can assist the process of
+assessing adverse event reports for the purpose of regulatory decision
+making. Our experimental results show that our model can improve
+upon the current process in several ways: (1) the resulting enriched
+distributional methods perform better in our evaluations than countbased signal detection methods in current use, and could be
+substituted for them directly; (2) our methods minimize the need for
+extensive pre-processing, enhancing efficiency; (3) signal that may be
+dispersed in raw data can be aggregated using distributional, taxonomic
+and orthographic similarity; (4) the resulting improvements in effi­
+ciency and signal aggregation could mediate real-time monitoring of
+FAERS reports.
+Moreover, better drug and ADE representations can mediate im­
+provements in performance on other tasks, such as drug repurposing,
+predictive modeling of EHR data, and derivation of patient representa­
+tions from such data. Integration of taxonomic knowledge has estab­
+lished benefits in these areas. For example, Ramsy et al. showed that
+with logistic regression models, representing features using terminol­
+ogies with finer-grained representations was associated with better
+performances when predicting diabetes, heart failure and pancreatic
+cancer[44]. Our methods provide a convenient way to integrate such
+knowledge into distributed representations of ADE reports, with the
+potential to enhance their utility for downstream machine learning. As
+another example, estimates of the similarity between drugs based on
+their side-effect profiles have been shown to carry information that is
+useful for drug repurposing, because drugs with similar adverse effects
+may have similar therapeutic effects also. For example, the PREDICT
+
+approach of Gottlieb et al.[45] and the SPACE approach of Liu et al.[46]
+both use side-effect profile derived drug-drug similarities to build pre­
+dictive models for drug repurposing. Our representations can fit natu­
+rally into this scenario in that drug-drug similarities emerge directly
+from the cosine similarities between aer2vec vector representations.
+Some limitations of this work emerge from the training dataset,
+FAERS, where reported drug/ADE relationships do not necessarily imply
+causality. For example, researchers found that complaints in FAERS
+about 5-alpha reductase inhibitors were contradictory to established
+ADEs from long-term controlled studies[47]. FAERS reports also lack
+contextual information (such as the temporal sequence of events) that is
+pertinent to evaluation. In addition, reporting biases may influence
+which ADEs or drugs are or aren’t reported. Examples include underreporting for statin-related events[48], and that an FDA alert concern­
+ing two diabetic medications was followed by changes in reporting
+trends for pancreatitis[49].
+Additional limitations stem from the OMOP evaluation set, which
+has been criticized for its emphasis on well established ADEs, at the
+expense of including emerging or novel ones[50]. As a result, with
+limited testing examples, the OMOP set does not provide an indication of
+a model’s ability to detect ADEs that are not already well-known, and
+the OMOP set does not provide the means to assess the accuracy of
+highly ranked predictions for ADEs that it does not contain.
+One way to address these limitations is through experimental design,
+and the method we used for the current work was to place temporal
+constraints on the data (up to 2012 Q4) to simulate a condition in which
+data from the past are used to detect events reported in the “future”.
+However, this does not fully address concerns about the OMOP set, as
+the side effects it describes were already well established at the point at
+which the set was released. It is also possible to derive more granular
+time limits, by using variable time spans before publicly recognized
+ADEs or changes in labels for a drug. This would permit a predictive
+model to be evaluated for its sensitivity to emerging ADEs[51].
+Another limitation is that we did not apply subword embeddings and
+retrofitting to represent adverse events, restricting these methods to
+drug representations. This decision was motivated by the observation
+that adverse events are already recorded in FAERS in a standardized
+manner, using MedDRA. Consequently, there is less dissemination of
+signal across variant forms of these side effects. Nonetheless, we antic­
+ipate that incorporating lexical and orthographic information will be of
+value here also, and will evaluate this hypothesis in our future work.
+A further limitation related to subword embeddings involves noise
+present in the “raw” data set. With minimal preprocessing of drugs,
+there are cases in which series of spaces (N = 41, 072 for three or more
+consecutive spaces) are converted to underscores. Examples include
+“modopar___________(benserazide _hydrochloride,_levodopa” and “neo­
+clarityn_(desloratadine)_tablets_____like_cla-rityn”. Noise of this sort ob­
+scures information about meaningful subwords, and will impair
+performance of the algorithm. As mentioned in the Methods Section,
+trailing special characters are removed during preprocessing, and a
+similar approach could be applied to repeated intervening special
+characters (with precautions) to reduce noise. An additional limitation
+related to the retrofitting algorithm is that the hyper parameter (β) is
+determined empirically, with optimal values determined on the basis of
+the training data. A universal value of β = 0.5 is not appropriate for all
+scenarios, though the close-to-optimal performance with this value on
+the FULL dataset suggests this remains a reasonable first approximation.
+5. Conclusions
+In this paper, we show that the aer2vec method of generating
+distributed representations of drugs and ADEs further improves its
+advantage in performance over disproportionality methods - methods
+that are in current use for pharmacovigilance signal detection - when
+trained on data where drug terms have not been mapped to a stan­
+dardized vocabulary. In comparison with previous work [18,22], the
+12
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+current models have the best performance documented to date, with
+0.754 ± 0.002 (vs 0.742 ± 0.008) on the FULL set and 0.877 ± 0.001 (vs
+0.858 ± 0.005) on the PS set, while trained on raw FAERS and
+employing less data than used in previous experiments. This indicates
+that minimal preprocessing of the FAERS dataset is sufficient when
+distributed representations are used, and may even be advantageous for
+pharmacovigilance signal detection, demonstrating the potential to
+obviate the need for extensive preprocessing. This feature becomes
+especially important for live surveillance or large data.
+In addition our results demonstrate that subword embeddings and
+retrofitting are effective methods to incorporate orthographic and lexi­
+cal information into the resulting embeddings, with further improve­
+ments in performance on a pharmacovigilance signal detection tasks.
+These methods are complementary, with best performance overall ob­
+tained when combining them to augment aer2vec in the context of
+minimally preprocessed data. Taken together, these results demonstrate
+the potential of these methods to obviate the need for extensive pre­
+processing of adverse event data for pharmacovigilance applications.
+
+[13] H.J. Duggirala, J.M. Tonning, E. Smith, R.A. Bright, J.D. Baker, R. Ball, C. Bell, S.
+J. Bright-Ponte, T. Botsis, K. Bouri, et al., Use of data mining at the food and drug
+administration, J. Am. Med. Inform. Assoc. 23 (2) (2016) 428–434.
+[14] M. Sardella, C. Lungu, Evaluation of quantitative signal detection in eudravigilance
+for orphan drugs: possible risk of false negatives, Therapeutic advances in drug
+safety 10 (2019), 2042098619882819.
+[15] T. Cohen, D. Widdows, Empirical distributional semantics: methods and
+biomedical applications, Journal of biomedical informatics 42 (2) (2009) 390–405.
+[16] P.D. Turney, P. Pantel, From frequency to meaning: Vector space models of
+semantics, Journal of artificial intelligence research 37 (2010) 141–188.
+[17] T. Mikolov, I. Sutskever, K. Chen, G.S. Corrado, J. Dean, Distributed
+representations of words and phrases and their compositionality, in: Advances in
+neural information processing systems, 2013, pp. 3111–3119.
+[18] J. Portanova, N. Murray, J. Mower, D. Subramanian, T. Cohen, aer2vec:
+Distributed representations of adverse event reporting system data as a means to
+identify drug/side-effect associations, BioRxiv (2019) 780544, https://doi.org/
+10.1101/780544.
+[19] N.L. of Medicine, Rxnorm project, Accessed: 2020–09-23 (2020). https://www.
+nlm.nih.gov/research/umls/rxnorm/.
+[20] M. Faruqui, J. Dodge, S.K. Jauhar, C. Dyer, E. Hovy, N.A. Smith, Retrofitting word
+vectors to semantic lexicons, in: Proceedings of the 2015 Conference of the North
+American Chapter of the Association for Computational Linguistics: Human
+Language Technologies, 2015, pp. 1606–1615.
+[21] George A. Miller, WordNet: a lexical database for English, Communications of the
+ACM 38 (11) (1995) 39–41.
+[22] X. Ding, T. Cohen, Retrofitting vector representations of adverse event reporting
+data to structured knowledge to improve pharmacovigilance signal detection, To
+appear: Proc AMIA Annu Symp 2020.
+[23] J.M. Banda, L. Evans, R.S. Vanguri, N.P. Tatonetti, P.B. Ryan, N.H. Shah, A curated
+and standardized adverse drug event resource to accelerate drug safety research,
+Scientific data 3 (1) (2016) 1–11, https://doi.org/10.1038/sdata.2016.26.
+[24] P. Bojanowski, E. Grave, A. Joulin, T. Mikolov, Enriching word vectors with
+subword information, Transactions of the Association for, Computational
+Linguistics 5 (2017) 135–146.
+[25] U. Food, D. Administration, Surveillance: Post drug-approval activities, Accessed:
+2020-09-23 (2018). URL https://www.fda.gov/drugs/guidance-complianceregulatory-information/surveillance.
+[26] U. Food, D. Administration, Questions and answers on fda’s adverse event
+reporting system (faers), Accessed: 2020-09-23 (2018). URL https://www.fda.gov/
+drugs/surveillance/questions-and-answers-fdas-adverse-event-reporting-systemfaers.
+[27] D. Graham, S. Ahmad, T. Piazza-heep, Pharmacovigilance, 2nd edition, John Wiley
+& Sons, 2007.
+[28] T. Mikolov, K. Chen, G. Corrado, J. Dean, Efficient estimation of word
+representations in vector space. 1st Int Conf Learn Represent ICLR 2013—Work
+Track Proc. 2013; 1–12.
+[29] D. Widdows, K. Ferraro, Semantic vectors: a scalable open source package and
+online technology management application., in: LREC, 2008.
+[30] D. Widdows, T. Cohen, The semantic vectors package: New algorithms and public
+tools for distributional semantics, in: 2010 IEEE Fourth International Conference
+on Semantic Computing, IEEE, 2010, pp. 9–15. doi:10.1109/ICSC.2010.94.
+[31] Z. Yu, B.C. Wallace, T. Johnson, T. Cohen, Retrofitting concept vector
+representations of medical concepts to improve estimates of semantic similarity
+and relatedness, Studies in health technology and informatics 245 (2017) 657.
+[32] IUPAC, Nomenclature, Accessed: 2020–09-25. https://iupac.org/what-we-do/
+nomenclature/.
+[33] WHO, International nonproprietary names, Accessed: 2020-09-25 (2017). URL
+https://www.who.int/medicines/services/inn/en/.
+[34] U. Food, D. Administration, Use of drug name terms policy, Accessed: 2020-09-25
+(2014). URL https://www.fda.gov/drugs/data-standards-manual-monographs/
+use-drug-name-terms-policy.
+[35] T. Mikolov, É. Grave, P. Bojanowski, C. Puhrsch, A. Joulin, Advances in pretraining distributed word representations. In Proceedings of the Eleventh
+International Conference on Language Resources and Evaluation (LREC 2018)
+2018 May.
+[36] T. Cohen, D. Widdows, Bringing order to neural word embeddings with
+embeddings augmented by random permutations (earp), in: Proceedings of the
+22nd Conference on Computational Natural Language Learning, 2018,
+pp. 465–475.
+[37] U.L. of Medicine, Generic name stems, Accessed: 2020-09-25 (2020). URL https://
+druginfo.nlm.nih.gov/drugportal/jsp/drugportal/DrugNameGenericStems.jsp.
+[38] P.B. Ryan, M.J. Schuemie, E. Welebob, J. Duke, S. Valentine, A.G. Hartzema,
+Defining a reference set to support methodological research in drug safety, Drug
+safety 36 (1) (2013) 33–47, https://doi.org/10.1007/s40264-013-0097-8.
+[39] S.E. Nissen, K. Wolski, Effect of rosiglitazone on the risk of myocardial infarction
+and death from cardiovascular causes, N. Engl. J. Med. 356 (24) (2007)
+2457–2471, https://doi.org/10.1056/NEJMoa072761.
+[40] T.D. Kim, P. Le Coutre, M. Schwarz, P. Grille, M. Levitin, S. Fateh-Moghadam, F.J.
+Giles, B. Dörken, W. Haverkamp, C. Köhncke, Clinical cardiac safety profile of
+nilotinib, haematologica 97 (6) (2012) 883–889. doi:10.3324/
+haematol.2011.058776.
+[41] E.J. Topol, Failing the public health—rofecoxib, merck, and the fda, N. Engl. J.
+Med. 351 (17) (2004) 1707–1709.
+[42] U.N.L. of Medicine, Rxnav, Accessed: 2020–09-26. https://mor.nlm.nih.gov/
+RxNav/.
+
+Declaration of Competing Interest
+The authors declare that they have no known competing financial
+interests or personal relationships that could have appeared to influence
+the work reported in this paper.
+Acknowledgements
+This work was supported by U.S. National Library of Medicine Grant
+(R01LM011563).
+Appendix A. Supplementary material
+Supplementary data associated with this article can be found, in the
+online version, at https://doi.org/10.1016/j.jbi.2021.103833.
+References
+[1] I.H.T. Guideline, Clinical safety data management: definitions and standards for
+expedited reporting e2a, in: International conference on harmonisation of technical
+requirements for registration of pharmaceuticals for human use, 1994.
+[2] R. Kaushal, D.W. Bates, C. Landrigan, K.J. McKenna, M.D. Clapp, F. Federico, D.
+A. Goldmann, Medication errors and adverse drug events in pediatric inpatients,
+Jama 285 (16) (2001) 2114–2120, https://doi.org/10.1001/jama.285.16.2114.
+[3] D.W. Bates, N. Spell, D.J. Cullen, E. Burdick, N. Laird, L.A. Petersen, S.D. Small, B.
+J. Sweitzer, L.L. Leape, The costs of adverse drug events in hospitalized patients,
+Jama 277 (4) (1997) 307–311, https://doi.org/10.1001/
+jama.1997.03540280045032.
+[4] P. Aspden, P. Aspden, Preventing medication errors, Press, National Acad, 2007.
+[5] I. Edwards, C. Biriell, Pharmacovigilance, 2nd edition, John Wiley & Sons, 2007.
+[6] U. Food, D. Administration, Fda adverse events reporting system (faers) public
+dashboard, Accessed: 2021-01-27 (2021). URL https://fis.fda.gov/sense/app/
+d10be6bb-494e-4cd2-82e4-0135608ddc13/sheet/7a47a261-d58b-4203-a8aa6d3021737452/state/analysis.
+[7] S.J. Evans, P.C. Waller, S. Davis, Use of proportional reporting ratios (prrs) for
+signal generation from spontaneous adverse drug reaction reports,
+Pharmacoepidemiology and drug safety 10 (6) (2001) 483–486, https://doi.org/
+10.1002/pds.677.
+[8] K.J. Rothman, S. Lanes, S.T. Sacks, The reporting odds ratio and its advantages over
+the proportional reporting ratio, Pharmacoepidemiology and drug safety 13 (8)
+(2004) 519–523, https://doi.org/10.1002/pds.1001.
+[9] A. Szarfman, J.M. Tonning, P.M. Doraiswamy, Pharmacovigilance in the 21st
+century: new systematic tools for an old problem, Pharmacotherapy: The Journal of
+Human Pharmacology and Drug Therapy 24 (9) (2004) 1099–1104. doi:10.1592/
+phco.24.13.1099.38090.
+[10] Z. Xu, T. Kass-Hout, C. Anderson-Smits, G. Gray, Signal detection using change
+point analysis in postmarket surveillance, pharmacoepidemiology and drug safety,
+24, 2015, pp. 663–668.
+[11] T. Botsis, T. Buttolph, M.D. Nguyen, S. Winiecki, E.J. Woo, R. Ball, Vaccine adverse
+event text mining system for extracting features from vaccine safety reports, J. Am.
+Med. Inform. Assoc. 19 (6) (2012) 1011–1018.
+[12] U. Food, D. Administration, Data mining at fda – white paper, Accessed: 2020-0928 (2018). URL https://www.fda.gov/science-research/data-mining/data-miningfda-white-paper.
+
+13
+
+X. Ding et al.
+
+Journal of Biomedical Informatics 119 (2021) 103833
+
+[43] A. Pariente, F. Gregoire, A. Fourrier-Reglat, F. Haramburu, N. Moore, Impact of
+safety alerts on measures of disproportionality in spontaneous reporting databases
+the notoriety bias, Drug safety 30 (10) (2007) 891–898.
+[44] L. Rasmy, F. Tiryaki, Y. Zhou, Y. Xiang, C. Tao, H. Xu, D. Zhi, Representation of ehr
+data for predictive modeling: a comparison between umls and other terminologies,
+J. Am. Med. Inform. Assoc. 27 (10) (2020) 1593–1599.
+[45] A. Gottlieb, G.Y. Stein, E. Ruppin, R. Sharan, Predict: a method for inferring novel
+drug indications with application to personalized medicine, Molecular systems
+biology 7 (1) (2011) 496.
+[46] Z. Liu, F. Guo, J. Gu, Y. Wang, Y. Li, D. Wang, L. Lu, D. Li, F. He, Similarity-based
+prediction for anatomical therapeutic chemical classification of drugs by
+integrating multiple data sources, Bioinformatics 31 (11) (2015) 1788–1795.
+[47] W.R. Baas, M.J. Butcher, A. Lwin, B. Holland, M. Herberts, J. Clemons, K. Delfino,
+S. Althof, T.S. Kohler, K.T. McVary, A review of the faers data on 5-alpha reductase
+
+[48]
+[49]
+[50]
+[51]
+
+14
+
+inhibitors: implications for postfinasteride syndrome, Urology 120 (2018)
+143–149.
+Y.M. Alatawi, R.A. Hansen, Empirical estimation of under-reporting in the us food
+and drug administration adverse event reporting system (faers), Expert opinion on
+drug safety 16 (7) (2017) 761–767.
+K.B. Hoffman, A.R. Demakas, M. Dimbil, N.P. Tatonetti, C.B. Erdman, Stimulated
+reporting: the impact of us food and drug administration-issued alerts on the
+adverse event reporting system (faers), Drug safety 37 (11) (2014) 971–980.
+G.N. Norén, O. Caster, K. Juhlin, M. Lindquist, Zoo or savannah? choice of training
+ground for evidence-based pharmacovigilance, Drug safety 37 (9) (2014) 655–659,
+https://doi.org/10.1007/s40264-014-0198-z.
+R. Harpaz, W. DuMouchel, M. Schuemie, O. Bodenreider, C. Friedman, E. Horvitz,
+A. Ripple, A. Sorbello, R.W. White, R. Winnenburg, et al., Toward multimodal
+signal detection of adverse drug reactions, Journal of biomedical informatics 76
+(2017) 41–49.
+
+

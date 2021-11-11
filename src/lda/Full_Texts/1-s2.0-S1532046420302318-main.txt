@@ -1,0 +1,1493 @@
+Journal of Biomedical Informatics 112 (2020) 103603
+
+Contents lists available at ScienceDirect
+
+Journal of Biomedical Informatics
+journal homepage: www.elsevier.com/locate/yjbin
+
+Detecting high-quality signals of adverse drug-drug interactions from
+spontaneous reporting data
+Chen Zhan a, *, Elizabeth Roughead b, Lin Liu a, Nicole Pratt b, Jiuyong Li a
+a
+b
+
+University of South Australia, Unisa STEM, SA 5000, Australia
+University of South Australia, UniSA Clinical and Health Sciences, SA 5000, Australia
+
+A R T I C L E I N F O
+
+A B S T R A C T
+
+Keywords:
+Adverse Drug Events (ADEs)
+Adverse Event Reporting System (AERS)
+Drug-Drug Interaction (DDI)
+Bayesian network
+
+As a medicine safety issue, Drug-Drug Interaction (DDI) may become an unexpected threat for causing Adverse
+Drug Events (ADEs). There is a growing demand for computational methods to efficiently and effectively analyse
+large-scale data to detect signals of Adverse Drug-drug Interactions (ADDIs). In this paper, we aim to detect highquality signals of ADDIs which are non-spurious and non-redundant. We propose a new method which employs
+the framework of Bayesian network to infer the direct associations between the target ADE and medicines, and
+uses domain knowledge to facilitate the learning of Bayesian network structures. To improve efficiency and avoid
+redundancy, we design a level-wise algorithm with pruning strategy to search for high-quality ADDI signals. We
+have applied the proposed method to the United States Food and Drug Administration’s (FDA) Adverse Event
+Reporting System (FAERS) data. The result shows that 54.45% of detected signals are verified as known DDIs and
+10.89% were evaluated as high-quality ADDI signals, demonstrating that the proposed method could be a
+promising tool for ADDI signal detection.
+
+1. Introduction
+An Adverse Drug Event (ADE) is ‘any untoward medical occurrence
+that may present during treatment with a medicine but which does not
+necessarily have a causal relationship with this treatment’, according to
+the definition by the World Health Organisation (WHO). ADEs are
+inevitable when patients are prescribed with medicines, making them
+one of the leading concerns of medicine safety issues. Alone in the
+United States, the U.S. Food and Drug Administration (FDA) receives
+approximately 0.25 million reports of ADEs per year [1] and the esti­
+mated cost of ADEs related medical spends is $3.5 billion annually [2].
+While ADEs caused by single medicines have already raised much
+attention from both regulatory agencies and research communities,
+ADEs triggered by Drug-Drug Interactions (DDIs) are becoming addi­
+tional threats. Medicines may interact with each other when they are
+concurrently used. Such interaction may cause reduced efficacy, lead to
+an overdose, or produce unexpected or harmful side effects [3]. We refer
+these DDIs resulting in ADEs as Adverse Drug-drug Interactions (ADDIs)
+in this paper. For example, the interaction between aspirin (a medicine
+used to treat pain, fever, or inflammation) and warfarin (a medicine
+used as a blood thinner) may lead to excessive bleeding (which may
+
+result from the individual medicines but is considerably more likely to
+occur when these two medicines are used together).
+Benefitting from numerous medicines available in the market,
+nowadays people are living longer. However, the increase in lifespan has
+increased the risk of polypharmacy, i.e. the concurrent use of multiple
+medications possibly due to multiple chronic and co-morbid medical
+issues. A recent survey conducted in Australia revealed that between
+43% and 91% of the population use two or more medicines and that such
+concurrent use of medicines is more common among the elderly [4].
+Eventually, the polypharmacy has escalated the prevalence of ADDIs. It
+was estimated that ADDIs may be responsible for up to 30% of all the
+unexpected ADEs [5].
+It would be greatly advantageous if ADDIs can be discovered in an
+earlier stage. Unfortunately, it is often impractical to conduct clinical
+trials for ADDI discovery before marketing because of the cost and the
+ethical concerns of replicating every scenario of medicine combinations.
+Therefore, post-market surveillance is needed for detecting signals of
+ADDIs. An ADDI signal alerts patients and medical practitioners that the
+ADE is potentially an explicit result of the interaction between a com­
+bination of medicines, while any individual medicine in the combination
+may not sufficient to cause the ADE. Currently, the Spontaneous
+
+* Corresponding author.
+E-mail addresses: chen.zhan@unisa.edu.au (C. Zhan), Libby.Roughead@unisa.edu.au (E. Roughead), Lin.Liu@unisa.edu.au (L. Liu), Nicole.Pratt@unisa.edu.au
+(N. Pratt), Jiuyong.Li@unisa.edu.au (J. Li).
+https://doi.org/10.1016/j.jbi.2020.103603
+Received 4 February 2020; Received in revised form 8 September 2020; Accepted 13 October 2020
+Available online 24 October 2020
+1532-0464/© 2020 Elsevier Inc. All rights reserved.
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+Reporting System (SRS) has been used by many regulatory authorities
+and plays an important role in post-market pharmacosurveillance. The
+SRS encourages the public to report suspected ADEs along with the
+specific medicines involved; thus, a very large volume of information in
+terms of medicine safety has been collected at a relatively low cost.
+As manual reviews by domain experts become inadequate when
+dealing with such volume of information, computational methods have
+been widely used for detecting ADEs signals from SRS data. Unfortu­
+nately, for the detection of valid ADDI signals, the effectiveness of
+existing methods that primarily focus on signalling ADEs caused by
+single medicines is limited. These methods suffer from the problem of
+high dimensionality as the number of candidate medicine combinations
+increased exponentially. Therefore, given the large number of medicines
+in use, it is computationally prohibitive to evaluate each combination to
+find all the ADDIs.
+Many previous works aim to signal ADDIs from SRS [6–9]. In order to
+reduce the search space, most of the works have to prioritise medicine
+combinations that are frequently reported or used together. Naturally,
+frequent pattern mining techniques are widely used to explore medicine
+combinations [6,7,10]. While frequent pattern mining improves the
+efficiency of ADDI signal detection, it brings the risk of missing rare
+ADDIs. This is because the low frequency of being used together does not
+necessarily eliminate the possibility of ADDIs. Rare but severe cases can
+happen. Besides, previous methods relying on existing commonly used
+association measurements, such as confidence and lift, may generate
+redundant or even spurious ADDI signals. For example, these methods
+cannot effectively distinguish whether the ADE is explicitly derived from
+the medicine combination or a sub-combination of it. Therefore,
+detected ADDI signals could be redundant if they contain unrelated
+medicines whose absence would not affect the occurrence of ADEs. Also,
+association measurements, influenced by confounding situations, could
+be deceptive, thereby leading to spurious signals. More specifically, a
+spurious ADDI signal indicates a false discovered association between
+the medicine combination and the ADE, where the association is indirect
+and it breaks when conditioning on confounders.
+In the present paper, we aim to detect high-quality signals of ADDIs
+which are non-spurious and non-redundant. The ensure the ADDI signals
+indicate non-spurious associations between medicine combinations and
+the ADE of interest, we formulate them as a Bayesian network [11], in
+which the nodes represent medicines and the ADE. Combined nodes will
+be generated to represent the interaction between a combination of
+medicines. In the Bayesian network, the edge directly connecting a
+medicine/medicine combination and the ADE without via intermediate
+nodes will be considered as a non-spurious association. Domain
+knowledge is used to facilitate the construction of Bayesian networks. To
+avoid the redundancy of ADDI signal detection, we develop a level-wise
+algorithm to efficiently search for ADDI signals from lower order to
+higher order of medicine combinations with a pruning strategy. The
+pruning strategy pre-excludes the candidate medicine combinations
+containing previously detected ADDIs as sub-combinations or failing to
+satisfy the minimum support criterion.
+The rest of this paper is organised as follows. We provide a literature
+review in Section 2 to briefly introduce related ADDI discovery studies.
+In Section 3, we introduce the necessary background regarding nonspurious and non-redundant signals of ADDIs and define our research
+problem. Section 4 presents the concept of Bayesian network, along with
+independence and conditional independence in a medical context first.
+Then the details of the proposed method will be introduced, especially
+the algorithm to detect high-order ADDIs. Section 5 introduces the set­
+tings of experiments and presents the results, along with its evaluation.
+In Section 6, we give a discussion in relation to the proposed method.
+Finally, Section 7 concludes the paper and suggests future work. Besides,
+the details of statistical tests and FAERS data pre-processing can be
+found in the Appendix.
+
+2. Related Works
+To review previous studies related to our work in this paper, we
+conducted a thorough literature search in Google Scholar using the
+following keywords and their combinations: “drug-drug interaction”,
+“multiple drug interaction”, “adverse event”, “adverse reaction” and
+“adverse effect”. Studies from domains other than data mining and
+biomedical informatics were not considered. Besides, case studies
+designed only for a particular class of medicine or ADE are excluded as
+we focus on related works proposing general methods for detecting
+various ADDIs.
+After the search of the literature, we categorised all related works
+based on the types of data sources they used. This is because the different
+kinds of information contained in the data are the essential reasons for
+the use of different methodologies. In general, there are three categories
+of data sources involved in ADDI discovery researches: (1) free-text data,
+such as medical literature, documents and social media; (2) medicine
+chemical or pharmaceutical property data stored in databases of domain
+knowledge, such as DrugBank; and (3) healthcare or spontaneous report
+data, such as FAERS.
+Within the first category, the studies extract ADDI mentions from
+medical literatures, documents or even social media [12–16]. Natural
+language processing (NLP) techniques are utilised to extract and process
+the information of ADDIs from free-texts. For example, in [16], SeguraBedmar et al. extracted DDIs from biomedical texts by using a shallow
+linguistic kernel model.
+In the second category, the studies aim to use medicine chemical or
+pharmaceutical property data for the prediction of ADDIs. Based on the
+different assumptions, studies within this category can be further
+divided into two types, i.e. similarity-based and mechanism-based ap­
+proaches. The similarity-based approach [17–20], as the name suggests,
+assumes similar biological properties of two medicines will result in
+similar ADDIs. On the basis of this assumption, a known ADDI between
+medicine DA and DB should also occur between DB and DC if DC is struc­
+turally similar to DA . For example, in [17], Vilar et al. used the Tanimoto
+coefficient to measure the structural similarity of molecular fingerprints
+between medicines. DrugBank was used for extracting a list of known
+DDIs/ADDIs, then DDI/ADDI candidates were identified with the results
+of similarity analysis and known DDIs/ADDIs. The mechanism-based
+approach [21,22] predicts ADDIs by analysing the relationships be­
+tween the protein targets of medicines. For example, two medicines tend
+to interact with each other when they share at least one protein target. In
+[23], Yildirim et al. built a medicine-target network by connecting
+medicines if they shared protein targets, which could be utilised for
+ADDIs prediction.
+The third category studies, especially those used spontaneous report
+data for the signal detection of ADDIs, are most relevant to our work in
+this paper. Hence we discuss them in more detail below. A broader range
+of methodologies are involved in these studies and they can be further
+divided into the following types:
+1. Statistical or disproportionality based:Motivated by the success of
+disproportionality analysis on SRS, earlier studies [24–26] aimed to
+design a new measure of the statistical test for examining the qual­
+ities of ADDI signals. For example, in [24], Almenoff et al. defined an
+objective measure called the Interaction Signal Score (ISS) to
+determine the existence of an ADDI. In [25], Thakrar et al. proposed
+to measure the risk of ADDIs from FAERS data with a multiplicative
+and an additive model. To assess the effectiveness of the proposed
+measures, these studies applied their methods to a list of known
+ADDIs and evaluated the statistical significance of positive detection.
+2. Association rule or frequent pattern mining based: More recent
+studies [27,28,7] used association rule or frequent pattern mining
+algorithms to explore and assess associations between the use of
+multiple medicines and the occurrence of ADEs. For example, in
+[27], Harpaz et al. proposed to use the Apriori algorithm to search
+2
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+Fig. 1. Illustration of the ADDI between medicines D1 and D2 that leads to the
+ADE ℰ.
+
+Fig. 2. Example of a spurious signal of ADDI.
+
+association rules involving a set of medicines and an ADE as ADDI
+signals and use support and confidence to assess the strength of as­
+sociation rules. In [7], Qin et al. adopted the Apriori algorithm to
+mine the closed medicine-ADE associations which are either explic­
+itly supported or implicitly supported by SRS reports.
+3. Probabilistic graph and causal discovery based: Probabilistic
+graph and causal discovery methods have been used to detect ADDI
+signals most recently [8,29]. For example, in [8], after Cai et al.
+formed medicines and ADEs into Bayesian Networks and proposed to
+explore V-structures in Bayesian Networks as the proxies of ADDI
+signals.
+
+Fig. 3. Example of a redundant signal of ADDI.
+
+Besides, a few studies in the last category applied novel methods
+which have not been reported from any other studies in ADDI discovery.
+For example, in [9], Tatonetti et al. used FAERS data to build profiles for
+eight clinically significant ADEs based on the side effects of medicines
+known to produce them. Then pairs of medicines which match these
+single-medicine profiles were identified in order to predict potential
+ADDIs.
+In general, how to overcome the spuriousness and redundancy in
+ADDI signal detection is the major challenge. The efficiency of a method
+and the capability to detect higher-order ADDI signals can be other
+challenges too.
+
+Definition 1. Signal of ADDI < D→ℰ >: Let D represents a set of
+multiple medicines, and the interaction between medicines (D ∈ D)
+exists when they were concurrently used. Suppose ℰ is an ADE of in­
+terest, if the interaction of D is directly associated with the occurrence of
+ℰ, the association between D and ℰ is a signal of ADDI, denoted as
+< D→ℰ >.
+However, not all ADDI signals are valid to reveal true ADDIs.
+Therefore, we desire high-quality signals to facilitate pharmaco­
+surveillance for ADDIs.
+3.3. High-Quality Signals of ADDIs
+
+3. Research Problem
+
+As previously stated, high-quality ADDI signals are required to be
+non-spurious and non-redundant.
+
+In this section, we will first introduce the notation to be used in this
+paper. Then, we formally define the signals of ADDI, i.e. DDI that
+potentially responsible for ADEs, followed by the criteria for selecting
+the high-quality of ADDI signals which are non-spurious and nonredundant. In the end, we will formally define the research problem.
+
+Definition 2. Non-Spurious Signals of ADDIs: For an ADDI signal
+< D→ℰ >, if the association between D and ℰ is direct instead of via
+intermediate medicines, < D→ℰ > is non-spurious.
+An example of a spurious ADDI signal is shown in Fig. 2. Suppose that
+medicine D3 is the true cause of ADE ℰ and D1 and D2 are medicines
+frequently co-prescribed with D3 . Hence, both D1 and D2 are associated
+with D3 as indicated by the dashed line, because when D3 is dispensed to
+a patient, he/she is also likely to receive D1 and D2 . As the figure sug­
+gests, the concurrent use of D1 and D2 is also linked to ℰ, thus < D1,2 →
+ℰ > could be detected as an ADDI signal. However, this ADDI signal is
+spurious as D1 and D2 are associated with ℰ via D3 , which is the true
+cause of ℰ.
+
+3.1. Notation and Problem Definition
+Suppose ℰ is a given ADE of interest. Let D* be the set of the total M
+medicines under consideration, and D⊆D* , is a subset of all the medi­
+cines. We use D with a single subscript, e.g. Di |i ∈ {1, …, M} to represent
+a single medicine, and D with a subscript of multiple indices, e.g. D1,2 to
+represent the concurrent use of multiple medicines, i.e. medicines D1
+and D2 in the example D1,2 .
+
+Definition 3. Non-Redundant Signals of ADDIs: For an ADDI signal
+< D→ℰ >, if D does not include additional medicines whose absence
+would not affect the occurrence of ℰ, < D→ℰ > is non-redundant.
+
+3.2. Signals of Adverse Drug-Drug Interactions
+
+We use the example in Fig. 3 to explain the redundancy in ADDI
+signal detection.
+If the interaction between D1 and D2 is sufficient and necessary, i.e.
+the combination of D1 and D2 leads to ℰ and neither D1 nor D2 indi­
+vidually leads to ℰ, then signal < D1,2 →ℰ > is non-redundant. Suppose
+the association between D1 and D3 exists, the signal < D1,2,3 →ℰ > is also
+likely to be detected. However, < D1,2,3 →ℰ > is redundant because the
+combination of D1 and D2 can cause ℰ without D3 .
+
+In this paper, we are particularly interested in ADDIs which refer to
+DDIs causing ADEs when multiple medicines are concurrently used.
+Fig. 1 provides an illustration of ADDI. Neither D1 nor D2 is sufficient to
+cause the ℰ individually, as both are not directly linked to ℰ. However,
+the interaction of these two medicines, denoted by the dashed line, leads
+to ℰ, as shown by the solid line with arrows.
+The WHO defines the signal of ADEs as reported information on a
+possible causal relationship between an adverse event and a medicine or
+medicines, which was previously unknown or incompletely documented
+[30]. Aiming at the earlier identification of DDIs that potentially lead to
+ADEs, we detect ADDI signals which can be formally defined as follows:
+3
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+with D1 , D2 is also associated with ℰ via D1 , as shown by the path
+D2 →D1 →ℰ. We refer D2 as an antecedent node of ℰ. As an antecedent
+node of ℰ, the association between D2 and ℰ breaks when conditioning
+on D1 , i.e. D2 ⫫ℰ|D1 , where symbol ⫫ represent the probabilistic inde­
+pendence. Therefore, the conclusion that the use of D2 causes the
+occurrence of ℰ is spurious as the association between them is not direct.
+There is also an indirect association between D4 and ℰ, as the path ℰ→
+D3 →D4 shows. We refer D4 as a descendant node of ℰ. Similarly, by
+conditioning on D3 (an adjacent nodes of ℰ), we can identify such an
+indirect association with ℰ, e.g. D4 ⫫ℰ|D3 .
+As a result of the Markov condition, the joint probability distribution
+P(V) represents the conditional independence relationships among all
+the variables in V, i.e. for each node X ∈ V, X is independent of all its
+non-descendant nodes when conditioning on its parent nodes.
+In signalling ADEs, we are particularly interested in the relationships
+between medicines and the ADE rather than relationships between
+medicines. Therefore, local structure learning techniques which attempt
+to figure out the local structure surrounding the node of interest in a
+Bayesian network are desired. In local structure learning, independence
+test is used to determine existences of association and conditional in­
+dependence test is used to identify whether the association is direct or
+via intermediate nodes. More details of independence and conditional
+independence test are attached in the Appendix.
+
+Fig. 4. Example of four typical relationships between medicines and ADE.
+
+3.4. Problem Definition
+Based on the above definitions, we are now able to present the
+problem to be solved in this paper as follows.
+Problem Definition. For an ADE of interest ℰ and a set of medicines
+D* in a given dataset, we aim to discover all ADDI signals < D→ℰ > |D⊂
+D* from the dataset, which is non-spurious and non-redundant.
+
+Algorithm 1.
+
+Order-k (k⩾2) ADDI discovery
+
+4. Method
+
+4.2. Outline of Algorithm
+
+In this section, we first introduce some preliminary knowledge
+regarding Bayesian networks. Then we introduce the outline of our al­
+gorithm utilising local structure learning under the Bayesian network
+framework to explore high-quality ADDI signals. After that, the details of
+our algorithm will be presented.
+
+In this subsection, we will introduce the outline of the proposed al­
+gorithm detecting ADDI signals involving k medicines (k⩾2), along with
+its pseudo-code attached in Algorithm 1.
+The proposed algorithm comprises three stages. In each stage, we
+expand the local structure of the Bayesian network by adding more
+nodes and direct edges. Moreover, Stage 3 can be iterative if higherorder ADDI signals are desired.
+
+4.1. Preliminary
+
+1. Stage 1 (lines 1–6 in Algorithm 1), we initialise the local structure of
+the Bayesian network, denoted as BN0 , by domain knowledge.
+In BN0 , the edges represent the known relationships between
+medicines and ℰ according to domain knowledge. We examine
+domain knowledge to ensure the consistency between domain
+knowledge and data by independence tests.
+2. Stage 2 (lines 7–18 in Algorithm 1), we learn the local structure of
+the Bayesian network BN1 by using data to expand BN0 .
+The local structure around ℰ in the Bayesian network is augmented
+from data by using modified HITON-PC algorithm, a dedicated al­
+gorithm for learning the local structure in Bayesian networks [31].
+To learn BN1 , we identify the adjacent nodes of ℰ from data, while
+the existing structure of BN0 keeps intact. The structure obtained at
+the end of this stage contains the detected direct associations be­
+tween individual medicines and ℰ.
+
+Bayesian networks [11] are a type of probabilistic graphical model.
+Given a domain containing a set of variables, a Bayesian network con­
+sists of a directed acyclic graph (DAG), G = (V, E) to describe the
+domain and a joint probability distribution P(V). In the DAG, the vari­
+ables V are represented by nodes, the edges E indicate dependency re­
+lationships between variables.
+Fig. 4 shows an example of a Bayesian network of nine nodes in the
+medical context, i.e. medicines D1 , D2 , D3 , D4 , D5 , D6 , D7 , D8 and ADE ℰ.
+There are direct edges from D1 and D6 to ℰ, respectively. D1 and D6 are
+known as the parent nodes of ℰ and ℰ is a child node of D1 and D6 ,
+indicating the use of D1 or D6 leads to the occurrence of ℰ. As a result of
+the occurrence of ℰ, D3 is used to treat ℰ and this is represented by an
+edge going from ℰ to D3 . Either parent nodes D1 and D6 or child node D3
+are directly linked with ℰ without via any intermediate nodes, we refer
+to them as adjacent nodes of ℰ. D8 is an isolated node, indicating that D8
+is not associated with any other nodes. When D2 is often co-prescribed
+
+Fig. 5. Level-wise discovery of ADDI signals with Bayesian networks.
+4
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+5
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+3. Stage 3 (lines 19–30 in Algorithm 1) iteratively construct BNk by
+adding medicine combinations as parent nodes of ℰ, thereby
+detecting order-k (k⩾2) ADDI signals.
+In each iteration, we generate and prune the order-k candidate
+combinations from the non-adjacent nodes of ℰ. Each candidate
+representing DDI of a combination of medicines is considered as a
+new variable and statistical tests are conducted to determine the
+edges between DDIs and ℰ. Therefore, the newly added parent nodes
+of ℰ will be outputted as order-k ADDI signals.
+
+cance level α will be removed from both KN and the dataset. By default,
+we believe that the domain knowledge always indicates the direct links
+connecting the medicines and ℰ. We ignore the medicines whose inde­
+pendence tests failed to prove their association to ℰ but the domain
+knowledge verified it. Because finding out whether any of them or any
+DDI involves them causes the ADE is not of our interest, as the domain
+knowledge already provided the alerts for the potential ADEs of these
+medicines.
+Eventually, we fill PC with KN and use KN to initialise a local
+structure of the Bayesian network BN0 . The medicines in KN are shown
+as the adjacent nodes in BN0 and edges between these nodes and ℰ
+represent verified relationships retrieved from domain knowledge. We
+summarise the process of Stage 1 and illustrate it in Fig. 6.
+Note that we assume a complete list of known ADE-treatment med­
+icines for ℰ (i.e. child nodes of ℰ) has been retrieved from the domain
+knowledge. Therefore, for any newly discovered adjacent node of ℰ in
+the following stages, we considered it a parent node of ℰ, i.e. a potential
+cause of ℰ.
+
+Fig. 5 provides a demonstration of the local structures of Bayesian
+networks constructed during different stages of the proposed algorithm.
+In BN0 , retrieved from the domain knowledge, ADE-causing medicines
+D1 , D2 and the ADE-treatment medicine D3 are adjacent nodes of the
+ADE, while the remaining medicines in the dataset are omitted. Next,
+using BN0 as the initial structure, we learn BN1 from the data by
+searching for the direct links between the ADE and the current nonadjacent nodes (medicines) and add the newly discovered adjacent
+nodes into BN1 , i.e. D4 and D5 in this example. To learn BN2 , from the
+non-adjacent medicines, we search for two medicines whose combina­
+tion is directly linked to the ADE, i.e. the order-2 ADDI signals. In this
+example, the combination of D6 and D7 , i.e. D6,7 is found directly asso­
+ciated with ℰ. Thus, we obtain BN2 by adding the edge linking D6,7 with
+ℰ. Higher-order ADDI signals can be discovered in a similar way and the
+local structure around ℰ will be expanded if higher-order ADDIs are
+found.
+In the following subsections, we present the details of each stage in
+our algorithm.
+
+4.4. Stage 2: Construct BN1 to Identify Potential Individual ADE-causing
+Medicines from Data
+At the beginning of stage 2, the current non-adjacent nodes (medi­
+cines in D* ⧹PC) are included in OPEN. In this stage (lines 7–18), based
+on the data, we construct BN1 by identifying all the adjacent nodes of ℰ.
+For this purpose, we use a simplified version of HITON-PC algorithm.
+In the learning process, we retain the existing edges in BN0 intact, which
+represent the domain knowledge. Comparing with the original HITONPC algorithm, low-order conditional independence tests are used
+because of the sparsity of the medical data.
+The essence of the modified algorithm is an efficient strategy utilis­
+ing not only independence tests but also conditional independence tests
+to identify the direct links between ℰ and the medicines. More specif­
+ically, first, we run independence tests for every medicine in OPEN with
+ℰ. Then, we remove the medicines that are not associated with ℰ at
+significance level α from OPEN and sort the ADE-associated medicines
+in OPEN in the descending order of the strength of associations. Then, in
+each iteration, our algorithm takes out and examines the first medicine D
+in OPEN until OPEN becomes empty. In the examination, we conduct
+the conditional independence tests to check whether D is directly linked
+to ℰ without via current adjacent nodes of ℰ. If the association between D
+and ℰ remains intact when conditioning on every medicine in PC, we
+insert it into PC. With conditional independence tests, spurious signals
+of ADE-causing medicine will be eliminated.
+Therefore, a new local structure of the Bayesian network BN1 is
+constructed, and all the medicines in PC are considered as adjacent
+nodes of ℰ. Note that, to strengthen the examination, we dynamically
+include medicines that passed conditional independence tests into PC,
+which could be used as conditions in latter examinations. Comparing
+with the original HITON-PC, we limit the highest order of the condi­
+tional independence tests, maxk to 1. Because of the data sparsity in the
+medical context, insufficient information is available to assure the reli­
+ability of the statistical tests when conditioning on two or more medi­
+cines. Thus, relaxing the criteria dramatically increases the efficiency of
+our algorithm and achieves a better quality of discovery.
+
+4.3. Stage 1: Initialise BN0 with Domain Knowledge
+In the first stage, we initialise the local structure the Bayesian
+network around ℰ, i.e. to obtain BN0 , with the list of ADE-related
+medicines extracted from domain knowledge and further refined by
+statistical tests using the given dataset.
+In this paper, we first organise the SRS data as a large sparse matrix,
+whose columns are indexed by medicine and ADEs. Each row of the
+matrix represents a report, indicating a patient suffers from ADEs after
+taking several medicines. Then, some necessary preparation for the al­
+gorithm is conducted, as shown in line 1 of Algorithm 1. We initialise
+variables PC and ADDI, which are designed to contain discovered in­
+dividual ADE-related medicines (which are Parent and Child nodes of ℰ
+in the Bayesian network) and the discovered ADDI signals respectively,
+to empty sets. Further, we pre-set a user-defined parameter, p, as the
+threshold of the required consistency level between the domain
+knowledge and the statistical tests. Also, the variable KN is used to store
+ADE-related medicines extracted from domain knowledge.
+The domain knowledge utilised here is sourced from the SIDER [32].
+For a given ADE ℰ, the SIDER database lists the marketed medicines
+which are known for causing this ADE and medicines can be used as the
+treatment of the ADE. We add these ADE-related medicines to KN and
+then conduct independence tests to examine the associations between
+each medicine in KN and ℰ. For each independence test, the null hy­
+pothesis assumes that there is no association between the medicine and
+the ADE. The smaller the significance level of the test, the more likely is
+the null hypothesis to be rejected, and hence, the stronger is the asso­
+ciation between the medicine and the ADE. For medicines in KN, we
+conduct a statistic in terms of the significance level of their indepen­
+dence tests. To ensure that the domain knowledge and the result of in­
+dependence tests are consistent, i.e. a majority of medicines in KN turn
+out to be associated with ℰ in the independence tests given the least
+prevalence of p, we adaptively determine the significance level α for
+statistical tests. Thus, the threshold of significance level α is defined for
+determining the association in following statistical tests in our
+algorithm.
+The medicines in KN which are not associated with ℰ at the signifi­
+
+4.5. Stage 3: Level-Wise Detection for Higher-Order ADDI Signals
+In the previous stage, we discovered individual ADE-associated
+medicines which are recognised as adjacent nodes of ℰ in BN1 and
+stored them in PC. The remaining medicines in the dataset excluding
+those in PC,D* ⧹PC, are now the set of medicines from which we search
+for the higher-order ADDI signals. More specifically, from the individual
+medicines which are not directly linked to ℰ, we aim to find the com­
+binations of medicines D ∈ D* ⧹PC that are directly linked to ℰ.
+6
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+Fig. 6. Process of Stage 1. The list of ADE-causing and ADE-treatment medicines is extracted from SIDER. After preliminary tests to ensure the consistency between
+domain knowledge and spontaneous report data, verified ADE-related medicines provided by SIDER are filled into PC. Meanwhile, we adaptively determine the
+significance level α of statistical tests. The modified HITON-PC algorithm is then used to output the complete set of individual ADE-related medicines.
+
+At current level k(k⩾2), we generate medicine combinations con­
+taining k medicines as candidates. As the pruning strategy, we rule out
+medicine combinations which fail to satisfy the minimum support cri­
+terion or contain previous detected ADDI as subsets from candidates.
+Each candidate is considered as a new variable of medicine combination
+and we expand the dataset with the combined variable. A new edge will
+be added to BNk if we discover the direct association between the
+combined variable and ℰ. The newly added parent nodes of ℰ in BNk
+would be outputted as the discovered order-k ADDI signals. The details
+of this stage are as follows:
+
+Furthermore, we add a column in the dataset for each combined
+variable. In the column, the entries of reports equal to values of
+combined variable based on the medicine recorded in reports.
+3. Learn local structures of the Bayesian network BNk .
+The essence of learning BNk is to add edges between the ℰ and
+newly combined variables which are directly linked with ℰ as parent
+nodes. To determine the existences of edges, we conduct indepen­
+dence and conditional independence tests to candidate combina­
+tions.
+During the examination, we first conduct independence tests be­
+tween the combined variables and ℰ. For a combined variable that
+has been tested to have a significant association with ℰ, we further
+conduct conditional independence tests to verify whether the com­
+bined variable is directly linked with ℰ without via any adjacent
+nodes in BN1 . More specifically, conditioning on any medicine in PC,
+if the association remains intact, i.e.
+,
+the combined variable is directly linked with ℰ.
+The newly detected parent nodes in BNk will be outputted as orderk ADDI signals and added to ADDI, the list of all detected ADDI
+signals.
+
+1. Generate and prune candidate order-k medication combina­
+tions.
+The process of generating the candidate medication combinations
+prioritise the candidates containing medicines that have a stronger
+association with ℰ. This ensures that such candidates can be exam­
+ined in an earlier stage as they are more likely to be non-spurious
+ADDI signals. Therefore, for medicines in D* ⧹PC, we first sort
+them in the descending order of the strength of associations. Then,
+we generate all the order-k medicine combinations according to the
+sequences of medicines in the queue.
+During the candidate generation, we also conduct a pruning pro­
+cess to ensure the efficiency of ADDI signal discovery. We exclude the
+candidate combinations containing the previously discovered ADDIs
+(recorded in ADDI) as the subsets (this is applicable when generating
+order-k (k > 2) combinations). Moreover, we filter out these com­
+binations with extreme low support as few replicates cannot provide
+sufficient evidence to prove their associations with the ADE in any
+statistical tests. Therefore, the pruning strategy avoids the redun­
+dancy in ADDI signal detection and increases the efficiency of our
+algorithm by reducing the number of candidates.
+2. Create combined variables for candidate combinations.
+Once the candidate medicine combinations are finalised, we create
+combined variables for each medicine combination to indicate the
+interaction between medicines in the combination. A combined
+variable has the value of 1 if its component variables all equal to 1;
+otherwise the combined variable equals to 0, i.e. for a combination
+containing D1 , …, Dm , the combined variable can be defined as
+follows:
+{
+1 D1 = 1, …, Dm = 1
+D1,…,m =
+0 other
+
+Stage 3 can be iterative if higher-order ADDI signals are desired. We
+level-wise search for order-k ADDI signals as k increases gradually.
+In summary, with the utilisation of the Bayesian network framework
+for inferring direct associations between the investigated medicine/
+medicine combination and the target ADE, the proposed method ensures
+the ADDI signals detected are non-spurious. The level-wise algorithm
+with the pruning strategy searches for ADDI signals gradually from the
+lower order to the higher order, which not only maintains the efficiency
+of the proposed method but also avoids the redundancy of ADDI signal
+detection.
+In addition, we provide a brief analysis of the time complexity of the
+proposed algorithm. Suppose there are Mmedicines included in the
+study. The time complexity of our method mainly depends on the
+number of independence/conditional independence tests conducted. As
+shown in Algorithm 1, at Stage 2, we find all individual medicines that
+may result in the ADE. For this purpose, the independence tests between
+each medicine and the ADE are firstly conducted, which give a
+complexity of O(MN). Then conditional independence tests between
+each medicine and the ADE conditioning on every other medicine are
+conducted. This results in a complexity of O(M2 ). Hence the time
+
+7
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+frequencies of these symptoms are reviewed to list the top 10 symptoms
+in Table 1. Among the top 10 symptoms, while moderate symptoms such
+as dizziness and nausea are common adverse reactions, rhabdomyolysis
+is particularly worthy of our attention because of its rare occurrence and
+severe outcome. Therefore, we choose it as the target ADE for our case
+study.
+
+complex of Stage 2 is O(M2 ). At Stage 3, the algorithm attempts to
+output order-2 ADDIs. In the worst case, the number of order-2 candi­
+date combinations is M⋅(M − 1)(i.e. every medicine is combined with any
+other medicine). We need to conduct conditional independence tests for
+each combination conditioning on every medicine in the output of Stage
+2. So, the time complexity of Stage 3 is O(M3 ). Therefore, the overall
+time complexity of the algorithm for signalling order-2 ADDIs is O(M3 ).
+
+5.2. Results and Evaluation
+
+5. Experiment and Result
+
+We implement the algorithm in R and require at least 4 patients
+(roughly 0.001% of the total population the dataset included) as the
+minimum support criterion for the pruning strategy stated in Section
+4.5.
+Eventually, 404 signals of order-2 ADDIs were detected. Due to the
+lack of ‘ground truth’, to evaluate these signals and assess the proposed
+method, the domain knowledge of two wide-acknowledged sources was
+referred to, i.e. DrugBank [36], a database containing comprehensive
+biochemical and pharmacological information of medicines, and Intside
+[37], a web server that integrates chemical and biological information to
+elucidate the molecular mechanisms underlying drug side effects. Fol­
+lowed by the evaluation strategy of previous studies [8,27], we divide
+our evaluation into two categories to determine (1) whether the two
+medicines in a detected ADDI signal can interact with each other and (2)
+whether the medicine combination is associated with rhabdomyolysis,
+respectively.
+In the first category, we evaluate detected ADDI signals through
+DrugBank in following two ways: (a) checking DDI records and (b)
+searching for overlapping targets, enzymes or transporters between the
+two medicines. We consider a signal to be verified when it passes either
+above-mentioned approach. We manually search DDI records from
+DrugBank to find out whether there exist records saying the two medi­
+cines in detected ADDI signals interact with each other. Besides, we
+extract the records of targets, enzymes and transporters of medicines
+from DrugBank for each medicine involved in detected signals. The
+overlapping targets, enzymes or transporters between the two medicines
+indicate they could potentially interact with each other [38], while
+whether their interaction is synergism or antagonism was unknown. In
+this category of evaluation, 201 signals match DDI records from the
+DrugBank database and 142 signals contain overlapping targets, en­
+zymes or transporters between two medicines involved. In total, out of
+the 404 ADDI signals found, 220 signals are verified to have the drugdrug interaction.
+The second category of evaluation also consists of two ways, and
+similarly, a signal will be considered as valid when either way verifies it.
+First, we search the DrugBank database to determine whether there are
+DDI records explicitly pinpointing that the combined use of two medi­
+cines will increase the risk or severity of rhabdomyolysis, such as “The
+risk or severity of myopathy, rhabdomyolysis, and myoglobinuria can be
+increased when Ranitidine is combined with Bumetanide”. Second, for
+signals which we could not find any rhabdomyolysis-associated DDI
+records, we examine the target network related to rhabdomyolysis from
+Intside. Intside provides a visualisation of the target network related to
+rhabdomyolysis, as shown in Fig. 8. In Fig. 8, the green square indicates
+the rhabdomyolysis, surrounded by red nodes representing the protein
+targets related to rhabdomyolysis directly or through other nodes. We
+count ADDI signals that are potentially associated with rhabdomyolysis
+in cases wherein at least one medicine is inflicting effect on the abovementioned targets. In all, 69 ADDI signals are potentially associated
+with rhabdomyolysis in this stage of evaluation.
+Eventually, we consider signals indicate ADDIs causing rhabdo­
+myolysis with relatively high confidence when both two categories of
+evaluation verified. In summary, 44 (intersection set of results of these
+two categories of evaluation) out of the 404 signals, equalling a preva­
+lence rate of 10.89%, are selected as high-quality rhabdomyolysisrelated ADDI signals. We attach the entire 44 high-quality rhabdo­
+myolysis-related ADDI signals in the supplementary material with
+
+In this section, we will discuss the application of the proposed
+method to FAERS datasets, the SRS data from the U.S. FDA. In our ex­
+periments, the quarterly datasets from July to September 2018 of FAERS
+are utilised.
+To set an appropriate target ADE for ADDI discovery in our experi­
+ments, we first examine the data to find out specific ADE symptoms that
+are frequently associated with DDI. To assess the effectiveness of the
+proposed method, we conduct a case study by setting rhabdomyolysis as
+the target ADE and attempt to discover signals of order-2 ADDIs that
+might lead to rhabdomyolysis. We also comprehensively evaluate the
+discovered signals by referring to different resources of domain
+knowledge.
+5.1. Preparation of Experiment
+For the experiment, we download the public version of FAERS from
+the FDA’s website and search for ADEs that are frequently reported with
+DDI.
+The FAERS data we utilised are structured datasets, which record
+spontaneous reports from July to September 2018, covering 420915
+patients. As the FDA receives reports from a broad range of sources, it
+could be possible that a single case has been duplicated reported.
+Therefore, according to the recommendation from the previous study
+[33], we first clean the datasets by checking and removing the dupli­
+cated reports. Because FAERS reports are manually entered, medicine
+names in these reports could be registered as free-texts in a variety of
+forms, including generic name, brand name and abbreviation. There­
+fore, we use MedEx [34], a natural language processing tool designed for
+extracting medication information from clinical notes, to standardise
+medicine names in all the reports by mapping different forms of medi­
+cine name into its generic name listed in RxNorm[35]. Furthermore, for
+the situation that a single medicine contains multiple active ingredients,
+we map the medicine to generic names of all its active ingredients. Be­
+sides, reports with incomplete or blurry information, possibly due to
+missing values, typographical errors or using non-standard abbrevia­
+tions, are also removed. A brief overview of FAERS datasets and details
+of de-duplication and medicine name standardisation are provided in
+the Appendix.
+To set an appropriate target ADE for the case study, we examine the
+dataset to find out the specific symptoms of ADEs that are frequently
+reported with DDI. We search for all reports from the dataset which are
+labelled as ‘Drug interaction’, ‘Potentiating drug interaction’ or similar
+keywords and summarise the symptoms involved in these reports. The
+Table 1
+Top 10 symptoms frequently reported with DDI.
+Toxicity to various agents
+Acute kidney injury
+Rhabdomyolysis
+Dizziness
+Fatigue
+Nausea
+Hypotension
+Dyspnoea
+Diarrhoea
+Somnolence
+
+8
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+details of evaluation results, while the top 5 of these signals are listed in
+Table 2. 176 (220 − 44) ADDI signals we found that there are certain
+DDIs between the detected combination of medicines; however, in the
+current stage we could not confirm these DDIs lead to rhabdomyolysis.
+Therefore, we attribute these 176 (43.56% of 404) ADDI signals to po­
+tential new rhabdomyolysis-related ADDI signals. Moreover, there are
+25 (69 − 44) ADDI signals, equalling 6.19% of total detected signals,
+found to be associated with rhabdomyolysis, although it is currently
+unsure that such an association is derived from the interaction of med­
+icine combination or an individual medicine in the combination. The
+detailed statistics of the evaluation are summarised in Fig. 7.
+
+Table 2
+Top 5 detected rhabdomyolysis-related ADDI signals with their case supports.
+Medicine combination
+Sotalol
+Metamizole
+Apixaban
+Verapamil
+Amitriptyline
+
+Prochlorperazine
+Verapamil
+Ibuprofen
+Phenprocoumon
+Prazepam
+
+Support
+5
+7
+77
+9
+5
+
+5.3. Comparison with State-of-the-Art Methods
+Based on the categorisation of the literature review in Section 2, in
+this subsection, we select six previous studies as representatives and
+compare the proposed method with these state-of-the-art methods in
+terms of the performance in ADDI signal detection. In this comparison,
+we have excluded studies extracting ADDI mentions from medical doc­
+uments, social media and other free-text data sources as they are less
+relevant to our work. The first two studies [17,39] predict ADDIs using
+DrugBank data containing chemical or pharmaceutical properties of
+medicines and DDI records. The other four studies [27,9,7,8] all used the
+FAERS data for ADDI signal detection. In spite of the different sources
+used, the previous studies tend to utilise the existing databases of
+domain knowledge to evaluate detected signals, except for [9] which
+conducted clinical analysis with electronic medical records.
+The details of this comparison are listed in Table 3. Our study
+examined a total of 404 signals detected among which 54.45% of signals
+are known to interact with each other and 10.89% of signals were
+verified to be high-quality ADDI signals. In [8], Cai et al. randomly
+selected 100 signals detected by their method for the evaluation. Among
+the 100 randomly selected signals, 20 (20%) were identified as medi­
+cines in the combination are known to interact. Further analysis sug­
+gested that 6 (6%) of the 20 were known DDIs that may cause the
+indicated ADEs. In [27], Harpaz et al. found out that 35% of detected
+signals were known interactions, while the relation between indicated
+ADEs and detected DDIs are not mentioned due to the large number of
+signals (1868 in total). In [9], Tatonetti et al. adapted a novel supervised
+learning method to predict ADDIs from FAERS, while 7.11% of their
+predictions were verified as ADDIs by the clinical analysis.
+Besides, DDI records in databases of domain knowledge usually only
+affirm the existence of DDI between medicines while the relations be­
+tween ADEs and DDIs are not explicitly stated. For example, the record
+in DrugBank saying “The metabolism of Acebutolol can be decreased
+when combined with Ranitidine” does not point out a specific ADE.
+Therefore, for these studies [17,7,39] whose evaluations were simply
+conducted by matching detected signals with DDI records from domain
+knowledge, it is uncertain their evaluation statistics refer to medicines
+are known to interact or ADEs due to DDI (verified ADDI).
+In summary, the detected signals in the present work have been
+thoroughly assessed with a rigorous evaluation strategy, and the pro­
+posed method has achieved competitive performance in comparison
+with state-of-the-art methods.
+
+Fig. 7. Summary of signal evaluation. The evaluation is divided into two cat­
+egories, i.e. (1) verifying interaction between detected medicine combination
+and (2) verifying the association between medicine combination and the ADE
+(rhabdomyolysis). Within each category, the evaluation comprises two ap­
+proaches by referring to different domain knowledge, and either approach can
+verify a signal for the category of evaluation. However, only signals verified by
+both two categories of evaluation will be selected as high-quality rhabdo­
+myolysis-related ADDI signals.
+
+facilitating local structure learning of Bayesian network from SRS data.
+More specifically, our method only uses knowledge from SIDER to ini­
+tialise the local structure of the Bayesian network and its final structure
+mostly depends on the input data. Although the information in SIDER is
+not up-to-date, it still provides valid and useful domain knowledge to
+our method.
+The quality of FAERS data is stable over time as it is collected from a
+consistent mechanism. We selected the latest quarterly data when the
+experiments were conducted. Despite that one quarterly data of FAERS
+is a relatively small dataset, it is sufficient as the purpose of our exper­
+iments is to evaluate the performance of the proposed method instead of
+uncovering more ADDI signals. Over half (220/404) of all the signals
+that we detected in the case study are found to have interactions be­
+tween medicines according to databases of domain knowledge. More­
+over, these 220 DDIs also show the association with rhabdomyolysis of
+statistical significance on SRS data.
+It is worth to clarify the possible use scenario of the proposed
+method. The major advantage of our method is the high-quality of
+detected ADDI signals. Admittedly, the efficiency of the proposed
+method needs improvement. The time complexity is a trade-off for the
+detection of high-quality ADDI signals as the detection requires complex
+statistical tests to reduce spurious and redundant signals. Therefore, the
+proposed method suits offline use more in contrast to real-time signal
+detection. For instance, the method can potentially help domain experts
+and practitioners to narrow down the volume of suspicious ADDIs for
+further investigation, therefore, significantly reduce the labour and cost
+of ADDI discovery. The detected signals can be an earlier alert of ADDI to
+the public as the quality of the detected ADDI signals by our method is
+
+6. Discussion
+The aforementioned results demonstrate the effectiveness of the
+proposed method for discovering high-quality ADDI signals. First, we
+would like to emphasise the data-driven essence of our method and
+clarify that the role of domain knowledge in our method is just for
+
+9
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+Fig. 8. Target network that related to rhabdomyolysis, provided by Intside, where the green square represents rhabdomyolysis, nodes represent protein targets and
+edges represent the association or interaction. The colours of nodes demonstrate the strength of the association with rhabdomyolysis, e.g. the dark red indicates overrepresented proteins among medicines known for causing rhabdomyolysis.
+Table 3
+Summary of the comparison with state-of-the-art methods.
+Method
+
+Data source
+
+Source for evaluation
+
+Signal evaluated
+
+Evaluation results
+Medicines are known to
+interact
+
+Similarity
+analysis [17]
+
+DrugBank
+(molecule fingerprint and DDI records)
+
+Domain knowledge
+(Micromedex/Drugdex)
+
+DIAE mining [27]
+
+DrugBank
+(protein–protein network, medicines targets/
+pathway and DDI records)
+FAERS (2008)
+
+Domain knowledge
+(Kyoto Encyclopedia of Genes and
+Genomes)
+Domain knowledge
+(Micromedex and Epocrates)
+
+Novel method [9]
+
+FAERS (?-2009Q1)
+
+MARAS [7]
+
+FAERS (2013–2015)
+
+Clinical analysis with electronic
+medical records
+Domain knowledge
+(Drugs.com and DrugBank)
+
+CARD [8]
+
+FAERS (2004–2012)
+
+Domain knowledge
+(Micromedex and Epocrates)
+
+Ours
+
+FAERS (2018Q3)
+
+Domain knowledge
+(Intside and DrugBank)
+
+targetRW [39]
+
+2565
+(randomly
+sampled)
+?
+100
+(randomly
+sampled)
+408 (total)
+Top 20
+(for each yearly
+dataset)
+100
+(randomly
+sampled)
+404 (total)
+
+Verified ADDI
+
+Preceision = 26% (overall)a
+AUC = 0.807a
+Precision = 35%
+
+?
+
+?
+
+Precision =
+7.11%b
+Precision: 6%, 12.5%, 17.5% (read from the
+figure)a
+Precision = 20%
+
+Precision = 6%
+
+Precision = 54.45%
+
+Precision =
+10.89%
+
+?: not mentioned in original paper.
+a
+: The evaluation was conducted simply by matching detected signals with DDI records from domain knowledge. It is uncertain that the statistic refers to medicines are
+known to interact or ADEs due to DDI (verified ADDI).
+b
+: 29 known interactions/ 408 total prediction. Based on the clinical analysis in this paper, this should refer to verified ADDIs.
+
+high. For the efficiency improvement of the current method, computa­
+tionally, it is difficult to improve it further since the number of statistical
+tests is essential to the quality of detected signals. In the future works,
+we will consider the following ways in terms of further refinement: (1)
+involving more domain knowledge to help to eliminate low-confidence
+candidates to reduce the search space and speed up the algorithm; (2)
+looking for a better balancing between the number/complexity of sta­
+tistical tests (without dramatically sacrificing the quality of signals) and
+efficiency.
+Besides, we also would like to discuss some findings during our ex­
+periments. As we know, the DDI changes the efficacy of medicines in
+different ways. In some cases, the metabolism of one medicine was
+increased due to the presence of another, which may bring additional
+ADEs by magnifying previous ignorable medicine safety issues. For
+example, the metabolism of olopatadine could be increased when
+combined with clobetasol. In the evaluation of referring
+rhabdomyolysis-related protein target network, a majority of verified
+medicine combinations whose connection with rhabdomyolysis comes
+
+from only one medicine in the combination. Note that, we already prechecked that all medicines involved in the ADDI signal detection are
+insufficient to cause rhabdomyolysis individually in spite of their
+connection with rhabdomyolysis in the protein target network. A
+reasonable explanation of the association between these DDIs and
+rhabdomyolysis is that the increased metabolism aggravates the risk of
+rhabdomyolysis. Besides, by examining DDI records of the DrugBank
+database, additional ADEs other than rhabdomyolysis were found for
+detected medicine combinations, such as hypoglycemia, bleeding and
+hypotension.
+Only a small portion of detected signals among our discovery is
+evaluated to be potential rhabdomyolysis-related ADDIs; this result was
+still acceptable considering that rhabdomyolysis is a rare but severe
+ADE. The signals that we found will potentially motivate further
+research by domain experts to reveal true rhabdomyolysis-related
+ADDIs.
+
+10
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+signals which are non-spurious and non-redundant. Our method adopts
+the Bayesian network framework and uses domain knowledge to iden­
+tify direct associations between a combination of medicines and the
+target ADE. A level-wise searching algorithm was proposed to not only
+avoid the redundancy in ADDI signals detection but also maintain the
+efficiency of the algorithm. The experimental results obtained with the
+FAERS dataset prove the effectiveness of the proposed method for
+discovering significant ADDIs.
+
+Table 4
+The 2 × 2 contingency table.
+E =1
+
+E =0
+
+Total
+
+D =
+1
+
+n11
+
+n12
+
+n1*
+
+D =
+0
+
+n21
+
+n22
+
+n2*
+
+Total
+
+n*1
+
+n*2
+
+n
+
+CRediT authorship contribution statement
+Chen Zhan: Conceptualization, Methodology, Software, Investiga­
+tion, Validation, Writing - original draft, Writing - review & editing.
+Elizabeth Roughead: Conceptualization, Validation, Supervision,
+Funding acquisition. Lin Liu: Conceptualization, Methodology, Writing
+- review & editing, Supervision. Nicole Pratt: Conceptualization, Vali­
+dation, Supervision. Jiuyong Li: Conceptualization, Methodology,
+Writing - review & editing, Supervision, Funding acquisition, Project
+administration.
+
+Table 5
+The contingency tables with W = 1 and W = 0.
+W =1
+E =1
+
+E =0
+
+Total
+
+D =
+1
+
+n11
+
+n12
+
+n1*
+
+D =
+0
+
+n21
+
+n22
+
+n2*
+
+Total
+
+n*1
+
+n*2
+
+n
+
+E =1
+
+E =0
+
+Total
+
+D =
+1
+
+n11
+
+n12
+
+n1*
+
+The authors declare that they have no known competing financial
+interests or personal relationships that could have appeared to influence
+the work reported in this paper.
+
+D =
+0
+
+n21
+
+n22
+
+n2*
+
+Acknowledgements
+
+Total
+
+n*1
+
+n*2
+
+n
+
+Declaration of Competing Interest
+
+W =0
+
+This research was funded by the Australian Research Council –
+Australia (ARC) DP170101306 and the National Health and Medical
+Research Council – Australia (NHMRC) GNT1040938. We acknowledge
+student support through the Australian Government Research Training
+Program Scholarship and RTIS seed funding of the University of South
+Australia and ER is supported by NHMRC GNT1110139.
+
+Table 6
+Overview of ASCII files of FAERS data.
+File
+names
+DEMO
+DRUG
+REAC
+OUTC
+RPSR
+THER
+INDI
+1
+
+Description
+Demographic and administrative information of patients (1 record per
+event report)
+Medicine/biologic information
+(1 or more medicines per event report)
+MedDRA1 coded symptoms of adverse events
+(1 or more terms per event report)
+Patient outcomes for the event
+(0 or more per event report)
+Report sources for event
+(0 or more per event report)
+Medicine therapy, start dates and end dates for the
+reported medicine (0 or more per medicine per event)
+MedDRA1 coded indications for dispensing the reported
+medicines (0 or more per medicine per event)
+
+Medical Dictionary for Regulatory Activities.
+
+7. Conclusion
+In this paper, we propose a method to detect high-quality ADDI
+
+Appendix A
+A.1. Independence and Conditional Independence
+In the medical context, as medicines and ADEs are denoted by D and ℰ, we use 0,1to indicate their absence and presence respectively, i.e. 0means D
+is not dispensed or ℰ does not occur and 1means D is dispensed or ℰ occurs.
+Medicine D is statistically independent with the ADE ℰ (denoted as D⫫ℰ) if the dispensation of D does not affect the probability of occurrence of ℰ, i.
+e. whenever P(ℰ = e) > 0 we have:
+Definition 4. Independence: D is statistically independent with ℰ, i.e. D⫫ℰ, if P(D = d,ℰ = e) = P(D = d)P(ℰ = e), where d, e ∈ {0, 1} are possible
+
+11
+
+C. Zhan et al.
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+values of D, ℰ respectively.
+Medicine D is conditional independent with the ADE ℰ given the medicine D , denoted as D⫫ℰ|D , if D⫫ℰ holds no matter D was dispensed or not.
+′
+
+′
+
+′
+
+Definition 5. Conditional Independence: D⫫ℰ|D , if P(D = d, ℰ = e|D = d ) = P(D = d|D = d )P(ℰ = e|D = d ) for all values of D,ℰ,D , where d, e,
+′
+′
+d ∈ {0, 1} are possible values of D, ℰ, D respectively.
+′
+
+′
+
+′
+
+′
+
+′
+
+′
+
+′
+
+′
+
+In summary, when D is a cause of ℰ, D is the parent node of ℰ in the Bayesian Network. In that case, the association between D and ℰ exists and will
+′
+not intermediate by any other medicine D , i.e.
+and
+. Therefore, tests of independence and conditional independence are utilised for examining direct links between the investigated object and the target
+ADE which is non-spurious.
+There are several statistical measurements available for tests of independence and conditional independence, such as Fisher’s z-transform, Chisquare, and odds ratio. In this subsection, we elaborately present the details of the Chi-square test as it is used in the HITON-PC algorithm and the
+study we present in this paper [40].
+With above-mentioned notation, two binary variables D and E, given the contingency table summarising the dataset and the significance level α,
+Chi-square test of independence will reject the null hypothesis that D and E are independent or fail to reject the null hypothesis, i.e. D and E are
+associated.
+A contingency Table 4 is a cross table showing the frequencies of the joint data distribution of D and E. In this contingency table, n is the total
+number of samples in the dataset, where n11 , n12 , n21 and n22 are counts of (D = 1, E = 1), (X = 1, E = 0), (D = 0, E = 1) and (D = 0, E = 0) in the data
+set, and they are observed frequencies. n1* , n2* , n*1 and n*2 are called marginal frequencies, representing the counts of D = 1, D = 0, E = 1 and E = 0.
+Based on the contingency table, we can calculate the Chi-square test statistic as follows.
+
+χ2 =
+
+j=2
+i=2 ∑
+∑
+(nij − ̂
+n ij )2
+̂
+n ij
+i=1 j=1
+
+(1)
+
+i, j ∈ {1, 2}
+
+where ̂
+n ij are expected frequencies which can be calculated as:
+̂
+n ij =
+
+ni* n*j
+n
+
+(2)
+
+For a given significance level α, we can find out the corresponding critical value χ 2α by consulting the Chi-square distribution (degree of freedom
+df = 1). We reject the null hypothesis and consider that D and E are associated at the given significance level if the calculated Chi-square test statistic is
+greater than χ 2α . Alternatively, we can find out the p-value of the calculated test statistic by consulting the Chi-square distribution. The null hypothesis
+will be rejected if the p-value is less than α and we accept the association between D and E.
+In the case of conditional independence test, e.g. determining the association between D and E conditioning on variable W, we can summarise the
+dataset into two contingency tables (as Table 5 shows) corresponding to W = 1 and W = 0 respectively. The Chi-square of a conditional independence
+test is the sum of all the Chi-square values in contingency tables corresponding to all values of conditional variables. For example, if the Chi-square
+values from the contingency tables with W = 1and W = 0are 1.7 and 0.9 respectively, then the final Chi-square value of the conditional independence
+test is 1.7 + 0.9 = 2.6. By comparing with the critical value χ 2α , we can conclude whether D is conditional independent with E when conditioning on W
+or not. Note that the degree of freedom for conditional independence tests is 2s , where s is the number of conditioning variables, e.g. s = 1 in the above
+example.
+A.2. Overview of FAERS Data and Its Pre-processing
+FAERS is the database of the FDA’s spontaneous reporting system. Health care professionals (e.g. physicians, pharmacists, nurses, etc.), phar­
+maceutical product manufacturers and consumers (e.g. patients, family members, lawyers, etc.) are required or encouraged to submit adverse event
+reports, medication error reports and product quality complaints resulting in adverse events to FDA. The FAERS data is already structured dataset and
+its public version is provided in two distinct formats, i.e. ASCII and XML files, which can be downloaded from the FDA’s website (https://fis.fda.gov/
+extensions/FPD-QDE-FAERS/FPD-QDE-FAERS.html). We extract descriptions of ASCII files of FAERS datasets from FDA and summarise in Table 6.
+In the DRUG dataset, columns ‘drugname’ and ‘prod_ai’ record trade/brand name and generic name (the chemical name of its active ingredient) of
+the reported medicine, respectively. As these reports were manually entered by health care professionals, manufacturer and consumers, there could be
+missing values (e.g. some records only provided brand names), typographical errors or abbreviations. In our study, we standardise all medicines to
+their generic names. More specifically, we use MedEx [34], a natural language processing tool designed for extracting medication information from
+clinical notes, to map all medicines to their generic names listed in RxNorm [35]. It worth mentioning that, the objective of using MedEx here is only to
+recognise manually entered medicine names and map them to their standard generic names rather than processing free-text clinical notes. For the
+situation when a medicine has multiple active ingredients, we map this medicine to multiple generic names corresponding to all its active ingredients.
+For example, the medicine with the brand name of “symbicort” was mapped to the generic names of its two active ingredients, i.e. budesonide and
+formoterol fumarate dihydrate. There is a very small number of records that programme cannot recognise possibly due to missing values, typo­
+graphical errors or using non-standard abbreviations. We refer them as incomplete or blurry information. We remove and ignore these records and it
+would not affect the final results because they are only accounted for an extremely small proportion.
+Because the FDA receives reports from a broad range of sources, it could be possible that a single case has been duplicated reported. For example,
+healthcare professionals and consumers may also report to the products’ manufacturers. It is mandatory for a manufacturer to send the report to the
+
+12
+
+Journal of Biomedical Informatics 112 (2020) 103603
+
+C. Zhan et al.
+
+FDA as specified by regulations. Therefore, it is necessary to remove report duplications. According to the FDA’s recommended approach [33], for all
+reports with the same case id, the report with most recent reporting date will be kept and others will be considered as duplicated-reports and thus be
+removed. If there are multiple reports with the same case id reported on the same day, the reports with the highest version number will be kept. This
+information is recorded in the DEMO dataset under columns of ‘caseid’, ‘caseversion’ and ‘fda_dt’ (report date).
+Appendix B. Supplementary material
+Supplementary data associated with this article can be found, in the online version, at https://doi.org/10.1016/j.jbi.2020.103603.
+
+References
+
+[21] J. Huang, C. Niu, C.D. Green, L. Yang, H. Mei, J.-D.J. Han, Systematic prediction of
+pharmacodynamic drug-drug interactions through protein-protein-interaction
+network, PLoS Comput. Biology 9 (3) (2013).
+[22] K. Park, D. Kim, S. Ha, D. Lee, Predicting pharmacodynamic drug-drug interactions
+through signaling propagation interference on protein-protein interaction
+networks, PloS One 10 (10) (2015).
+[23] M.A. Yıldırım, K.-I. Goh, M.E. Cusick, A.-L. Barabási, M. Vidal, Drug–target
+network, Nature Biotechnol. 25 (10) (2007) 1119–1126.
+[24] J.S. Almenoff, W. DuMouchel, L.A. Kindman, X. Yang, D. Fram, Disproportionality
+analysis using empirical bayes data mining: a tool for the evaluation of drug
+interactions in the post-marketing setting, Pharmacoepidemiology Drug Saf. 12 (6)
+(2003) 517–521.
+[25] B.T. Thakrar, S.B. Grundschober, L. Doessegger, Detecting signals of drug–drug
+interactions in a spontaneous reports database, Br. J. Clin. Pharmacol. 64 (4)
+(2007) 489–495.
+[26] G.N. Norén, R. Sundberg, A. Bate, I.R. Edwards, A statistical methodology for
+drug–drug interaction surveillance, Stat. Med. 27 (16) (2008) 3057–3070.
+[27] R. Harpaz, K. Haerian, H.S. Chase, C. Friedman, Statistical mining of potential drug
+interaction adverse effects in fda’s spontaneous reporting system, in: AMIA Annual
+Symposium Proceedings, vol. 2010, American Medical Informatics Association,
+2010, p. 281.
+[28] Y. Xiang, A. Albin, K. Ren, P. Zhang, J.P. Etter, S. Lin, L. Li, Efficiently mining
+adverse event reporting system for multiple drug interactions, AMIA Summits
+Transl. Sci. Proc. 2014 (2014) 120.
+[29] S. Subpaiboonkit, X. Li, X. Zhao, H. Scells, G. Zuccon, Causality discovery with
+domain knowledge for drug-drug interactions discovery, in: International
+Conference on Advanced Data Mining and Applications, Springer, 2019,
+pp. 632–647.
+[30] I.R. Edwards, J.K. Aronson, Adverse drug reactions: definitions, diagnosis, and
+management, Lancet 356 (9237) (2000) 1255–1259.
+[31] C.F. Aliferis, A. Statnikov, I. Tsamardinos, S. Mani, X.D. Koutsoukos, Local causal
+and markov blanket induction for causal discovery and feature selection for
+classification part i: Algorithms and empirical evaluation, J. Mach. Learn. Res. 11
+((Jan) 2010) 171–234.
+[32] M. Kuhn, I. Letunic, L.J. Jensen, P. Bork, The sider database of drugs and side
+effects, Nucleic Acids Res. (2015) gkv1075.
+[33] L. Wang, G. Jiang, D. Li, H. Liu, Standardizing drug adverse event reporting data,
+Stud. Health Technol. Informatics 192 (2013), 1101–1101.
+[34] H. Xu, S.P. Stenner, S. Doan, K.B. Johnson, L.R. Waitman, J.C. Denny, Medex: a
+medication information extraction system for clinical narratives, J. Am. Med.
+Inform. Assoc. 17 (1) (2010) 19–24.
+[35] S.J. Nelson, K. Zeng, J. Kilbourne, T. Powell, R. Moore, Normalized names for
+clinical drugs: Rxnorm at 6 years, J. Am. Med. Inform. Assoc. 18 (4) (2011)
+441–448.
+[36] D.S. Wishart, C. Knox, A.C. Guo, S. Shrivastava, M. Hassanali, P. Stothard,
+Z. Chang, J. Woolsey, Drugbank: a comprehensive resource for in silico drug
+discovery and exploration, Nucleic Acids Res. 34 (suppl 1) (2006) D668–D672.
+[37] T. Juan-Blanco, M. Duran-Frigola, P. Aloy, Intside: a web server for the chemical
+and biological examination of drug side effects, Bioinformatics 31 (4) (2014)
+612–613.
+[38] W. Zhang, Y. Chen, F. Liu, F. Luo, G. Tian, X. Li, Predicting potential drug-drug
+interactions by integrating chemical, biological, phenotypic and network data,
+BMC Bioinformatics 18 (1) (2017) 18.
+[39] K. Park, D. Kim, S. Ha, D. Lee, Predicting pharmacodynamic drug-drug interactions
+through signaling propagation interference on protein-protein interaction
+networks, PloS One 10 (10) (2015) e0140816.
+[40] J. Li, L. Liu, T.D. Le, Practical Approaches to Causal Relationship Exploration,
+Springer, 2015.
+
+[1] S.R. Ahmad, Adverse drug event monitoring at the food and drug administration,
+J. Gen. Internal Med. 18 (1) (2003) 57–60.
+[2] P. Aspden, J.A. Wolcott, J.L. Bootman, L.R. Cronenwett, Preventing medication
+errors, 2007.
+[3] N.R. Crowther, A.M. Holbrook, R. Kenwright, M. Kenwright, Drug interactions
+among commonly used medications. chart simplifies data from critical literature
+review, Can. Fam. Physician 43 (1997) 1972.
+[4] A.T. Page, M.O. Falster, M. Litchfield, S.-A. Pearson, C. Etherton-Beer,
+Polypharmacy among older australians, 2006–2017: a population-based study,
+Med. J. Australia (2019).
+[5] M. Pirmohamed, M. Orme, Drug interactions of clinical importance, Davies’s
+textbook of adverse drug reactions, 1998, pp. 888–912.
+[6] R. Harpaz, H.S. Chase, C. Friedman, Mining multi-item drug adverse effect
+associations in spontaneous reporting systems, in: BMC bioinformatics, vol. 11,
+BioMed Central, 2010, p. S7.
+[7] X. Qin, T. Kakar, S. Wunnava, E.A. Rundensteiner, L. Cao, Maras: Signaling multidrug adverse reactions, in: Proceedings of the 23rd ACM SIGKDD International
+Conference on Knowledge Discovery and Data Mining, ACM, 2017, pp. 1615–1623.
+[8] R. Cai, M. Liu, Y. Hu, B.L. Melton, M.E. Matheny, H. Xu, L. Duan, L.R. Waitman,
+Identification of adverse drug-drug interactions through causal association rule
+discovery from spontaneous adverse event reports, Artif. Intell. Med. 76 (2017)
+7–15.
+[9] N.P. Tatonetti, G.H. Fernald, R.B. Altman, A novel signal detection algorithm for
+identifying hidden drug-drug interactions in adverse event reports, J. Am. Med.
+Inform. Assoc. 19 (1) (2012) 79–85.
+[10] Y. Noguchi, A. Ueno, M. Otsubo, H. Katsuno, I. Sugita, Y. Kanematsu, A. Yoshida,
+H. Esaki, T. Tachi, H. Teramachi, A new search method using association rule
+mining for drug-drug interaction based on spontaneous report system, Front.
+Pharmacol. 9 (2018) 197, https://doi.org/10.3389/fphar.2018.00197.
+[11] J. Pearl, Bayesian networks, 2011.
+[12] H. Yang, C.C. Yang, Harnessing social media for drug-drug interactions detection,
+in: 2013 IEEE International Conference on Healthcare Informatics, IEEE, 2013,
+pp. 22–29.
+[13] S.K. Sahu, A. Anand, Drug-drug interaction extraction from biomedical texts using
+long short-term memory network, J. Biomed. Informatics 86 (2018) 15–24.
+[14] H. Yang, C.C. Yang, Mining a weighted heterogeneous network extracted from
+healthcare-specific social media for identifying interactions between drugs, in:
+2015 IEEE International Conference on Data Mining Workshop (ICDMW), IEEE,
+2015, pp. 196–203.
+[15] Y. Lu, D. Shen, M. Pietsch, C. Nagar, Z. Fadli, H. Huang, Y.-C. Tu, F. Cheng, A novel
+algorithm for analyzing drug-drug interactions from medline literature, Sci. Rep. 5
+(2015) 17357.
+[16] I. Segura-Bedmar, P. Martinez, C. de Pablo-Sánchez, Using a shallow linguistic
+kernel for drug–drug interaction extraction, J. Biomed. Informatics 44 (5) (2011)
+789–804.
+[17] S. Vilar, R. Harpaz, E. Uriarte, L. Santana, R. Rabadan, C. Friedman, Drug-drug
+interaction through molecular structure similarity analysis, J. Am. Med. Inform.
+Assoc. 19 (6) (2012) 1066–1074.
+[18] D. Sridhar, S. Fakhraei, L. Getoor, A probabilistic approach for collective similaritybased drug–drug interaction prediction, Bioinformatics 32 (20) (2016) 3175–3182.
+[19] D.S. Dhami, G. Kunapuli, M. Das, D. Page, S. Natarajan, Drug-drug interaction
+discovery: kernel learning from heterogeneous similarities, Smart Health 9 (2018)
+88–100.
+[20] C. Yan, G. Duan, Y. Zhang, F.-X. Wu, Y. Pan, J. Wang, Idnddi: An integrated drug
+similarity network method for predicting drug-drug interactions, in: International
+Symposium on Bioinformatics Research and Applications, Springer, 2019,
+pp. 89–99.
+
+13
+
+
