@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ggthemes)
+library(ggridges)
 library(cowplot)
 
 data <- read_csv('data/review_data_cleaned.csv')
@@ -141,3 +142,48 @@ models_time <-
 temporal_plots <- plot_grid(papers_time, task_time, models_time, nrow=3, labels=c('A','B', 'C'), label_size=15)
 ggsave(filename='figures/temporal plot.jpeg', plot=temporal_plots, width=12, height=12)
 
+datasets_to_plot <- c('Other', 'FAERS', 'KAERS', 'EHR data', 'Twitter', 'VAERS')
+sample_size_data <- 
+  data %>%
+  filter(Dataset %in% datasets_to_plot) %>%
+  filter(`Sample Size Explicit` == "Yes") 
+
+sample_size_data$`Sample Size` <- as.numeric(sample_size_data$`Sample Size`)
+
+sample_size_data %>%
+  group_by(Dataset) %>%
+    summarize(
+      mean = mean(`Sample Size`),
+      median = median(`Sample Size`),
+      sd = sd(`Sample Size`),
+      iqr = IQR(`Sample Size`)
+    )
+
+sample_size_plot <-
+  sample_size_data %>%
+  ggplot(aes(y = Dataset, x = `Sample Size`)) + 
+  geom_density_ridges() +
+  scale_x_log10(breaks = c(1, 10, 100, 1000, 10000, 100000, 1e6, 10e6)) +
+  plot_theme +
+  labs(title='Sample Size by Dataset', 
+       x='Sample Size (log scale)',
+       y='Dataset') +
+  plot_theme +
+  theme(text = element_text(size = 15),
+        legend.position = "bottom")
+
+ggsave(filename='figures/sample_size_plot.jpeg', plot=sample_size_plot, width=12, height=12)
+  
+
+# Number of studies using traditional PV methods
+x = data %>% filter(`Primary Algorithm` == 'ROR' | `Primary Algorithm` == 'BCPNN' | `Primary Algorithm` == 'Empirical Bayes' | `Primary Algorithm` == 'Gamma-Poisson Shrinker')
+nrow(x) / nrow(data)
+
+# Method novelty 
+table(data$`Method Novelty`)/nrow(data)
+
+table(data$Training)/nrow(data)
+
+table(data$`External information incorporated?`)/nrow(data)
+
+table(data$`Data Available`)/nrow(data)
