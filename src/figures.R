@@ -150,14 +150,18 @@ sample_size_data <-
 
 sample_size_data$`Sample Size` <- as.numeric(sample_size_data$`Sample Size`)
 
-sample_size_data %>%
+sample_size_summary <-
+  sample_size_data %>%
   group_by(Dataset) %>%
     summarize(
+      n = n(),
       mean = mean(`Sample Size`),
       median = median(`Sample Size`),
       sd = sd(`Sample Size`),
       iqr = IQR(`Sample Size`)
     )
+
+write_csv(sample_size_summary, path='figures/sample_size.csv')
 
 sample_size_plot <-
   sample_size_data %>%
