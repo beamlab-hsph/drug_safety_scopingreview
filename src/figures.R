@@ -3,6 +3,8 @@ library(ggthemes)
 library(ggridges)
 library(cowplot)
 
+setwd('~/Repos/drug_safety_scopingreview/')
+
 data <- read_csv('data/review_data_cleaned.csv')
 titles <- read_csv('data/text_titles.csv') %>% select(Title, Authors, `Published Year`, `Published Month`, `Covidence #`)
 titles$`Covidence #` <- as.numeric(str_remove(titles$`Covidence #`, "#"))
@@ -20,11 +22,44 @@ data <- data %>%
 
 data <- data %>%
   mutate(`Primary Algorithm` = replace(`Primary Algorithm`, str_detect(`Primary Algorithm`, "Other"), "Other")) %>%
-  mutate(`Primary Algorithm` = replace(`Primary Algorithm`, str_detect(`Primary Algorithm`, "Confi"), "BCPNN"))
+  mutate(`Primary Algorithm` = replace(`Primary Algorithm`, str_detect(`Primary Algorithm`, "Confi"), "IC/BCPNN")) %>%
+  mutate(`Primary Algorithm` = replace(`Primary Algorithm`, str_detect(`Primary Algorithm`, "ROR"), "ROR"))
 
 data <- 
   data %>%
   mutate(`Task Type` = replace(`Task Type`, str_detect(`Task Type`, "Other"), "Other"))
+
+data$`Meta Method` <- data$`Primary Algorithm`
+disproportionality <- c("ROR", 
+                        'Gamma-Poisson shrinker', 
+                        'IC/BCPNN', 
+                        'Empirical Bayes')
+for(method in disproportionality){
+  data <- data %>% mutate(`Meta Method` = replace(`Meta Method`, str_detect(`Meta Method`, method), "Disproportionality"))
+}
+machine_learning <- c("Clustering", 
+        'Decision tree methods', 
+        'SVM', 
+        'Xgboost')
+for(method in machine_learning){
+  data <- data %>% mutate(`Meta Method` = replace(`Meta Method`, str_detect(`Meta Method`, method), "Machine Learning"))
+}
+deep_learning <- c("CNN", 
+                      'Deep learning (other)', 
+                      'LSTM / RNN', 
+                      'Transformer',
+                   'word2vec')
+for(method in deep_learning){
+  data <- data %>% mutate(`Meta Method` = replace(`Meta Method`, str_detect(`Meta Method`, method), "Deep Learning"))
+}
+regression <- c('Linear regression', 'Logistic regression')
+for(method in regression){
+  data <- data %>% mutate(`Meta Method` = replace(`Meta Method`, str_detect(`Meta Method`, method), "Linear/Logistic Regression"))
+}
+data$`Meta Method`[data$`Meta Method`=="Deep learning (other)"] <- "Deep Learning"
+data$`Meta Method`[data$`Meta Method`=="Logistic Regression"] <- "Linear/Logistic Regression"
+
+global_color <- '#919c4c'
 
 # Bar plot of dataset type
 dataset_summary<- 
@@ -32,7 +67,7 @@ dataset_summary<-
       group_by(Cleaned_Dataset) %>%
       summarize(Percentage=round(n()/nrow(data)*100)) %>%
       ggplot(aes(x=reorder(Cleaned_Dataset,(-Percentage)), y=Percentage)) +
-      geom_bar(stat='identity') + 
+      geom_bar(stat='identity',  fill=global_color,color=global_color) + 
       labs(title='Dataset used', 
             x='Dataset',
             y='Percentage of studies') +
@@ -51,10 +86,10 @@ algorithm_summary <-
   group_by(`Primary Algorithm`) %>%
   summarize(Percentage=round(n()/nrow(data)*100)) %>%
   ggplot(aes(x=reorder(`Primary Algorithm`,(-Percentage)), y=Percentage)) +
-  geom_bar(stat='identity') + 
+  geom_bar(stat='identity', fill=global_color,color=global_color) + 
   labs(title='Models used', 
        x='Model',
-       y='Percentage of studies') +
+       y='Percentage of studies (%)') +
   plot_theme +
   scale_y_continuous(labels=function(x) paste0(x,"%")) +
   theme(text = element_text(size = 15), 
@@ -66,14 +101,34 @@ algorithm_summary <-
 
 ggsave(filename='figures/algorithm_summary.jpeg', plot=algorithm_summary)
 
+meta_algorithm_summary <- 
+  data %>%
+  group_by(`Meta Method`) %>%
+  summarize(Percentage=round(n()/nrow(data)*100)) %>%
+  ggplot(aes(x=reorder(`Meta Method`,(-Percentage)), y=Percentage)) +
+  geom_bar(stat='identity', fill=global_color,color=global_color) + 
+  labs(title='Models used', 
+       x='Model',
+       y='Percentage of studies (%)') +
+  plot_theme +
+  scale_y_continuous(labels=function(x) paste0(x,"%")) +
+  theme(text = element_text(size = 15), 
+        axis.text.x = element_text(
+          angle = 45,
+          hjust = 1,
+          vjust = 0.9
+        ))
+
+ggsave(filename='figures/meta_algorithm_summary.jpeg', plot=meta_algorithm_summary)
+
 task <-
   data %>%
   group_by(`PV Task`) %>%
   summarize(Percentage=round(n()/nrow(data)*100)) %>%
   ggplot(aes(x=reorder(`PV Task`,(-Percentage)), y=Percentage)) +
-  geom_bar(stat='identity') + 
+  geom_bar(stat='identity', fill=global_color,color=global_color) + 
   labs(title='Task Summary', 
-       x='Model',
+       x='Task',
        y='Percentage of studies') +
   plot_theme +
   scale_y_continuous(labels=function(x) paste0(x,"%")) +
@@ -152,7 +207,7 @@ pipeline_plot <-
   group_by(`Primary Algorithm`) %>%
   summarize(Percentage= round(100*n()/length(which(data$`PV Task`=="Data ingestion")))) %>%
   ggplot(aes(x=reorder(`Primary Algorithm`,(-Percentage)), y=Percentage)) +
-  geom_bar(stat='identity') +
+  geom_bar(stat='identity', fill=global_color,color=global_color) +
   labs(title='Most popular models for data intake and processing', 
        x='Model',
        y='Percentage of studies') +
@@ -171,7 +226,7 @@ pipeline_pretraining <-
   group_by(Training) %>%
   summarize(Percentage= round(100*n()/length(which(data$`PV Task`=="Data ingestion")))) %>%
   ggplot(aes(x=reorder(Training,(-Percentage)), y=Percentage)) +
-  geom_bar(stat='identity') +
+  geom_bar(stat='identity', fill=global_color,color=global_color) +
   labs(title='Use of Transfer Learning in Data Intake Studies', 
        x='Used Pretraining?',
        y='Percentage of studies') +
@@ -179,8 +234,8 @@ pipeline_pretraining <-
   scale_y_continuous(labels=function(x) paste0(x,"%")) +
   theme(text = element_text(size = 15), 
         axis.text.x = element_text(
-          angle = 10,
-          hjust = 1,
+          angle = 0,
+          hjust = 0.5,
           vjust = 0.9
         ))
 
@@ -190,7 +245,7 @@ pipeline_novelty <-
   group_by(`Method Novelty`) %>%
   summarize(Percentage= round(100*n()/length(which(data$`PV Task`=="Data ingestion")))) %>%
   ggplot(aes(x=reorder(`Method Novelty`,(-Percentage)), y=Percentage)) +
-  geom_bar(stat='identity') +
+  geom_bar(stat='identity', fill=global_color,color=global_color) +
   labs(title='Methodological Novelty in Data Intake Studies', 
        x='Method Novelty',
        y='Percentage of studies') +
@@ -198,8 +253,8 @@ pipeline_novelty <-
   scale_y_continuous(labels=function(x) paste0(x,"%")) +
   theme(text = element_text(size = 15), 
         axis.text.x = element_text(
-          angle = 10,
-          hjust = 1,
+          angle = 0,
+          hjust = 0.5,
           vjust = 0.9
         ))
 
@@ -249,7 +304,8 @@ sample_size_plot <-
   sample_size_data %>%
   ggplot(aes(y = Dataset, x = `Sample Size`)) + 
   geom_density_ridges() +
-  scale_x_log10(breaks = c(1, 10, 100, 1000, 10000, 100000, 1e6, 10e6)) +
+  scale_x_log10(breaks = c(1, 10, 100, 1000, 10000, 100000, 1e6, 10e6,
+                           10e7, 10e8, 10e9, 10e10)) +
   plot_theme +
   labs(title='Sample Size by Dataset', 
        x='Sample Size (log scale)',

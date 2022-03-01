@@ -18,9 +18,11 @@ ggpropovertime <- function(eff_model,topic_model,topics=c(1,2),npts=100){
   print(p1)
 }
 
+text_title_path <- '~/Repos/drug_safety_scopingreview/src/lda/text_titles.csv'
+full_text_folder_path <- '~/Repos/drug_safety_scopingreview/src/lda/Full_Texts'
 
 ### loop to generate and clean corpus
-files <- file.path('D:/Dropbox/beam/Full_Texts',read_csv('D:/Dropbox/beam/text_titles.csv') %>% select('Text') %>% unlist())
+files <- file.path(full_text_folder_path,read_csv(text_title_path) %>% select('Text') %>% unlist())
 start_words <- c('^abstract|^background|^introduction|abstract$|background$|introduction$')
 end_words <- c('^references|^acknowledgements|references$|acknowledgements$')
 months <- str_to_lower(month.name)
@@ -75,6 +77,7 @@ for (f in files){
   j <- j+1
 }
 
+lda_dir_path <- '~/Repos/drug_s'
 
 ### creating dataframes
 df <- readRDS('D:/Dropbox/beam/beam_tm_df.rds') %>%
